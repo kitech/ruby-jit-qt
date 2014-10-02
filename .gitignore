@@ -1,0 +1,7 @@
+*~
+cmake_install.cmake
+*_automoc.cpp
+moc_*.cpp
+CMakeCache.txt
+CMakeFiles
+Makefile
