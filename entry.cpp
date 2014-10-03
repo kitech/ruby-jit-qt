@@ -199,6 +199,16 @@ static VALUE x_Qt_meta_class_dtor_jit(VALUE id)
     gvargs.push_back(llvm::PTOGV(ci));
     qDebug()<<"view conv back:"<<llvm::GVTOP(gvargs.at(0));
 
+    if (0) {
+        Clvm *vm = new Clvm();
+        std::vector<llvm::GenericValue> gvargs2;
+        llvm::GenericValue ia2;
+        ia.IntVal = llvm::APInt(32, 789);
+        gvargs2.push_back(ia);
+        gvargs2.push_back(llvm::PTOGV(ci));
+        vm->execute(code_src, gvargs2, "jit_main");
+    }
+
     // delete (QString*)ci;
     llvm::GenericValue gvret = vm_execute(code_src, gvargs);
 
@@ -251,23 +261,35 @@ VALUE x_Qt_meta_class_init_jit(int argc, VALUE *argv, VALUE self)
         "\nint main() { printf (\"hello IR JIT from re.\"); QString abc; abc.append(\"123\"); qDebug()<<abc; return 56; }"
         "\nint yamain() { QString abc; abc.append(\"123\"); qDebug()<<abc; return main(); }";
     QVector<llvm::GenericValue> envp;
+    std::vector<llvm::GenericValue> gvargs;
     // void *vret = vm_execute(QString(code), envp);
 
-    llvm::GenericValue gvret = vm_execute(code_src, envp);
-    void *ci = llvm::GVTOP(gvret);
-    Qom::inst()->jdobjs[rb_hash(self)] = ci;
-    qDebug()<<"newed ci:"<<ci;
+    if (0) {
+        Clvm *vm = new Clvm();
+        llvm::GenericValue gvret = vm->execute(code_src, gvargs, "jit_main");
+        void *ci = llvm::GVTOP(gvret);
+        Qom::inst()->jdobjs[rb_hash(self)] = ci;
+        qDebug()<<"newed ci:"<<ci;
+        // delete vm;
+    }
+
+    if (1) {
+        llvm::GenericValue gvret = vm_execute(code_src, envp);
+        void *ci = llvm::GVTOP(gvret);
+        Qom::inst()->jdobjs[rb_hash(self)] = ci;
+        qDebug()<<"newed ci:"<<ci;
+    }
 
     VALUE free_proc = rb_proc_new(FUNVAL x_Qt_meta_class_dtor_jit, 0);
     rb_define_finalizer(self, free_proc);
 
     if (0) {
-        QString *str = (QString*)llvm::GVTOP(gvret);
-        str->append("123456");
+        // QString *str = (QString*)llvm::GVTOP(gvret);
+        // str->append("123456");
     
-        QString str2(*str);
-        qDebug()<<code_src<<*str<<str->length();
-        delete str; str = NULL;
+        // QString str2(*str);
+        // qDebug()<<code_src<<*str<<str->length();
+        // delete str; str = NULL;
     }
 
     return self;

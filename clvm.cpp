@@ -16,6 +16,7 @@
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/ExecutionEngine/ObjectCache.h"
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
+#include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
@@ -83,257 +84,166 @@
 
 #include "clvm.h"
 
-
-// 参考：lli.cpp的实现
-static void run_module(llvm::Module *mod, llvm::GenericValue &gv, QVector<llvm::GenericValue> &args)
+static llvm::GenericValue 
+run_module_func(llvm::Module *mod, std::vector<llvm::GenericValue> &args, QString func_entry)
 {
-    // debug_module(mod);
-    qDebug()<<"1111111";
+    // 只能放在这，run action之后，exeucte function之前
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
     llvm::InitializeNativeTargetAsmParser();
+    // llvm::InitializeNativeTargetDisassembler();
 
+    // run module
+    llvm::EngineBuilder eb(mod);
+    eb.setUseMCJIT(true);
 
-    llvm::ExecutionEngine *EE = NULL;
-    qDebug()<<"222222222";
-    std::string Error;
-    llvm::EngineBuilder builder(mod);
-    qDebug()<<EE<<"aaa is sym search disabled:";
-    builder.setUseMCJIT(true);
-    // builder.setMArch("core2"); // 这种强制设置可能引起问题，使用三个InitailzeNativexxx函数初始化。
-
-    EE = builder.create();
-    qDebug()<<EE<<"is sym search disabled:"<<EE->isSymbolSearchingDisabled();
-
-    //* 这些行还是有用的，否则在用Qt相关类时崩溃（在普通的print无问题）
-    // 不过这些调用应用是每个函数都调用还是初始化调用一次呢。
+    llvm::ExecutionEngine *EE = eb.create();
     EE->finalizeObject();
     EE->runStaticConstructorsDestructors(false);
-    /*
-    for (llvm::Module::iterator I = mod->begin(), E = mod->end(); I != E; ++I) {
-        llvm::Function *Fn = &*I;
-        if (!Fn->isDeclaration())
-            EE->getPointerToFunction(Fn);
-    }
-    */
-    // */
-    int miret = -1;
-    llvm::GenericValue rgv;
-    std::vector<std::string> argv;
-    std::vector<llvm::GenericValue> gargv;
 
-    foreach (auto a, args) {
-        gargv.push_back(a);
-    }
-    if (gargv.size() > 0) {
-        qDebug()<<"view before funcall:"<<GVTOP(gargv.at(0))<<GVTOP(args.at(0));
-    }
-
-    // llvm::Function *vfun = mod->getFunction("_Z5amainv");
-    // EE->runFunctionAsMain(vfun, argv, 0);
-
-    // llvm::Function *vfun_main = mod->getFunction("main");
-    // if (vfun_main) miret = EE->runFunctionAsMain(vfun_main, argv, 0);
-    // qDebug()<<"miret:"<<miret;
-
-    /*
-    llvm::Function *vfun_yamain = mod->getFunction("_Z6yamainv");
-    qDebug()<<"yamain:"<<vfun_yamain;
-    EE->runFunctionAsMain(vfun_yamain, argv, 0);
-    */
-
-    llvm::Function *vfun_jit_main = mod->getFunction("_Z8jit_mainv");
-    qDebug()<<"jit_main:"<<vfun_jit_main;
-    if (vfun_jit_main) rgv = EE->runFunction(vfun_jit_main, gargv);
-    qDebug()<<"miret:"<<miret<<llvm::GVTOP(rgv);
-    gv = rgv;
-
-    if (vfun_jit_main == NULL) {
-
-        if (gargv.size() > 0) {
-            qDebug()<<"view before funcall222:"<<GVTOP(gargv.at(0))<<GVTOP(args.at(0));
+    llvm::Function *etyfn = NULL;
+    QString mangle_name;
+    llvm::ValueSymbolTable &vst = mod->getValueSymbolTable();
+    for (auto sit = vst.begin(); sit != vst.end(); sit++) {
+        auto k = sit->first();
+        auto v = sit->second;
+        if (QString(v->getName().data()).startsWith("__PRETTY_FUNCTION__")) {
+            continue;
         }
-
-        vfun_jit_main = mod->getFunction("_Z8jit_mainiPv");
-        qDebug()<<"jit_main:"<<vfun_jit_main;
-        if (vfun_jit_main) rgv = EE->runFunction(vfun_jit_main, gargv);
-        qDebug()<<"miret:"<<miret<<llvm::GVTOP(rgv);
-        gv = rgv;
+        // if (QString(v->getName().data()).indexOf("jit_main") >= 0) {
+        if (QString(v->getName().data()).indexOf(func_entry) >= 0) {
+            etyfn = mod->getFunction(v->getName());
+            mangle_name = QString(v->getName().data());
+            break;
+        }
+        // qDebug()<<""<<k.data()<<v->getName().data();
+        //  v->dump();
     }
+    qDebug()<<"our fun:"<<func_entry<<mangle_name<<etyfn;
 
-    //*
-    // Run static destructors.
+    // std::vector<llvm::GenericValue> eeargs;
+    llvm::GenericValue rgv = EE->runFunction(etyfn, args);
+
     EE->runStaticConstructorsDestructors(true);
-    // */
+    // cleanups
 
-    qDebug()<<"run done.";
+    qDebug()<<"run code done.";
+    return rgv;
 }
 
-static void debug_module(llvm::Module *mod)
+Clvm::Clvm() : QThread()
 {
-    qDebug()<<"identifier:"<<mod->getModuleIdentifier().c_str();
-    qDebug()<<"target triple:"<<mod->getTargetTriple().c_str();
-    qDebug()<<"inline asm:" << mod->getModuleInlineAsm().c_str();
-
-    llvm::GlobalValue * mgv = mod->getNamedValue("_ZL1s");
-    qDebug()<<"mgv:s:"<<mgv;
-    // mod->dump();
-    qDebug()<<"data layout str:"<<mod->getDataLayoutStr().c_str();
-
-    llvm::Function *vfun = mod->getFunction("main");
-    qDebug()<<"main func:"<<vfun;
+    init();
+    initCompiler();
 }
 
-std::string GetExecutablePath(const char *Argv0) {
-  // This just needs to be some symbol in the binary; C++ doesn't
-  // allow taking the address of ::main however.
-  void *MainAddr = (void*) (intptr_t) GetExecutablePath;
-  return llvm::sys::fs::getMainExecutable(Argv0, MainAddr);
+Clvm::~Clvm()
+{
 }
 
-static llvm::Module *compile_string(int argc, char **argv, const char *code,
-                                    llvm::GenericValue &gv, 
-                                    QVector<llvm::GenericValue> &args)
+bool Clvm::init()
+{
+    // 可能是与clvm_letacy.cpp中的冲突，报错：
+    // CommandLine Error: Option 'load' registered more than once!
+
+    // llvm::InitializeNativeTarget();
+    // llvm::InitializeNativeTargetAsmPrinter();
+    // llvm::InitializeNativeTargetAsmParser();
+    // llvm::InitializeNativeTargetDisassembler();
+
+    return true;
+}
+
+
+bool Clvm::initCompiler()
 {
 
-    llvm::Module *ccm = NULL;
-    clang::CompilerInvocation *civ;
-    clang::CompilerInstance cis;
-    bool bret;
+    return true;
+}
 
-    std::vector<const char *> xargv;
-    // xargv.push_back("myjitclangpp");
-    // xargv.push_back("-x");
-    // xargv.push_back("c++");
-    // xargv.push_back("-S");
-    // xargv.push_back("-emit-llvm");
-    // xargv.push_back("-arch");
-    // xargv.push_back("native");
-    // xargv.push_back("-t123");
-    // xargv.push_back("-t456");
-    xargv.push_back("forlli.cpp");
-    // xargv.push_back("-t789");
-    // xargv.push_back("-t012");
+bool Clvm::initExecutionEngine()
+{
+    return true;
+}
 
-    char file_entry[100] = {0};
-    const char *targv[] = {
-        "myjitclangpp", file_entry,
-        "--",
-        "-x", "c++",
-        "-s", "-emit-llvm",
-    };
-    int targc = 7;
-    strcpy((char *)file_entry, "forlli.cpp");
+llvm::GenericValue
+Clvm::execute(QString &code, std::vector<llvm::GenericValue> &args, QString func_entry)
+{
+    llvm::GenericValue rgv;
+
+    clang::CompilerInstance cis;//  = new clang::CompilerInstance();
+    // clang::CompilerInvocation *civ = new clang::CompilerInvocation();
 
     cis.createDiagnostics();
     cis.createFileManager();
     cis.createSourceManager(cis.getFileManager());
-    // cis.createPreprocessor(clang::TranslationUnitKind TUKind);
-    // cis.createModuleManager();
     cis.createFrontendTimer();
     // cis.createASTContext();
+    // cis.createModuleManager();
 
-    void *MainAddr = (void*) (intptr_t) GetExecutablePath;
-    std::string Path = GetExecutablePath(argv[0]);
+    std::string path = "./myjitqt";
+    // void *MainAddr = (void*) (intptr_t) GetExecutablePath1;
+    // std::string path = GetExecutablePath1("./myjitqt");
+    clang::driver::Driver drv(path, llvm::sys::getProcessTriple(),
+                              cis.getDiagnostics());
+    drv.setTitle("myjitclangpp");
+    drv.setCheckInputsExist(false);
 
-    clang::driver::Driver theDriver(Path, llvm::sys::getProcessTriple(), cis.getDiagnostics());
-    theDriver.setTitle("myjitclangpp");
-    theDriver.setCheckInputsExist(false);
+    // this->mcis = cis;
+    // this->mciv = civ;
+    // this->mdrv = drv;
 
-    llvm::SmallVector<const char*, 16> Args(argv, argv+argc);
-    Args.push_back("-S");
-    clang::driver::Compilation *C = theDriver.BuildCompilation(Args);
+    static char *argv[] = {
+        (char*)"myjitqtrunner", (char*)"flycode.cxx",
+        (char*)"-fPIC", (char*)"-x", (char*)"c++", 
+        (char*)"-I/usr/include/qt", (char*)"-I/usr/include/qt/QtCore",
+        (char*)"-I/usr/lib/clang/3.5.0/include",
+    };
+    static int argc = 8;
+    char **targv = argv;
+
+    llvm::SmallVector<const char*, 16> drv_args(targv, targv + argc);
+    drv_args.push_back("-S");
+
+    clang::driver::Compilation *C = drv.BuildCompilation(drv_args);
 
     const clang::driver::JobList &Jobs = C->getJobs();
     const clang::driver::Command *Cmd = llvm::cast<clang::driver::Command>(*Jobs.begin());
     const clang::driver::ArgStringList &CCArgs = Cmd->getArguments();
 
-    civ = new clang::CompilerInvocation();
-    bret = clang::CompilerInvocation::CreateFromArgs(*civ, const_cast<const char**>(CCArgs.data()),
-                                                     const_cast<const char**>(CCArgs.data()) + CCArgs.size(),
-                                                     cis.getDiagnostics());
-    Jobs.Print(llvm::errs(), "\n", true);
+    clang::CompilerInvocation *civ = new clang::CompilerInvocation();
+    bool bret = clang::CompilerInvocation::CreateFromArgs(*civ,
+                                                          const_cast<const char**>(CCArgs.data()),
+                                                          const_cast<const char**>(CCArgs.data()) + CCArgs.size(),
+                                                          cis.getDiagnostics());
 
-    // qDebug()<<bret<<civ->getModuleHash().c_str();
     cis.setInvocation(civ);
 
-    clang::CodeGenOptions &cgopt = cis.getCodeGenOpts();
-    clang::FrontendOptions &ftopt = cis.getFrontendOpts();
-    ftopt.ProgramAction = clang::frontend::EmitLLVMOnly;
-    clang::TargetOptions &tgopt = cis.getTargetOpts();
-    // tgopt.Triple = "i386-pc-linux-gnu";
-    qDebug()<<"triple:"<<tgopt.Triple.c_str()
-            <<"cpu:"<<tgopt.CPU.c_str()
-            <<"abi:"<<tgopt.ABI.c_str();
-
-    llvm::MemoryBuffer *mbuf = llvm::MemoryBuffer::getMemBuffer(code);
-    clang::PreprocessorOptions &ppopt = cis.getPreprocessorOpts();
-    //    ppopt.addRemappedFile("flycode.cxx", code);
-    ppopt.addRemappedFile("flycode.cxx", mbuf);
-
-    
+    const char *pcode = strdup(code.toLatin1().data());
+    llvm::MemoryBuffer *mbuf = llvm::MemoryBuffer::getMemBuffer(pcode);
+    clang::PreprocessorOptions &ppOpt = cis.getPreprocessorOpts();
+    ppOpt.addRemappedFile("flycode.cxx", mbuf);
 
     clang::EmitLLVMOnlyAction llvm_only_action;
     bret = cis.ExecuteAction(llvm_only_action);
-    qDebug()<<bret;
     llvm::Module *mod = llvm_only_action.takeModule();
-    qDebug()<<"comipiled mod:"<<mod;
-    // mod->dump();
+    qDebug()<<"compile code done."<<mod;
+
+
+    rgv = run_module_func(mod, args, func_entry);
+
+    return rgv;
+}
+
+void Clvm::run()
+{
+
+}
+
+void Clvm::deleteAsync(QString klass_name, void *obj)
+{
     
-    run_module(mod, gv, args);
-    qDebug()<<"compile code done";
-    return ccm;
 }
 
-const char *dcode = NULL;
-/*
-  目标，即时编译一段文本代码并执行，结果要能传递到当前进程中。
-  执行：./jitrun flycode.cxx  -I/usr/lib/clang/3.5.0/include
- */
-int intern_main(int argc, char **argv, llvm::GenericValue &gv, QVector<llvm::GenericValue> &args)
-{
-    const char *code = "#include <stdio.h>\n"
-        "\nint main() { printf (\"hello IR JIT.\"); return 56; }"
-        "\nint yamain() { return main(); }";
-    code = dcode;
 
-    QFile fp("./demos/forlli.ll");
-    fp.open(QIODevice::ReadOnly);
-    QByteArray asm_data = fp.readAll();
-    fp.close();
 
-    const char *asm_str = strdup(asm_data.data());
-    qDebug()<<strlen(asm_str);
-
-    llvm::LLVMContext &gctx = llvm::getGlobalContext();
-    llvm::SMDiagnostic smdiag;
-    llvm::Module *pmod = NULL;
-    llvm::Module *rmod = NULL;
-
-    rmod = llvm::ParseAssemblyString(asm_str, pmod, smdiag, gctx);
-    qDebug()<<rmod<<pmod;
-    debug_module(rmod);
-
-    // run_module(rmod);
-
-    llvm::Module *ccm = compile_string(argc, argv, code, gv, args);
-
-    return 0;
-}
-
-llvm::GenericValue vm_execute(QString code, QVector<llvm::GenericValue> &envp)
-{
-    char *argv[] = {
-        (char*)"myjitqtrunner", (char*)"flycode.cxx",
-        (char*)"-fPIC", (char*)"-x", (char*)"c++", 
-        (char*)"-I/usr/include/qt", (char*)"-I/usr/include/qt/QtCore",
-    };
-    int argc = 7;
-
-    dcode = strdup(code.toStdString().c_str());
-
-    llvm::GenericValue egv;
-    intern_main(argc, argv, egv, envp);
-
-    return egv;
-}

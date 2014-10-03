@@ -7,6 +7,11 @@ set(CMAKE_VERBOSE_MAKEFILE on)
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_CXX_FLAGS "-g -O2 -std=c++11 -std=c++14")
+set(CMAKE_SHARED_LINKER_FLAGS  "-Wl,--allow-multiple-definition")
+
+set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake")
+include(cotire)
+set(COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES 1)
 
 set(CMAKE_INCLUDE_CURRENT_DIR on)
 set(CMAKE_AUTOMOC on)
@@ -32,6 +37,7 @@ set(handby_lib_SRCS
   qom.cpp
   entry.cpp
   clvm.cpp
+  clvm_letacy.cpp
   debugoutput.cpp
 )
 
@@ -67,6 +73,9 @@ set(CLANGLIBS  -lclang -lLLVM-3.5
 add_library(handby SHARED ${handby_lib_SRCS})
 target_link_libraries(handby ruby  ${CLANGLIBS})
 qt5_use_modules(handby Core Gui Widgets Network WebSockets)
+#set_target_properties(handby PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "hdrsrc.h")
+#set_target_properties(handby PROPERTIES COTIRE_UNITY_LINK_LIBRARIES_INIT "COPY")
+#cotire(handby)
 
 ### need after make, thus is only backup
 #exec_program(cp ARGS "-va libhandby.so  handby.so.bak" OUTPUT_VARIABLE RENAME_OUTPUT RETURN_VALUE RENAME_RET)

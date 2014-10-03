@@ -2,7 +2,7 @@
 #define ENTRY_H
 
 
-#include <ruby.h>
+#include <ruby.hpp>
 
 VALUE x_Qt_meta_class_init_jit(int argc, VALUE *argv, VALUE self);
 VALUE x_Qt_meta_class_init(int argc, VALUE *argv, VALUE self);
