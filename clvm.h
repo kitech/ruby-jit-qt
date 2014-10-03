@@ -1,14 +1,15 @@
 #ifndef CLVM_H
 #define CLVM_H
 
+#include <QThread>
 #include <llvm/ExecutionEngine/GenericValue.h>
 
-#include <QtCore>
 
 namespace llvm {
     struct GenericValue;
     class ExecutionEngine;
     class EngineBuilder;
+    class Module;
 };
 
 namespace clang {
@@ -19,8 +20,6 @@ namespace clang {
         class Driver;
     };
 };
-
-llvm::GenericValue vm_execute(QString code, QVector<llvm::GenericValue> &envp);
 
 class Clvm : public QThread
 {
@@ -40,6 +39,8 @@ private:
     bool init();
     bool initCompiler();
     bool initExecutionEngine();
+    llvm::GenericValue run_module_func(llvm::Module *mod, std::vector<llvm::GenericValue> & args,
+                               QString func_entry);
 
 public:
     llvm::GenericValue mretgv;

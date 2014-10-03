@@ -20,6 +20,7 @@
 #include "utils.h"
 #include "entry.h"
 
+#include "clvm_letacy.h"
 #include "clvm.h"
 
 
@@ -192,25 +193,28 @@ static VALUE x_Qt_meta_class_dtor_jit(VALUE id)
                                "qDebug()<<\"test int:\"<<a;"
                                "qDebug()<<\"in jit:\"<<ci;\n"
                                "delete (%1*)ci;}").arg(klass_name);
-    QVector<llvm::GenericValue> gvargs;
-    llvm::GenericValue ia;
-    ia.IntVal = llvm::APInt(32, 567);
-    gvargs.push_back(ia);
-    gvargs.push_back(llvm::PTOGV(ci));
-    qDebug()<<"view conv back:"<<llvm::GVTOP(gvargs.at(0));
 
     if (0) {
+        QVector<llvm::GenericValue> gvargs;
+        llvm::GenericValue ia;
+        ia.IntVal = llvm::APInt(32, 567);
+        gvargs.push_back(ia);
+        gvargs.push_back(llvm::PTOGV(ci));
+        qDebug()<<"view conv back:"<<llvm::GVTOP(gvargs.at(0));
+
+        // delete (QString*)ci;
+        llvm::GenericValue gvret = vm_execute(code_src, gvargs);
+    }
+
+    if (1) {
         Clvm *vm = new Clvm();
         std::vector<llvm::GenericValue> gvargs2;
         llvm::GenericValue ia2;
-        ia.IntVal = llvm::APInt(32, 789);
-        gvargs2.push_back(ia);
+        ia2.IntVal = llvm::APInt(32, 789);
+        gvargs2.push_back(ia2);
         gvargs2.push_back(llvm::PTOGV(ci));
         vm->execute(code_src, gvargs2, "jit_main");
     }
-
-    // delete (QString*)ci;
-    llvm::GenericValue gvret = vm_execute(code_src, gvargs);
 
     return Qnil;
 }
@@ -264,7 +268,7 @@ VALUE x_Qt_meta_class_init_jit(int argc, VALUE *argv, VALUE self)
     std::vector<llvm::GenericValue> gvargs;
     // void *vret = vm_execute(QString(code), envp);
 
-    if (0) {
+    if (1) {
         Clvm *vm = new Clvm();
         llvm::GenericValue gvret = vm->execute(code_src, gvargs, "jit_main");
         void *ci = llvm::GVTOP(gvret);
@@ -273,7 +277,7 @@ VALUE x_Qt_meta_class_init_jit(int argc, VALUE *argv, VALUE self)
         // delete vm;
     }
 
-    if (1) {
+    if (0) {
         llvm::GenericValue gvret = vm_execute(code_src, envp);
         void *ci = llvm::GVTOP(gvret);
         Qom::inst()->jdobjs[rb_hash(self)] = ci;

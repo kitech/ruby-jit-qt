@@ -84,8 +84,113 @@
 
 #include "clvm.h"
 
-static llvm::GenericValue 
-run_module_func(llvm::Module *mod, std::vector<llvm::GenericValue> &args, QString func_entry)
+// FIXME: MCTargetOptionsCommandFlags.h中几个函数的multiple definition问题
+#include "clvm_letacy.cpp"
+
+
+Clvm::Clvm() : QThread()
+{
+    init();
+    initCompiler();
+}
+
+Clvm::~Clvm()
+{
+}
+
+bool Clvm::init()
+{
+    // 是由于定义了链接参数：-Wl,--allow-multiple-definition引起的上面这个错误。
+    // CommandLine Error: Option 'load' registered more than once!
+
+    llvm::InitializeNativeTarget();
+    llvm::InitializeNativeTargetAsmPrinter();
+    llvm::InitializeNativeTargetAsmParser();
+    llvm::InitializeNativeTargetDisassembler();
+
+    return true;
+}
+
+
+bool Clvm::initCompiler()
+{
+    clang::CompilerInstance *cis  = new clang::CompilerInstance();
+    clang::CompilerInvocation *civ = new clang::CompilerInvocation();
+
+    cis->createDiagnostics();
+    cis->createFileManager();
+    cis->createSourceManager(cis->getFileManager());
+    cis->createFrontendTimer();
+    // cis.createASTContext();
+    // cis.createModuleManager();
+
+    std::string path = "./myjitqt";
+    clang::driver::Driver *drv = new clang::driver::Driver(path, llvm::sys::getProcessTriple(),
+                                                          cis->getDiagnostics());
+    drv->setTitle("myjitclangpp");
+    drv->setCheckInputsExist(false);
+
+    this->mcis = cis;
+    this->mciv = civ;
+    this->mdrv = drv;
+
+    static char *argv[] = {
+        (char*)"myjitqtrunner", (char*)"flycode.cxx",
+        (char*)"-fPIC", (char*)"-x", (char*)"c++", 
+        (char*)"-I/usr/include/qt", (char*)"-I/usr/include/qt/QtCore",
+        (char*)"-I/usr/lib/clang/3.5.0/include",
+    };
+    static int argc = 8;
+    char **targv = argv;
+
+    llvm::SmallVector<const char*, 16> drv_args(targv, targv + argc);
+    drv_args.push_back("-S");
+
+    clang::driver::Compilation *C = drv->BuildCompilation(drv_args);
+
+    const clang::driver::JobList &Jobs = C->getJobs();
+    const clang::driver::Command *Cmd = llvm::cast<clang::driver::Command>(*Jobs.begin());
+    const clang::driver::ArgStringList &CCArgs = Cmd->getArguments();
+
+    // clang::CompilerInvocation *civ = new clang::CompilerInvocation();
+    bool bret = clang::CompilerInvocation::CreateFromArgs(*civ,
+                                                          const_cast<const char**>(CCArgs.data()),
+                                                          const_cast<const char**>(CCArgs.data()) + CCArgs.size(),
+                                                          cis->getDiagnostics());
+
+    cis->setInvocation(civ);
+
+    return true;
+}
+
+bool Clvm::initExecutionEngine()
+{
+    return true;
+}
+
+llvm::GenericValue
+Clvm::execute(QString &code, std::vector<llvm::GenericValue> &args, QString func_entry)
+{
+    llvm::GenericValue rgv;
+    bool bret;
+
+    const char *pcode = strdup(code.toLatin1().data());
+    llvm::MemoryBuffer *mbuf = llvm::MemoryBuffer::getMemBuffer(pcode);
+    clang::PreprocessorOptions &ppOpt = this->mcis->getPreprocessorOpts();
+    ppOpt.addRemappedFile("flycode.cxx", mbuf);
+
+    clang::EmitLLVMOnlyAction llvm_only_action;
+    bret = mcis->ExecuteAction(llvm_only_action);
+    llvm::Module *mod = llvm_only_action.takeModule();
+    qDebug()<<"compile code done."<<mod;
+
+    rgv = run_module_func(mod, args, func_entry);
+
+    return rgv;
+}
+
+llvm::GenericValue 
+Clvm::run_module_func(llvm::Module *mod, std::vector<llvm::GenericValue> &args, QString func_entry)
 {
     // 只能放在这，run action之后，exeucte function之前
     llvm::InitializeNativeTarget();
@@ -128,110 +233,6 @@ run_module_func(llvm::Module *mod, std::vector<llvm::GenericValue> &args, QStrin
     // cleanups
 
     qDebug()<<"run code done.";
-    return rgv;
-}
-
-Clvm::Clvm() : QThread()
-{
-    init();
-    initCompiler();
-}
-
-Clvm::~Clvm()
-{
-}
-
-bool Clvm::init()
-{
-    // 可能是与clvm_letacy.cpp中的冲突，报错：
-    // CommandLine Error: Option 'load' registered more than once!
-
-    // llvm::InitializeNativeTarget();
-    // llvm::InitializeNativeTargetAsmPrinter();
-    // llvm::InitializeNativeTargetAsmParser();
-    // llvm::InitializeNativeTargetDisassembler();
-
-    return true;
-}
-
-
-bool Clvm::initCompiler()
-{
-
-    return true;
-}
-
-bool Clvm::initExecutionEngine()
-{
-    return true;
-}
-
-llvm::GenericValue
-Clvm::execute(QString &code, std::vector<llvm::GenericValue> &args, QString func_entry)
-{
-    llvm::GenericValue rgv;
-
-    clang::CompilerInstance cis;//  = new clang::CompilerInstance();
-    // clang::CompilerInvocation *civ = new clang::CompilerInvocation();
-
-    cis.createDiagnostics();
-    cis.createFileManager();
-    cis.createSourceManager(cis.getFileManager());
-    cis.createFrontendTimer();
-    // cis.createASTContext();
-    // cis.createModuleManager();
-
-    std::string path = "./myjitqt";
-    // void *MainAddr = (void*) (intptr_t) GetExecutablePath1;
-    // std::string path = GetExecutablePath1("./myjitqt");
-    clang::driver::Driver drv(path, llvm::sys::getProcessTriple(),
-                              cis.getDiagnostics());
-    drv.setTitle("myjitclangpp");
-    drv.setCheckInputsExist(false);
-
-    // this->mcis = cis;
-    // this->mciv = civ;
-    // this->mdrv = drv;
-
-    static char *argv[] = {
-        (char*)"myjitqtrunner", (char*)"flycode.cxx",
-        (char*)"-fPIC", (char*)"-x", (char*)"c++", 
-        (char*)"-I/usr/include/qt", (char*)"-I/usr/include/qt/QtCore",
-        (char*)"-I/usr/lib/clang/3.5.0/include",
-    };
-    static int argc = 8;
-    char **targv = argv;
-
-    llvm::SmallVector<const char*, 16> drv_args(targv, targv + argc);
-    drv_args.push_back("-S");
-
-    clang::driver::Compilation *C = drv.BuildCompilation(drv_args);
-
-    const clang::driver::JobList &Jobs = C->getJobs();
-    const clang::driver::Command *Cmd = llvm::cast<clang::driver::Command>(*Jobs.begin());
-    const clang::driver::ArgStringList &CCArgs = Cmd->getArguments();
-
-    clang::CompilerInvocation *civ = new clang::CompilerInvocation();
-    bool bret = clang::CompilerInvocation::CreateFromArgs(*civ,
-                                                          const_cast<const char**>(CCArgs.data()),
-                                                          const_cast<const char**>(CCArgs.data()) + CCArgs.size(),
-                                                          cis.getDiagnostics());
-
-    cis.setInvocation(civ);
-
-    const char *pcode = strdup(code.toLatin1().data());
-    llvm::MemoryBuffer *mbuf = llvm::MemoryBuffer::getMemBuffer(pcode);
-    clang::PreprocessorOptions &ppOpt = cis.getPreprocessorOpts();
-    ppOpt.addRemappedFile("flycode.cxx", mbuf);
-
-    clang::EmitLLVMOnlyAction llvm_only_action;
-    bret = cis.ExecuteAction(llvm_only_action);
-    llvm::Module *mod = llvm_only_action.takeModule();
-    qDebug()<<"compile code done."<<mod;
-
-
-    rgv = run_module_func(mod, args, func_entry);
-
     return rgv;
 }
 

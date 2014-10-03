@@ -82,7 +82,7 @@
 #include "llvm/LTO/LTOModule.h"
 #include "llvm/Target/TargetOptions.h"
 
-#include "clvm.h"
+#include "clvm_letacy.h"
 
 
 // 参考：lli.cpp的实现
@@ -167,6 +167,7 @@ static void run_module(llvm::Module *mod, llvm::GenericValue &gv,
 
     // std::vector<llvm::GenericValue> eeargs;
     rgv = EE->runFunction(etyfn, gargv);
+    gv = rgv;
 
     if (0) {
         llvm::Function *vfun_jit_main = mod->getFunction("_Z8jit_mainv");
@@ -359,9 +360,9 @@ llvm::GenericValue vm_execute(QString code, QVector<llvm::GenericValue> &envp)
 
     dcode = strdup(code.toStdString().c_str());
 
-    llvm::GenericValue egv;
-    intern_main(argc, argv, egv, envp);
+    llvm::GenericValue ergv;
+    intern_main(argc, argv, ergv, envp);
 
-    return egv;
+    return ergv;
 }
 

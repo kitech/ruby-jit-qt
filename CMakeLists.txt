@@ -7,7 +7,9 @@ set(CMAKE_VERBOSE_MAKEFILE on)
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_CXX_FLAGS "-g -O2 -std=c++11 -std=c++14")
-set(CMAKE_SHARED_LINKER_FLAGS  "-Wl,--allow-multiple-definition")
+#####这个设置虽然在有重复定义的情况下编译成功了，但会导致llvm的一个错误。
+####CommandLine Error: Option 'load' registered more than once!
+# set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--allow-multiple-definition")
 
 set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake")
 include(cotire)
@@ -37,7 +39,7 @@ set(handby_lib_SRCS
   qom.cpp
   entry.cpp
   clvm.cpp
-  clvm_letacy.cpp
+#  clvm_letacy.cpp
   debugoutput.cpp
 )
 
