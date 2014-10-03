@@ -175,6 +175,7 @@ VALUE x_Qt_meta_class_const_missing(int argc, VALUE *argv, VALUE obj)
     return Qnil;
 }
 
+static Clvm * gclvm = NULL;
 static VALUE x_Qt_meta_class_dtor_jit(VALUE id)
 {
     VALUE os = rb_const_get(rb_cModule, rb_intern("ObjectSpace"));
@@ -207,13 +208,14 @@ static VALUE x_Qt_meta_class_dtor_jit(VALUE id)
     }
 
     if (1) {
-        Clvm *vm = new Clvm();
+        // Clvm *vm = new Clvm();
+        Clvm *vm = gclvm;
         std::vector<llvm::GenericValue> gvargs2;
         llvm::GenericValue ia2;
         ia2.IntVal = llvm::APInt(32, 789);
         gvargs2.push_back(ia2);
         gvargs2.push_back(llvm::PTOGV(ci));
-        vm->execute(code_src, gvargs2, "jit_main");
+        // vm->execute(code_src, gvargs2, "jit_main");
     }
 
     return Qnil;
@@ -275,6 +277,7 @@ VALUE x_Qt_meta_class_init_jit(int argc, VALUE *argv, VALUE self)
         Qom::inst()->jdobjs[rb_hash(self)] = ci;
         qDebug()<<"newed ci:"<<ci;
         // delete vm;
+        gclvm = vm;
     }
 
     if (0) {
@@ -307,6 +310,48 @@ VALUE x_Qt_meta_class_init(int argc, VALUE *argv, VALUE self)
     
 
     return self;
+    return Qnil;
+}
+
+/*
+  stack structure:
+  [0] => SYM function name
+  [1] => arg0
+  [2] => arg1
+  [3] => arg2
+  ...
+ */
+VALUE x_Qt_meta_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
+{
+    void *ci = Qom::inst()->jdobjs[rb_hash(self)];
+    qDebug()<<ci;
+    assert(ci != 0);
+    QString klass_name = QString(rb_class2name(RBASIC_CLASS((self)))); // "QString";
+    klass_name = klass_name.split("::").at(1);
+    QString method_name = QString(rb_id2name(SYM2ID(argv[0])));
+    qDebug()<<"calling:"<<klass_name<<method_name<<argc<<(argc > 1);
+    assert(argc >= 1);
+
+    QString code_src = u8R"code(
+#include <QtCore>
+void jit_main(int a, %1 *ci) {
+   // %1 *jci = (%1*)ci;
+   ci->%2();
+}
+)code";
+    code_src = code_src.arg(klass_name).arg(method_name);
+    qDebug()<<code_src;
+
+    
+    std::vector<llvm::GenericValue> args;
+    llvm::GenericValue ia;
+    ia.IntVal = llvm::APInt(32, 567);
+    args.push_back(ia);
+    args.push_back(llvm::PTOGV(ci));
+    Clvm *vm = gclvm;
+    llvm::GenericValue rgv = vm->execute(code_src, args, "jit_main");
+    qDebug()<<rgv.IntVal.getZExtValue();
+
     return Qnil;
 }
 
@@ -505,7 +550,7 @@ extern "C" {
         // 
         cQString = rb_define_class_under(cModuleQt, "QString", rb_cObject);
         rb_define_method(cQString, "initialize", (VALUE (*) (...)) x_Qt_meta_class_init_jit, -1);
-        rb_define_method(cQString, "method_missing", FUNVAL x_Qt_meta_class_method_missing, -1);
+        rb_define_method(cQString, "method_missing", FUNVAL x_Qt_meta_class_method_missing_jit, -1);
 
     }
 

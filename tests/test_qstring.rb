@@ -8,6 +8,8 @@ a = Qt5::QString.new
 
 puts "==========";
 
+puts a.length()
+
 # s = Qt5::QString.new
 
 # puts s

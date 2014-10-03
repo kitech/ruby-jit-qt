@@ -90,6 +90,14 @@
 
 Clvm::Clvm() : QThread()
 {
+    static char *argv[] = {
+        (char*)"prettystack"
+    };
+    static int argc = 1;
+
+    sys::PrintStackTraceOnErrorSignal();
+    llvm::PrettyStackTraceProgram X(argc, argv);
+
     init();
     initCompiler();
 }
@@ -184,7 +192,10 @@ Clvm::execute(QString &code, std::vector<llvm::GenericValue> &args, QString func
     llvm::Module *mod = llvm_only_action.takeModule();
     qDebug()<<"compile code done."<<mod;
 
-    rgv = run_module_func(mod, args, func_entry);
+    if (mod == NULL) {
+    } else {
+        rgv = run_module_func(mod, args, func_entry);
+    }
 
     return rgv;
 }
