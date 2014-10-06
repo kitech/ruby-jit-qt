@@ -40,6 +40,7 @@ set(handby_lib_SRCS
   entry.cpp
   clvm.cpp
 #  clvm_letacy.cpp
+  desobj.cpp
   debugoutput.cpp
 )
 

@@ -258,8 +258,10 @@ VALUE x_Qt_meta_class_init_jit(int argc, VALUE *argv, VALUE self)
 
     QString code_src = QString("#include <stdio.h>\n"
                                "#include <QtCore>\n"
+                               "inline void abcdefg() {} \n"
+                               "void hehe1233333() {}\n"
                                "%1 * jit_main() {\n"
-                               "%1* ci = new %1(); qDebug()<<\"in jit:\"<<ci; return ci; }")
+                               "%1* ci = new %1(); qDebug()<<\"in jit:\"<<ci<<ci->length(); return ci; }")
         .arg(klass_name);
     
     const char *code = "#include <stdio.h>\n"
@@ -312,7 +314,7 @@ VALUE x_Qt_meta_class_init(int argc, VALUE *argv, VALUE self)
     return self;
     return Qnil;
 }
-
+    #include <cxxabi.h>
 /*
   stack structure:
   [0] => SYM function name
@@ -341,7 +343,21 @@ void jit_main(int a, %1 *ci) {
 )code";
     code_src = code_src.arg(klass_name).arg(method_name);
     qDebug()<<code_src;
+    
 
+    // test
+    // __cxa_demangle(const char* __mangled_name, char* __output_buffer,
+    // 		 size_t* __length, int* __status);
+
+    const char *mangled_name = "_ZN7QString6appendE5QChar";
+    char demangled_name[100] = {0};
+    size_t dm_len = 0;
+    int dm_status = 0;
+
+    qDebug()<<"brfore...";
+    __cxxabiv1::__cxa_demangle(mangled_name, demangled_name, &dm_len, &dm_status);
+    // qDebug()<<dm_len<<dm_status;
+    qDebug()<<"end...";
     
     std::vector<llvm::GenericValue> args;
     llvm::GenericValue ia;
@@ -534,6 +550,7 @@ static VALUE x_Qt_Method_missing(int argc, VALUE* argv, VALUE self)
     return 0;
 }
 
+#include "desobj.h"
 
 extern "C" {
     VALUE cQString;
@@ -542,6 +559,9 @@ extern "C" {
     void Init_handby()
     {
         qInstallMessageHandler(myMessageOutput);
+
+        // test_desobj();
+        // exit(-1);
 
         cModuleQt = rb_define_module("Qt5");
         rb_define_module_function(cModuleQt, "const_missing", FUNVAL x_Qt_Constant_missing, -1);

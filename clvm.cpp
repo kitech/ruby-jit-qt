@@ -214,6 +214,20 @@ Clvm::run_module_func(llvm::Module *mod, std::vector<llvm::GenericValue> &args, 
     eb.setUseMCJIT(true);
 
     llvm::ExecutionEngine *EE = eb.create();
+
+    //*
+    qDebug()<<"before load obj...";
+    llvm::ErrorOr<llvm::object::ObjectFile *> obj = 
+        llvm::object::ObjectFile::createObjectFile("/usr/lib/libQt5Sql.so");
+    if (!obj) {
+        qDebug()<<"create obj file error.";
+    } else {
+        // crash, 是不是因为当前已经是在.so中了呢？
+        // EE->addObjectFile(std::unique_ptr<llvm::object::ObjectFile>(obj.get()));
+    }
+    // */
+
+
     EE->finalizeObject();
     EE->runStaticConstructorsDestructors(false);
 
@@ -230,9 +244,9 @@ Clvm::run_module_func(llvm::Module *mod, std::vector<llvm::GenericValue> &args, 
         if (QString(v->getName().data()).indexOf(func_entry) >= 0) {
             etyfn = mod->getFunction(v->getName());
             mangle_name = QString(v->getName().data());
-            break;
+            // break;
         }
-        // qDebug()<<""<<k.data()<<v->getName().data();
+        qDebug()<<""<<k.data()<<v->getName().data();
         //  v->dump();
     }
     qDebug()<<"our fun:"<<func_entry<<mangle_name<<etyfn;
