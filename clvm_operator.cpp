@@ -227,17 +227,18 @@ QString resolve_mangle_name(QString klass, QString method, QVector<QVariant> arg
 QString resolve_return_type(QString klass, QString method, QVector<QVariant> args, QString mangle_name)
 {
     QHash<QString, QString> &protos = __rq_protos;
-    qDebug()<<"protos count:"<<protos.count();
+    qDebug()<<"protos count:"<<protos.count()<<mangle_name;
 
     auto demangle = [](QString mname) -> QString {
         size_t dmlen = 128*2;
         char *dmname = (char*)calloc(1, dmlen);
         int dmstatus = -1;
         __cxxabiv1::__cxa_demangle(mname.toLatin1().data(), dmname, &dmlen, &dmstatus);
-        qDebug()<<dmlen<<dmstatus;
+        qDebug()<<mname<<dmname<<dmlen<<dmstatus;
         if (dmstatus == 0) {
             return QString(dmname);
         }
+        qDebug()<<"error:"<<strerror(errno);
         return QString();
     };
 
@@ -257,7 +258,7 @@ QString resolve_return_type(QString klass, QString method, QVector<QVariant> arg
             results[it.key()] = it.value();
         }
         if (sig.indexOf(QString("%1::%2").arg(klass).arg(method)) >= 0) {
-            qDebug()<<"candicate??:"<<sig;
+            qDebug()<<"candicate??:"<<sig<<dmname;
         }
     }
 
@@ -431,7 +432,7 @@ typedef struct {
 InvokeStorage is;
 
 bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVariant> args,
-                      QString param_symbol_name)
+                      QString &param_symbol_name)
 {
     llvm::Module *module = this->dmod;
 
@@ -484,6 +485,7 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
     symbol_name = find_mangled_name(klass, method);
     symbol_name = resolve_mangle_name(klass, method, args);
     param_symbol_name = symbol_name;
+    qDebug()<<"got symbol_name:"<<symbol_name<<param_symbol_name;
 
     // declare the method func
     std::vector<llvm::Type*> mfargs = {builder.getInt32Ty()};
@@ -528,7 +530,7 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
 
 // 查找类方法函数的返回值
 QString IROperator::resolve_return_type(QString klass, QString method,
-                                        QVector<QVariant> args, QString mangle_name)
+                                        QVector<QVariant> args, QString &mangle_name)
 {
     return ::resolve_return_type(klass, method, args, mangle_name);
 }

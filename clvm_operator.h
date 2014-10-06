@@ -27,11 +27,11 @@ public:
     bool knew(QString klass); // klass new
     bool kdelete(void *kthis, QString klass);
     bool call(void *kthis, QString klass, QString method, QVector<QVariant> args,
-              QString symbol_name);
+              QString &symbol_name);
 
 public:
     QString resolve_return_type(QString klass, QString method,
-                                QVector<QVariant> args, QString mangle_name);
+                                QVector<QVariant> args, QString &mangle_name);
 
 public:
     llvm::Module *tmod = NULL; // for jit types

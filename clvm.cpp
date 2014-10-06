@@ -304,11 +304,24 @@ QVariant jit_vm_call(void *kthis, QString klass, QString method, QVector<QVarian
     switch (tyno) {
     case QMetaType::Int: 
         iret = (int)(llvm::GVTOP(gv));
-        return QVariant(iret);
+        // return QVariant(iret);
     default:
         break;
     }
-    return mapGV2Variant(klass, method, symbol_name, gv);
+
+    qDebug()<<"symbol name:"<<symbol_name;
+    QVariant vret =  mapGV2Variant(klass, method, symbol_name, gv);
+    entry_func->deleteBody();  // 删除函数体
+    entry_func->removeFromParent(); // 删除整个函数
+    // entry_func->eraseFromParent(); //  清理干净, 再执行这个就crash，为什么提供了这几个不同的方法呢？
+    // entry_func->replaceAllUsesWith(llvm::UndefValue::get(entry_func->getType()));
+    // entry_func->dropAllReferences();
+    delete entry_func;
+    // qDebug()<<"===============";
+    // module->dump();
+    // qDebug()<<"===============";
+
+    return vret;
     
     return QVariant();
 }

@@ -15,6 +15,13 @@ puts a.length()
 
 puts a.isEmpty();
 
+puts a.length();
+
+a.append("%1")
+
+# a.arg("uio")
+
+
 # s = Qt5::QString.new
 
 # puts s
