@@ -16,6 +16,8 @@ public:
     void testParser();
     void testIR();
 
+    void **getfp(QString klass, QString method);
+
 private:
     Qom();
     static Qom *_inst;

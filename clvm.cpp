@@ -10,13 +10,12 @@
 #include "llvm/CodeGen/LinkAllCodegenComponents.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/ExecutionEngine/Interpreter.h"
-#include "llvm/ExecutionEngine/JIT.h"
+// #include "llvm/ExecutionEngine/JIT.h" // depcreated 
 #include "llvm/ExecutionEngine/JITEventListener.h"
 #include "llvm/ExecutionEngine/JITMemoryManager.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/ExecutionEngine/ObjectCache.h"
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
-#include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
@@ -82,12 +81,241 @@
 #include "llvm/LTO/LTOModule.h"
 #include "llvm/Target/TargetOptions.h"
 
+#include "clvm_operator.h"
 #include "clvm.h"
 
 // FIXME: MCTargetOptionsCommandFlags.h中几个函数的multiple definition问题
 #include "clvm_letacy.cpp"
 
 
+
+llvm::GenericValue jit_execute_func(llvm::Module *mod, llvm::Function *func)
+{
+   llvm::GenericValue gv;
+
+    llvm::InitializeNativeTarget();
+    llvm::InitializeNativeTargetAsmPrinter();
+    llvm::InitializeNativeTargetAsmParser();
+
+    llvm::ExecutionEngine *EE = NULL;
+    qDebug()<<"222222222";
+    std::string Error;
+    llvm::EngineBuilder builder(mod);
+    qDebug()<<EE<<"aaa is sym search disabled:";
+    builder.setUseMCJIT(true);
+    // builder.setMArch("core2"); // 这种强制设置可能引起问题，使用三个InitailzeNativexxx函数初始化。
+
+    EE = builder.create();
+    qDebug()<<EE<<"is sym search disabled:"<<EE->isSymbolSearchingDisabled();
+
+    //* 这些行还是有用的，否则在用Qt相关类时崩溃（在普通的print无问题）
+    // 不过这些调用应用是每个函数都调用还是初始化调用一次呢。
+    EE->finalizeObject();
+    EE->runStaticConstructorsDestructors(false);
+
+    int miret = -1;
+    llvm::GenericValue rgv;
+    std::vector<std::string> argv;
+    std::vector<llvm::GenericValue> gargv;
+
+    gv = EE->runFunction(func, gargv);
+
+    // Run static destructors.
+    EE->runStaticConstructorsDestructors(true);
+
+    qDebug()<<"run done.";   
+
+   return gv;
+}
+
+llvm::GenericValue jit_vm_execute(QString code, QVector<llvm::GenericValue> &envp)
+{
+    llvm::GenericValue gv;
+    
+    llvm::LLVMContext &ctx = llvm::getGlobalContext();
+    llvm::Module *module = new llvm::Module("top", ctx);
+    llvm::IRBuilder<> builder(ctx);
+
+    // load module
+    QFile fp("./jit_types.ll");
+    fp.open(QIODevice::ReadOnly);
+    QByteArray asm_data = fp.readAll();
+    fp.close();
+
+    const char *asm_str = strdup(asm_data.data());
+    qDebug()<<"llstrlen:"<<strlen(asm_str);
+
+    llvm::SMDiagnostic smdiag;
+    llvm::Module *rmod = NULL;
+
+    rmod = llvm::ParseAssemblyString(asm_str, NULL, smdiag, ctx);
+    qDebug()<<"rmod="<<rmod;
+    
+    // test new operator
+    llvm::Type *TQString = rmod->getTypeByName("class.YaQString");
+    qDebug()<<"type:"<<TQString;
+    TQString->dump();
+
+    // entry func
+    llvm::Function *entry_func = 
+        llvm::Function::Create(llvm::FunctionType::get(builder.getVoidTy()->getPointerTo(), false),
+                               llvm::Function::ExternalLinkage,
+                               "yamain", module);
+    builder.SetInsertPoint(llvm::BasicBlock::Create(ctx, "eee", entry_func));
+
+    /*
+    // new op
+    std::vector<llvm::Type*> fargs = {TQString->getPointerTo()};
+    llvm::ArrayRef<llvm::Type*> rfargs(fargs);
+    llvm::FunctionType *funt = llvm::FunctionType::get(builder.getVoidTy(), rfargs, false);
+    llvm::Constant *func = module->getOrInsertFunction("_ZN9YaQStringC1Ev", funt);
+
+    // new func
+    std::vector<llvm::Type*> new_fargs = {builder.getInt32Ty()};
+    llvm::ArrayRef<llvm::Type*> new_rfargs(new_fargs);
+    llvm::FunctionType *new_funt = llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(), new_rfargs, false);
+    llvm::Constant *new_func = module->getOrInsertFunction("_Znwj",new_funt);
+
+    llvm::Value *val = builder.CreateAlloca(TQString->getPointerTo());
+    llvm::Value *mval = builder.CreateCall(new_func, builder.getInt32(1));
+    llvm::Value *cval = builder.CreateBitCast(mval, TQString->getPointerTo());
+    llvm::Value *val2 = builder.CreateStore(cval, val);
+
+    LoadInst *rval = builder.CreateLoad(val);
+    builder.CreateCall(func, rval);
+    // builder.CreateRet(builder.getInt32(123));
+    builder.CreateRet(rval);
+    */
+
+
+    irop_new(ctx, builder, module, "aaa");
+
+    irop_call(ctx, builder, module, 0, "a", "b");
+
+    qDebug()<<"dumppp begin.";
+    module->dump();
+    qDebug()<<"dumppp end.";
+
+    // run it yamain
+    gv = jit_execute_func(module, entry_func);
+
+    return gv;
+}
+
+
+static IROperator *irop = NULL;
+static IROperator *getIROp()
+{
+    if (::irop == NULL) {
+        ::irop = new IROperator();
+    }
+    return ::irop;
+}
+
+/*
+  从llvm::GenericValue转换成这个方法的实际类型。
+  还需要有很多特定的转换要处理。
+ */
+QVariant mapGV2Variant(QString klass, QString method, QString symbol_name, llvm::GenericValue gv)
+{
+    IROperator *irop = getIROp();
+    QVector<QVariant> args;
+    QString retype = irop->resolve_return_type(klass, method, args, symbol_name);
+
+    if (retype.isEmpty()) return QVariant();
+
+    if (retype == "int" || retype == "uint" || retype == "long" || retype == "ulong"
+        || retype == "qlonglong" || retype == "qulonglong"
+        || retype == "short" || retype == "ushort" ) {
+        return QVariant((int)llvm::GVTOP(gv));
+    } else if (retype == "bool") {
+        return QVariant((bool)llvm::GVTOP(gv));
+    } else if (retype == "double" || retype == "float") {
+        return QVariant((double)(long)llvm::GVTOP(gv));
+    } else if (retype == "void") {
+        return QVariant();
+    }
+
+    if (retype == "QString") {
+        return QVariant(QString(*(QString*)llvm::GVTOP(gv)));
+    }
+
+    if (retype == "QString &") {
+        return QVariant(QString(*(QString*)llvm::GVTOP(gv)));
+    }
+
+    return QVariant();
+}
+
+void *jit_vm_new(QString klass, QVector<QVariant> args)
+{
+    void *jo = NULL;
+    IROperator *irop = getIROp();
+    llvm::Module *module = irop->dmod;
+    llvm::IRBuilder<> &builder = irop->builder;
+    llvm::LLVMContext &ctx = irop->ctx;
+
+    // entry func
+    llvm::Function *entry_func = 
+        llvm::Function::Create(llvm::FunctionType::get(builder.getVoidTy()->getPointerTo(), false),
+                               llvm::Function::ExternalLinkage,
+                               "yamain", module);
+    builder.SetInsertPoint(llvm::BasicBlock::Create(ctx, "eee", entry_func));
+
+    irop->knew(klass);
+
+    module->dump();
+
+    llvm::GenericValue gv = jit_execute_func(module, entry_func);
+    jo = llvm::GVTOP(gv);
+    return jo;
+}
+
+QVariant jit_vm_call(void *kthis, QString klass, QString method, QVector<QVariant> args)
+{
+
+    IROperator *irop = getIROp();
+    llvm::Module *module = irop->dmod;
+    llvm::IRBuilder<> &builder = irop->builder;
+    llvm::LLVMContext &ctx = irop->ctx;
+
+    QString symbol_name;
+
+    // entry func
+    llvm::Function *entry_func = 
+        llvm::Function::Create(llvm::FunctionType::get(builder.getVoidTy()->getPointerTo(), false),
+                               llvm::Function::ExternalLinkage,
+                               "yamain2", module);
+    builder.SetInsertPoint(llvm::BasicBlock::Create(ctx, "eee", entry_func));
+
+    irop->call(kthis, klass, method, args, symbol_name);
+
+    module->dump();
+
+    llvm::GenericValue gv = jit_execute_func(module, entry_func);
+    int iret = gv.IntVal.getZExtValue();
+    qDebug()<<iret<<llvm::GVTOP(gv);
+
+    // how to known return type
+    // 需要把gv解释并转换为为什么类型呢。
+    // 怎么转呢？
+    // GenericValue要求首先要知道返回值的类型才能解释
+    int tyno = QMetaType::Int;
+    switch (tyno) {
+    case QMetaType::Int: 
+        iret = (int)(llvm::GVTOP(gv));
+        return QVariant(iret);
+    default:
+        break;
+    }
+    return mapGV2Variant(klass, method, symbol_name, gv);
+    
+    return QVariant();
+}
+
+//////////////////////////////////
+/////
+//////////////////////////////////
 Clvm::Clvm() : QThread()
 {
     static char *argv[] = {
@@ -270,6 +498,5 @@ void Clvm::deleteAsync(QString klass_name, void *obj)
 {
     
 }
-
 
 

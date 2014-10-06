@@ -8,7 +8,12 @@ a = Qt5::QString.new
 
 puts "==========";
 
+# puts a.length()
+a.append("876")
+
 puts a.length()
+
+puts a.isEmpty();
 
 # s = Qt5::QString.new
 

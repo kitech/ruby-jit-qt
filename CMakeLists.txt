@@ -7,6 +7,7 @@ set(CMAKE_VERBOSE_MAKEFILE on)
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_CXX_FLAGS "-g -O2 -std=c++11 -std=c++14")
+set(CMAKE_SHARED_LINKER_FLAGS "-Wl,-rpath,. -Wl,--export-dynamic -fno-inline")
 #####这个设置虽然在有重复定义的情况下编译成功了，但会导致llvm的一个错误。
 ####CommandLine Error: Option 'load' registered more than once!
 # set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--allow-multiple-definition")
@@ -38,9 +39,18 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CLANG_CXXFLAGS_OUTPUT}")
 set(handby_lib_SRCS
   qom.cpp
   entry.cpp
+  clvm_operator.cpp
   clvm.cpp
-#  clvm_letacy.cpp
-  desobj.cpp
+  metalize/metar_qt.cpp
+  metalize/metar_classes_qtcore.cpp
+  metalize/metar_classes_qtgui.cpp
+  metalize/metar_classes_qtwidgets.cpp
+  metalize/metar_classes_qtnetwork.cpp
+#  rcoreapplication.cpp
+  functionize/kitech_qtcore.cpp
+  metalize/kitech_qtcore.cpp
+  metalize/kitech_qtnetwork.cpp
+  metalize/metas.cpp
   debugoutput.cpp
 )
 
@@ -89,3 +99,4 @@ qt5_use_modules(handby Core Gui Widgets Network WebSockets)
 # target_link_libraries(ehandby ruby  ${CLANGLIBS})
 # qt5_use_modules(ehandby Core Gui Widgets Network WebSockets)
 
+add_subdirectory(demos)

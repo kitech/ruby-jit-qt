@@ -37,10 +37,43 @@ operatorxxx方法
 entry(ruby <==> c++)
 translator( c++ <==> qtcode)
 clvm ( qtcode <==> native)
+resolve_symbol
+resolve_return_type
 
 JIT的另一个选择？libjit from gnu.(other google c++ jit compiler)
 
-机器需求，至少双核CPU，要使用-arch core2
+机器需求，至少双核CPU，要使用-arch core2。这个不需要，当时没有加载相关的类库。
+
+基本理清了纯JIT实现的思路，但是，在没有编译器的情况下，Qt的inline函数无法在符号表中找到。
+所以代码也就无法执行，inline的代码全部在头文件中，
+所以这种实现方式，还需要解析头文件，把代码编译成执行代码。
+这样比较麻烦啊，可能还需要处理一遍头文件中的inline方法。
+可以通过一次继续实现导出所有的方法符号，工程量也比较大，但是比较使用Qt moc方式导出要好些。
+另外在使用jit的情况下，还需要注意方法重载的问题。
+
+默认情况下，链接程序只处理程序中使用过了的符号，没有使用的符号不会出现在最终ELF的符号表中。
+
+使用把cpp和h文件分开的方法，能够保留符号表。
+
+符号表导出到文本中，当作一个明文文本的数据结构，编译进程序，实现符号表的查找。
+
+方法的原型，生成明文文本的数据结构，编译进程序，实现方法的原型查找和结果类型的查找。
+
+不过这现在搞的程序即使strip -s之后也有18M，太大了，不知道是什么原因导致程序这么大。
+
+不是以前两个文件数据的问题，即使不编译加载进程序，程序也会这么大。
+
+是因为使用的libLLVM*.a和libclang*.a的原因吗？
+
+好像libLLVM的代码还好些，可能使用libclang*的程序文件大小问题更严重。
+
+现在的基本框架已经试验完成，还需要解决的实用问题，
+线程安全。
+jit虚拟机的优化。
+生成的IR代码的优化。
+更通用化。动态加载外部引用库，转接到其他语言。
+动态读取symbol符号表。
+动态reflict实现方法原型读取。
 
 * C++11在语言绑定中的应用
 
@@ -55,5 +88,11 @@ JIT的另一个选择？libjit from gnu.(other google c++ jit compiler)
 
 * 用于Qt5内部的QArrayData类分析。
 
+
+
+资料：
+http://woboq.com/blog/reflection-in-cpp-and-qt-moc.html
+http://woboq.com/blog/moc-with-clang.html
+http://llvm.lyngvig.org/Articles/Mapping-High-Level-Constructs-to-LLVM-IR
 
 
