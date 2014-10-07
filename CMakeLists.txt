@@ -39,6 +39,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CLANG_CXXFLAGS_OUTPUT}")
 set(handby_lib_SRCS
   qom.cpp
   entry.cpp
+  frontengine.cpp
   clvm_operator.cpp
   clvm.cpp
   metalize/metar_qt.cpp
