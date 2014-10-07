@@ -168,7 +168,7 @@ QString resolve_mangle_name(QString klass, QString method, QVector<QVariant> arg
         qDebug()<<"norm npart:"<<norm_npart;
         QBitArray matbit(args.count());
         for (int j = 0; j < args.count(); j++) {
-            switch(args.at(j).type()) {
+            switch((int)args.at(j).type()) {
             case QMetaType::Int:
             case QMetaType::UInt:
             case QMetaType::Long:
@@ -481,6 +481,22 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
         }
     }
 
+    // 处理structret
+    QString tmp_mangle_name = symbol_name;
+    QString retype_str = this->resolve_return_type(klass, method, args, tmp_mangle_name);
+    QStringList retype_part = retype_str.split(" ");
+    bool need_sret = true; // 采用黑名单方式，排除
+    for (int i = 0; i < retype_part.count(); i ++) {
+        QString str = retype_part.at(i).trimmed();
+        if (str == "*" || str == "&" || str == "void" || str == "int" || str == "uint"
+            || str == "short" || str == "ushort" || str == "long" || str == "ulong"
+            || str == "bool" || str == "qlonglong" || str == "qulonglong"
+            || str == "float" || str == "double" || str == "char" || str == "uchar"
+            || str == "qint64" || str == "size_t") {
+            need_sret = false;
+        }
+    }
+
     // emu param
     llvm::Value *lv;
     llvm::Constant *lc;
@@ -489,15 +505,27 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
     std::vector<llvm::Type*> caller_arg_types;
     std::vector<llvm::Value*> caller_arg_values;
     QBitArray derefbit(callee_params.count());
+
+    if (need_sret) {
+        llvm::Type *retype = module->getTypeByName(QString("class.%1").arg(retype_str).toStdString());
+        caller_arg_types.push_back(retype->getPointerTo());
+        lr = builder.CreateAlloca(retype);
+        caller_arg_values.push_back(lr);
+    }
+
+    // 处理this指针    
+    if (kthis) { // always true except error
+        llvm::Type *thtype = module->getTypeByName(QString("class.Ya%1").arg(klass).toStdString());
+        caller_arg_types.push_back(thtype->getPointerTo());
+        lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)kthis);
+        lv = llvm::ConstantExpr::getIntToPtr(lc, thtype->getPointerTo());
+        caller_arg_values.push_back(lv);
+    }
+
     for (int i = 0; i < callee_params.count(); i ++) {
         QVariant v = callee_params.at(i);
-        switch (v.type()) {
+        switch ((int)v.type()) {
         case QMetaType::QString:
-            // tolv(void *, klass)
-            caller_arg_types.push_back(module->getTypeByName("class.QString")->getPointerTo());
-            lr = builder.CreateAlloca(module->getTypeByName("class.QString"));
-            caller_arg_values.push_back(lr);
-
             caller_arg_types.push_back(module->getTypeByName("class.QString")->getPointerTo());
             // 传这个值老是crash，是因为一直把is定义为局部变量了，从当前方法return后，这个is消失了。
             // 所以会有内存问题。
@@ -544,64 +572,44 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
     
     // declare the method func
     std::vector<llvm::Type*> mfargs = {builder.getInt32Ty()};
-    caller_arg_types.insert(caller_arg_types.begin() + 1,
-                            module->getTypeByName(QString("class.Ya%1").arg(klass).toStdString())
-                            ->getPointerTo());
-    // not need now
-    if (0 && method == "lastIndexOf") {
-        // 参数默认值需要编译器在调用时处理，放上默认值。还不是少传几个值。
-        caller_arg_types.push_back(builder.getInt32Ty());
-        caller_arg_types.push_back(builder.getInt32Ty());
-        caller_arg_values.push_back(builder.getInt32(-1));
-        caller_arg_values.push_back(builder.getInt32(0));
-    }
-
     llvm::ArrayRef<llvm::Type*> rmfargs(caller_arg_types); // (mfargs);
-    llvm::Type* frettype =  module->getTypeByName(QString("class.%1").arg(klass).toStdString())
-        ->getPointerTo();
+    llvm::Type* frettype =  module->getTypeByName(QString("class.%1").arg(klass).toStdString())->getPointerTo();
     // llvm::FunctionType *mfunt = llvm::FunctionType::get(builder.getInt32Ty(), rmfargs, false);
     llvm::FunctionType *mfunt = llvm::FunctionType::get(frettype, rmfargs, false);
-    // symbol_name = "_Z14test_ir_objrefPvR7QStringi5QChar";
-    // symbol_name = "_ZNK9YaQString6argxxxERK7QStringi5QChar";
-    //                   _ZNK9YaQString6argxxxERK7QStringi5QChar
     // 针对QString::arg这个方法，如果改成没有返回值的，则执行正常，如果有QString返回值，则程序崩溃。
     llvm::Constant *mfunc = module->getOrInsertFunction(symbol_name.toStdString(), mfunt);
     llvm::Function *real_mfunc = module->getFunction(symbol_name.toStdString());
-    // real_mfunc->addFnAttr(llvm::Attribute::StructRet);
 
     // load paramters, what???
     // demangle symbol_name,按照callee的参数类型，但按照caller参数个数填入参数值。
     qDebug()<<derefbit;
+    if (need_sret) {
+        llvm::AttrBuilder ab(llvm::Attribute::get(ctx, llvm::Attribute::StructRet));
+        real_mfunc->addAttributes(0, llvm::AttributeSet::get(ctx, 1, ab));
+    }
     for (int i = 0; i < derefbit.count(); i ++) {
-        if (i == 0) {
-            llvm::AttrBuilder ab(llvm::Attribute::get(ctx, llvm::Attribute::StructRet));
-            real_mfunc->addAttributes(0, llvm::AttributeSet::get(ctx, 1, ab));
-        }
         if (derefbit.testBit(i)) {
-            llvm::AttrBuilder ab(llvm::Attribute::getWithDereferenceableBytes(ctx, 1*4));
+            llvm::AttrBuilder ab(llvm::Attribute::getWithDereferenceableBytes(ctx, 1*sizeof(void*)));
             real_mfunc->addAttributes(i+1, llvm::AttributeSet::get(ctx, 2, ab));
         }
     }
 
     // call method
-    // kthis = (void*) 123;
     // qDebug()<<"curr kthis:"<<kthis;
-    llvm::Constant *pthisc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)kthis);
-    llvm::Constant *pthisv = llvm::ConstantExpr::getIntToPtr(pthisc, 
-                                                             module->getTypeByName(QString("class.Ya%1")
-                                                                                   .arg(klass).toStdString())
-                                                             ->getPointerTo());
-    caller_arg_values.insert(caller_arg_values.begin() + 1, pthisv);
     qDebug()<<"arguments count:"<<caller_arg_values.size();
-
     llvm::ArrayRef<llvm::Value*> rmfvalues(caller_arg_values);
     llvm::CallInst *cval = builder.CreateCall(mfunc, rmfvalues);
     // builder.CreateCall(mfunc, rmfvalues);
-    cval->addAttribute(1, llvm::Attribute::StructRet);
     // cval to int??? not need
     // builder.CreateRet(cval);
     // builder.CreateRet(lr); // 要析构了，不能返回
-    builder.CreateRetVoid();
+    // builder.CreateRetVoid();
+    if (need_sret) {
+        cval->addAttribute(1, llvm::Attribute::StructRet);
+        builder.CreateRetVoid();
+    } else {
+        builder.CreateRet(cval);
+    }
 
     return true;
 }
@@ -710,7 +718,7 @@ QString IROperator::resolve_mangle_name(QString klass, QString method, QVector<Q
         qDebug()<<"norm npart:"<<norm_npart;
         QBitArray matbit(args.count());
         for (int j = 0; j < args.count(); j++) {
-            switch(args.at(j).type()) {
+            switch((int)args.at(j).type()) {
             case QMetaType::Int:
             case QMetaType::UInt:
             case QMetaType::Long:
@@ -794,7 +802,7 @@ QString IROperator::resolve_mangle_name(QString klass, QString method, QVector<Q
         less_args[sym] = cnter;
     }
 
-    // 应用用排序
+    // 应该用排序
     if (less_args.count() > 0) {
         QString rcsym;
         int minc = 100;

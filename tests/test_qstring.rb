@@ -17,15 +17,15 @@ puts "==========";
 
 # puts a.length();
 
-# a.append("%1")
+a.append("%1")
 
-a.arg("uio") ### 参数太多，很难运行时确定。已经修正，返回值处理问题。
+# a.arg("uio") ### 参数太多，很难运行时确定。已经修正，返回值处理问题。
 
 # a.contains("876");
 
 # a.indexOf("876");  # ok
 
-# a.toUpper; # crash
+a.toUpper; # crash
 # a.lastIndexOf("876")  # 是因为这个函数的默认参数，无法正常填入。已修正
 
 # a.startsWith("kkkk")
