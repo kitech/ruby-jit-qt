@@ -368,9 +368,9 @@ VALUE x_Qt_meta_class_init_jit(int argc, VALUE *argv, VALUE self)
     QString yklass_name = QString("y%1").arg(klass_name);
     qDebug()<<"class name:"<<klass_name;
 
-    test_fe();
-
-    exit(-1);
+    // test_fe();
+    // test_parse_class();
+    // exit(-1);
     
     auto code_templater = [] () -> QString * {
         return new QString();

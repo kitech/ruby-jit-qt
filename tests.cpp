@@ -37,20 +37,31 @@ void test_fe()
     // fe->parseHeader("/usr/include/qt/QtWidgets/qwidget.h");
     // fe->parseHeader("/usr/include/qt/QtWidgets/qapplication.h");
 
-    bret = fe->get_method_defalt_args("QString", "lastIndexOf", 
+    bret = fe->get_method_default_args("QString", "lastIndexOf", 
                                       "_ZNK9YaQString11lastIndexOfE5QChariN2Qt15CaseSensitivityE", dargs);
-    bret = fe->get_method_defalt_args("QString", "lastIndexOf", 
+    bret = fe->get_method_default_args("QString", "lastIndexOf", 
                                       "_ZNK9YaQString11lastIndexOfERK10QStringRefiN2Qt15CaseSensitivityE", dargs);
-    bret = fe->get_method_defalt_args("QString", "lastIndexOf", 
+    bret = fe->get_method_default_args("QString", "lastIndexOf", 
                                       "_ZNK9YaQString11lastIndexOfERK18QRegularExpressioni", dargs);
-    bret = fe->get_method_defalt_args("QString", "lastIndexOf", 
+    bret = fe->get_method_default_args("QString", "lastIndexOf", 
                                       "_ZNK9YaQString11lastIndexOfE13QLatin1StringiN2Qt15CaseSensitivityE", dargs);
-    bret = fe->get_method_defalt_args("QString", "arg", 
+    bret = fe->get_method_default_args("QString", "arg", 
                                       "_ZNK9YaQString3argERK7QStringS2_S2_S2_S2_S2_S2_", dargs);
-    bret = fe->get_method_defalt_args("QString", "arg", 
+    bret = fe->get_method_default_args("QString", "arg", 
                                       "_ZNK9YaQString3argERK7QStringi5QChar", dargs);
 
 }
 
+void test_parse_class()
+{
+    FrontEngine *fe = new FrontEngine();
+    fe->parseClass("QString");
+    fe->parseClass("QWidget");
+
+    fe->parseClass("QString");
+    fe->parseClass("QWidget");
+
+    fe->parseClass("QTcpServer");
+}
 
 // test_fe();

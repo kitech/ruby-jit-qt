@@ -78,6 +78,35 @@ bool FrontEngine::initCompiler()
     return true;
 }
 
+bool FrontEngine::parseClass(QString klass)
+{
+    QString fname = QString("%1.h").arg(klass).toLower();
+    QString bdir = "/usr/include/qt";
+    QVector<QString> cats = {"QtCore", "QtWidgets", "QtGui", "QtNetwork"};
+    QString cat;
+    
+    if (units.contains(fname)) {
+        qDebug()<<"already parsed, omit."<<fname;
+        return true;
+    }
+
+    QString path;
+    for (int i = 0; i < cats.count(); i++) {
+        QString fpath = QString("%1/%2/%3").arg(bdir).arg(cats.at(i)).arg(fname);
+        if (QFile::exists(fpath)) {
+            cat = cats.at(i);
+            path = fpath;
+            break;
+        }
+    }
+
+    if (path.isEmpty()) {
+        qDebug()<<"class not found, no parse:"<<klass;
+    } 
+    return parseHeader(path);
+    return true;
+}
+
 bool FrontEngine::parseHeader(QString path)
 {
     qDebug()<<path;
@@ -138,13 +167,14 @@ bool FrontEngine::parseHeader(QString path)
         }
     }
 
-
+    // clean up memory
+    // delete pcode;
     
     return true;
 }
 
 #include <cxxabi.h>
-bool FrontEngine::get_method_defalt_args(QString klass, QString method, QString symbol_name
+bool FrontEngine::get_method_default_args(QString klass, QString method, QString symbol_name
                                          , QVector<QVariant> &dargs)
 {
 

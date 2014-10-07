@@ -6,6 +6,7 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/TypeBuilder.h"
 
+#include "frontengine.h"
 #include "metalize/metas.h"
 #include "clvm_operator.h"
 
@@ -350,6 +351,8 @@ IROperator::IROperator()
     : ctx(llvm::getGlobalContext()),
       builder(ctx)
 {
+    mfe = new FrontEngine();
+
     // ctx = llvm::getGlobalContext();
     this->dmod = new llvm::Module("jittop", ctx);
     init();
@@ -357,7 +360,7 @@ IROperator::IROperator()
 
 IROperator::~IROperator()
 {
-
+    // TODO cleanup......
 }
 
 bool IROperator::init()
@@ -427,10 +430,17 @@ typedef struct {
     int ival[10];
     bool bval[10];
     QString sval[10];
+    QChar cval[10];
 } InvokeStorage;
 
 InvokeStorage is;
 
+/*
+ 生成调用一个Qt类方法所需要的IR代码。
+ 一量解析出来要使用的symbol，则查找这个symbol的默认参数值，与传递过来的参数合并，传递的参数值优先。
+ 拼装调用所需要的IR call指令代码的相关参数，包括类型参数与值参数。
+ 根据symbol要求的参数个数，生成symbol的原型declare的IR代码。
+ */
 bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVariant> args,
                       QString &param_symbol_name)
 {
@@ -442,10 +452,35 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
     QString mangle_name = "_ZN9YaQString6appendERK7QString";
     this->resolve_return_type(klass, "append", args, mangle_name);
 
+   // find method function symbol
+    QString symbol_name = QString("_Z%1%2%3%4").arg(klass.length()).arg(klass)
+        .arg(method.length()).arg(method);
+    // klass = "QString";
+    // method = "length";
+    symbol_name = find_mangled_name(klass, method);
+    symbol_name = resolve_mangle_name(klass, method, args);
+    param_symbol_name = symbol_name;
+    qDebug()<<"got symbol_name:"<<symbol_name<<param_symbol_name;
+    qDebug()<<"args:"<<args<<is.sval[0];
+
+    // parse this class, get default args
+    QVector<QVariant> dargs;
+    bool bret = mfe->parseClass(klass);
+    bret = mfe->get_method_default_args(klass, method, symbol_name, dargs);
+    qDebug()<<"got default args:"<<bret<<dargs;
+
+    // merge user args and dargs
+    args.resize(dargs.count());
+    for (int i = 0; i < dargs.count(); i ++) {
+        if (!args.at(i).isValid() && dargs.at(i).isValid()) {
+            args[i] = dargs.at(i);
+        }
+    }
+
     // emu param
     llvm::Value *lv;
     llvm::Constant *lc;
-    QVector<QVariant> callee_params = args;
+    QVector<QVariant> callee_params = args; // TODO 名字是不是搞反了，caller是主调，callee是被调
     std::vector<llvm::Type*> caller_arg_types;
     std::vector<llvm::Value*> caller_arg_values;
     QBitArray derefbit(callee_params.count());
@@ -453,8 +488,18 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
         QVariant v = callee_params.at(i);
         switch (v.type()) {
         case QMetaType::Int:
-            lv = builder.getInt32(v.toInt());
+        case QMetaType::UInt:
+        case QMetaType::Short:
+        case QMetaType::UShort:
             caller_arg_types.push_back(builder.getInt32Ty());
+            lv = builder.getInt32(v.toInt());
+            caller_arg_values.push_back(lv);
+            break;
+        case QMetaType::LongLong:
+        case QMetaType::ULongLong:
+            caller_arg_types.push_back(builder.getInt64Ty());
+            lv = builder.getInt64(v.toLongLong());
+            caller_arg_values.push_back(lv);
             break;
         case QMetaType::QString:
             // tolv(void *, klass)
@@ -472,35 +517,33 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
             caller_arg_types.push_back(builder.getInt1Ty());
             caller_arg_values.push_back(builder.getInt1(v.toBool()));
             break;
+        case QMetaType::QChar:
+            caller_arg_types.push_back(module->getTypeByName("class.QChar")->getPointerTo());
+            is.cval[i] = callee_params.at(i).toChar();
+            lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)&is.cval[i]);
+            lv = llvm::ConstantExpr::getIntToPtr(lc, module->getTypeByName("class.QChar")->getPointerTo());
+            caller_arg_values.push_back(lv);
+            break;
         default:
-            qDebug()<<"not known type:"<<v.type();
+            qDebug()<<"not known type:"<<v<<v.type();
             break;
         }
     }
     
-    // find method function symbol
-    QString symbol_name = QString("_Z%1%2%3%4").arg(klass.length()).arg(klass)
-        .arg(method.length()).arg(method);
-    // klass = "QString";
-    // method = "length";
-    symbol_name = find_mangled_name(klass, method);
-    symbol_name = resolve_mangle_name(klass, method, args);
-    param_symbol_name = symbol_name;
-    qDebug()<<"got symbol_name:"<<symbol_name<<param_symbol_name;
-    qDebug()<<"args:"<<args<<is.sval[0];
-
     // declare the method func
     std::vector<llvm::Type*> mfargs = {builder.getInt32Ty()};
     caller_arg_types.insert(caller_arg_types.begin(),
                             module->getTypeByName(QString("class.Ya%1").arg(klass).toStdString())
                             ->getPointerTo());
-    if (method == "lastIndexOf") {
+    // not need now
+    if (0 && method == "lastIndexOf") {
         // 参数默认值需要编译器在调用时处理，放上默认值。还不是少传几个值。
         caller_arg_types.push_back(builder.getInt32Ty());
         caller_arg_types.push_back(builder.getInt32Ty());
         caller_arg_values.push_back(builder.getInt32(-1));
         caller_arg_values.push_back(builder.getInt32(0));
     }
+
     llvm::ArrayRef<llvm::Type*> rmfargs(caller_arg_types); // (mfargs);
     llvm::Type* frettype =  module->getTypeByName(QString("class.%1").arg(klass).toStdString())
         ->getPointerTo();
@@ -509,16 +552,16 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
     llvm::Constant *mfunc = module->getOrInsertFunction(symbol_name.toStdString(), mfunt);
     llvm::Function *real_mfunc = module->getFunction(symbol_name.toStdString());
 
-    // load paramters
+
+    // load paramters, what???
     // demangle symbol_name,按照callee的参数类型，但按照caller参数个数填入参数值。
-    qDebug()<<derefbit;
-    for (int i = 0; i < derefbit.count(); i ++) {
-        if (derefbit.testBit(i)) {
-            llvm::AttrBuilder ab(llvm::Attribute::getWithDereferenceableBytes(ctx, sizeof(void*)));
-            real_mfunc->addAttributes(i+1, llvm::AttributeSet::get(ctx, 2, ab));
-        }
-    }
-    // llvm::Value *lkthis = 
+    // qDebug()<<derefbit;
+    // for (int i = 0; i < derefbit.count(); i ++) {
+    //     if (derefbit.testBit(i)) {
+    //         llvm::AttrBuilder ab(llvm::Attribute::getWithDereferenceableBytes(ctx, sizeof(void*)));
+    //         real_mfunc->addAttributes(i+1, llvm::AttributeSet::get(ctx, 2, ab));
+    //     }
+    // }
 
     // call method
     // kthis = (void*) 123;
@@ -530,9 +573,7 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
 
     llvm::ArrayRef<llvm::Value*> rmfvalues(caller_arg_values);
     llvm::CallInst *cval = builder.CreateCall(mfunc, rmfvalues);
-
     // cval to int??? not need
-
     builder.CreateRet(cval);
     // builder.CreateRetVoid();
 

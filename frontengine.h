@@ -42,7 +42,8 @@ public:
     bool initCompiler();
 
     bool parseHeader(QString path);
-    bool get_method_defalt_args(QString klass, QString method, QString symbol_name
+    bool parseClass(QString klass);
+    bool get_method_default_args(QString klass, QString method, QString symbol_name
                                 , QVector<QVariant> &dargs);
 };
 

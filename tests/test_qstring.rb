@@ -19,14 +19,14 @@ a.append("876")
 
 # a.append("%1")
 
-# # a.arg("uio") ### 参数太多，很难运行时确定。
+# a.arg("uio") ### 参数太多，很难运行时确定。
 
 # a.contains("876");
 
-# a.indexOf("876");
+# a.indexOf("876");  # ok
 
-# a.toUpper;
-a.lastIndexOf("876")  # 是因为这个函数的默认参数，无法正常填入。
+# a.toUpper; # crash
+# a.lastIndexOf("876")  # 是因为这个函数的默认参数，无法正常填入。已修正
 
 # a.startsWith("kkkk")
 

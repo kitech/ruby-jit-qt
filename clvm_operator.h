@@ -8,6 +8,7 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/TypeBuilder.h"
 
+class FrontEngine;
 
 bool irop_new(llvm::LLVMContext &ctx, llvm::IRBuilder<> &builder, 
             llvm::Module *module, QString klass);
@@ -38,6 +39,9 @@ public:
     llvm::Module *dmod = NULL; // default irgen module
     llvm::LLVMContext &ctx;
     llvm::IRBuilder<> builder;
+
+public:
+    FrontEngine *mfe = NULL; //
 };
 
 
