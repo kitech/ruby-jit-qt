@@ -351,6 +351,7 @@ static VALUE x_Qt_meta_class_dtor(VALUE id)
 
 
 #include "frontengine.h"
+#include "tests.cpp"
 
 /*
   通过Qt类的初始化函数
@@ -367,11 +368,8 @@ VALUE x_Qt_meta_class_init_jit(int argc, VALUE *argv, VALUE self)
     QString yklass_name = QString("y%1").arg(klass_name);
     qDebug()<<"class name:"<<klass_name;
 
+    test_fe();
 
-    FrontEngine *fe = new FrontEngine();
-    fe->parseHeader("/usr/include/qt/QtCore/qstring.h");
-    fe->parseHeader("/usr/include/qt/QtWidgets/qwidget.h");
-    fe->parseHeader("/usr/include/qt/QtWidgets/qapplication.h");
     exit(-1);
     
     auto code_templater = [] () -> QString * {

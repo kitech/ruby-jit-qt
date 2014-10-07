@@ -113,7 +113,8 @@ bool FrontEngine::parseHeader(QString path)
 
     clang::ASTUnit *unit = pastu.release();
     clang::ASTUnit *astu = unit;
-    units.insert(path, unit);
+    // should be qxxx.h
+    units.insert(*(--path.split("/").end()), unit);
 
     for (auto it = astu->top_level_begin(); it != astu->top_level_end(); it++) {
         clang::Decl *decl = *it;
@@ -126,10 +127,10 @@ bool FrontEngine::parseHeader(QString path)
             break;
         case clang::Decl::CXXRecord:
             recdecl = llvm::cast<clang::CXXRecordDecl>(decl);
-            qDebug()<<"name.."<<recdecl->getName().data();
+            // qDebug()<<"name.."<<recdecl->getName().data();
             declname = QString(recdecl->getName().data());
             if (declname == "QString") {
-                decl->dump();
+                // decl->dump();
             }
             break;
         default:
@@ -141,4 +142,179 @@ bool FrontEngine::parseHeader(QString path)
     
     return true;
 }
+
+#include <cxxabi.h>
+bool FrontEngine::get_method_defalt_args(QString klass, QString method, QString symbol_name
+                                         , QVector<QVariant> &dargs)
+{
+
+    QString file = QString("%1.h").arg(klass).toLower();
+    qDebug()<<units.keys()<<file;
+    if (!units.contains(file)) {
+        return false;
+    }
+
+    clang::ASTUnit *unit = units.value(file);
+    qDebug()<<klass<<unit;
+
+    // 1st, find class record decl
+    // 2nd, find method decl
+    // 2.5nd, overload method resolve
+    // 3rd, find the default arg's value
+    clang::CXXRecordDecl * res_recdecl = NULL;
+    clang::CXXMethodDecl * res_mthdecl = NULL;
+
+    for (auto it = unit->top_level_begin(); it != unit->top_level_end(); it++) {
+        clang::Decl *decl = *it;
+        clang::CXXRecordDecl *recdecl;
+        clang::CXXMethodDecl *mthdecl;
+        QString declname;
+        // qDebug()<<decl<<decl->getDeclKindName()<<decl->getKind();
+        switch (decl->getKind()) {
+        case clang::Decl::CXXMethod:
+            break;
+        case clang::Decl::CXXRecord:
+            recdecl = llvm::cast<clang::CXXRecordDecl>(decl);
+            // qDebug()<<"name.."<<recdecl->getName().data();
+            declname = QString(recdecl->getName().data());
+            if (recdecl->hasDefinition() && declname == klass) {
+                res_recdecl = recdecl;
+                break;
+            }
+            break;
+        default:
+            break;
+        }
+
+    }
+
+    // trim prefix class
+    auto trim_type_class = [] (QString type_str) -> QString {
+        QStringList type_elems = type_str.split(" ");
+        for (int i = 0; i < type_elems.count(); i ++) {
+            if (type_elems.at(i) == "class") {
+                type_elems.removeAt(i);
+            }
+        }
+
+        return type_elems.join(" ");
+    };
+
+    auto demangle = [](QString mname) -> QString {
+        size_t dmlen = 128*2;
+        char *dmname = (char*)calloc(1, dmlen);
+        int dmstatus = -1;
+        __cxxabiv1::__cxa_demangle(mname.toLatin1().data(), dmname, &dmlen, &dmstatus);
+        qDebug()<<mname<<dmname<<dmlen<<dmstatus;
+        if (dmstatus == 0) {
+            return QString(dmname);
+        }
+        qDebug()<<"error:"<<strerror(errno);
+        return QString();
+    };
+
+    if (res_recdecl) {
+        clang::CXXRecordDecl *recdecl = res_recdecl;
+
+        QString dmname = demangle(symbol_name);
+
+        for (auto ait = recdecl->method_begin(); ait != recdecl->method_end(); ait++) {
+            clang::CXXMethodDecl *mthdecl = *ait;
+            // qDebug()<<"name .."<<mthdecl->getName().data();
+            if (QString(mthdecl->getName().data()) == method) {
+                qDebug()<<"found it, maybe rc:";
+                mthdecl->dump();
+                
+                QString tmp_dmname = QString("Ya%1::%2(").arg(klass).arg(method);
+                for (auto bit = mthdecl->param_begin(); bit != mthdecl->param_end(); bit++) {
+                    int idx = bit - mthdecl->param_begin();
+                    clang::ParmVarDecl *pvdecl = *bit;
+                    clang::QualType pvtype = pvdecl->getType();
+                    qDebug()<<pvtype.getAsString().c_str();
+                    tmp_dmname += QString("%1%2")
+                        .arg(trim_type_class(QString(pvtype.getAsString().c_str())))
+                        .arg(idx == mthdecl->param_size() - 1 ? "" : ", ");
+                }
+                tmp_dmname += QString(")%1").arg(mthdecl->isConst() ? " const" : "");
+
+                QString s1 = QMetaObject::normalizedSignature(dmname.toLatin1().data());
+                QString s2 = QMetaObject::normalizedSignature(tmp_dmname.toLatin1().data());
+                qDebug()<<"tmp name:"<<tmp_dmname<<"==?"<<(tmp_dmname == dmname)
+                        <<(s1 == s2);
+
+                if (s1 == s2) {
+                    res_mthdecl = mthdecl;
+                    break;
+                }
+            }
+        }
+
+    }
+
+    auto dyn_create_obj = [](clang::ParmVarDecl *decl, clang::CXXConstructExpr *expr) -> QVariant {
+        clang::QualType type = decl->getType();
+        QString cname = type.getAsString().data();
+        clang::Expr *rexpr = 0; // expr->getResultExpr();
+        // qDebug()<<cname<<expr->getNumArgs()<<rexpr<<(rexpr?rexpr->getStmtClassName():"");
+        if (cname == "class QChar") {
+            // TODO more work
+            return QChar(' ');
+        }
+
+        return 1763;
+    };
+
+    // QVector<QVariant> dargs;
+    if (res_mthdecl) {
+        clang::CXXMethodDecl *mthdecl = res_mthdecl;
+        dargs.resize(mthdecl->param_size());
+        for (auto bit = mthdecl->param_begin(); bit != mthdecl->param_end(); bit ++) {
+            int idx = bit - mthdecl->param_begin();
+            clang::ParmVarDecl *pvdecl = *bit;
+            qDebug()<<"param:"<<pvdecl->getName().data()<<pvdecl->hasDefaultArg()
+                    <<pvdecl->getDefaultArg()
+                    <<(bit - mthdecl->param_begin());
+            clang::Expr *daexpr = pvdecl->getDefaultArg();
+            if (daexpr) {
+                qDebug()<<"expr:"<<daexpr->getValueKind()
+                        <<daexpr->isIntegerConstantExpr(unit->getASTContext())
+                        <<daexpr->getStmtClassName();
+                // int
+                llvm::APSInt daiv;
+                bool bret = daexpr->isIntegerConstantExpr(daiv, unit->getASTContext());
+                qDebug()<<"valid int v:"<<bret<<daiv.getZExtValue();
+                if (bret) {
+                    dargs[idx] = QVariant(daiv.getZExtValue());
+                }
+
+                // CXXContructExpr
+                // qDebug()<<clang::isa<clang::CXXConstructExpr>(daexpr);
+                if (clang::isa<clang::CXXConstructExpr>(daexpr)) {
+                    QVariant v = dyn_create_obj(pvdecl, clang::cast<clang::CXXConstructExpr>(daexpr));
+                    dargs[idx] = v;
+                }
+            }
+        }
+
+    }
+
+    qDebug()<<dargs;
+
+    if (res_recdecl && res_mthdecl) {
+        return true;
+    }
+
+    return false;
+    return true;
+}
+
+
+
+
+
+
+
+
+
+
 

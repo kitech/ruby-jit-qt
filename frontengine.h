@@ -14,6 +14,7 @@ namespace clang {
     class CompilerInstance;
     class CompilerInvocation;
     class ASTUnit;
+    class ASTImporter;
     namespace driver {
         class Driver;
     };
@@ -29,6 +30,9 @@ public:
 
 public:
     QHash<QString, clang::ASTUnit*> units;
+    clang::ASTUnit *mrgunit;
+    clang::ASTContext *mrgctx;
+    clang::ASTImporter *mrgimp;
     
 public:
     FrontEngine();
@@ -38,6 +42,18 @@ public:
     bool initCompiler();
 
     bool parseHeader(QString path);
+    bool get_method_defalt_args(QString klass, QString method, QString symbol_name
+                                , QVector<QVariant> &dargs);
 };
 
 #endif /* FRONTENGINE_H */
+
+
+
+
+
+
+
+
+
+
