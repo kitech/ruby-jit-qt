@@ -31,6 +31,7 @@ public:
               QString &symbol_name);
 
 public:
+    QString resolve_mangle_name(QString klass, QString method, QVector<QVariant> args);
     QString resolve_return_type(QString klass, QString method,
                                 QVector<QVariant> args, QString &mangle_name);
 

@@ -9,7 +9,7 @@ a = Qt5::QString.new
 puts "==========";
 
 # puts a.length()
-a.append("876")
+# a.append("876")
 
 # puts a.length()
 
@@ -19,7 +19,7 @@ a.append("876")
 
 # a.append("%1")
 
-# a.arg("uio") ### 参数太多，很难运行时确定。
+a.arg("uio") ### 参数太多，很难运行时确定。已经修正，返回值处理问题。
 
 # a.contains("876");
 
