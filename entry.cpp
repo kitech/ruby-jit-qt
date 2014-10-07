@@ -486,8 +486,9 @@ VALUE x_Qt_meta_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
     }
 
     YaQString *ts = (YaQString*)ci;
-    ts->append("1234567");
-    qDebug()<<(*ts);
+    ts->append("1234abc");
+    qDebug()<<(*ts)<<ts->toUpper()<<ts->startsWith(QChar('r'))
+            <<ts->lastIndexOf("876");
 
     QVariant gv = jit_vm_call(ci, klass_name, method_name, args);
     qDebug()<<"gv:"<<gv;

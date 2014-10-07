@@ -381,7 +381,7 @@ bool IROperator::knew(QString klass)
 {
     llvm::Module *module = this->dmod;
 
-    // test new operator
+    // test new operator, TODOOOOOOOOOOOOOOOOOO
     llvm::Type *TQString = module->getTypeByName("class.YaQString");
     llvm::Type *TQklass = module->getTypeByName(QString("class.%1").arg(klass).toStdString());
     qDebug()<<"type:"<<TQString<<TQklass;
@@ -473,6 +473,7 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
             caller_arg_values.push_back(builder.getInt1(v.toBool()));
             break;
         default:
+            qDebug()<<"not known type:"<<v.type();
             break;
         }
     }
@@ -480,18 +481,26 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
     // find method function symbol
     QString symbol_name = QString("_Z%1%2%3%4").arg(klass.length()).arg(klass)
         .arg(method.length()).arg(method);
-    klass = "QString";
+    // klass = "QString";
     // method = "length";
     symbol_name = find_mangled_name(klass, method);
     symbol_name = resolve_mangle_name(klass, method, args);
     param_symbol_name = symbol_name;
     qDebug()<<"got symbol_name:"<<symbol_name<<param_symbol_name;
+    qDebug()<<"args:"<<args<<is.sval[0];
 
     // declare the method func
     std::vector<llvm::Type*> mfargs = {builder.getInt32Ty()};
     caller_arg_types.insert(caller_arg_types.begin(),
                             module->getTypeByName(QString("class.Ya%1").arg(klass).toStdString())
                             ->getPointerTo());
+    if (method == "lastIndexOf") {
+        // 参数默认值需要编译器在调用时处理，放上默认值。还不是少传几个值。
+        caller_arg_types.push_back(builder.getInt32Ty());
+        caller_arg_types.push_back(builder.getInt32Ty());
+        caller_arg_values.push_back(builder.getInt32(-1));
+        caller_arg_values.push_back(builder.getInt32(0));
+    }
     llvm::ArrayRef<llvm::Type*> rmfargs(caller_arg_types); // (mfargs);
     llvm::Type* frettype =  module->getTypeByName(QString("class.%1").arg(klass).toStdString())
         ->getPointerTo();
@@ -509,11 +518,13 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
             real_mfunc->addAttributes(i+1, llvm::AttributeSet::get(ctx, 2, ab));
         }
     }
+    // llvm::Value *lkthis = 
 
     // call method
     // kthis = (void*) 123;
+    qDebug()<<"curr kthis:"<<kthis;
     llvm::Constant *pthisc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)kthis);
-    llvm::Value *pthisv = llvm::ConstantExpr::getIntToPtr(pthisc, module->getTypeByName(QString("class.Ya%1").arg(klass).toStdString())->getPointerTo());
+    llvm::Constant *pthisv = llvm::ConstantExpr::getIntToPtr(pthisc, module->getTypeByName(QString("class.Ya%1").arg(klass).toStdString())->getPointerTo());
     caller_arg_values.insert(caller_arg_values.begin(), pthisv);
     qDebug()<<"arguments count:"<<caller_arg_values.size();
 

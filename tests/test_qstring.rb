@@ -11,15 +11,24 @@ puts "==========";
 # puts a.length()
 a.append("876")
 
-puts a.length()
+# puts a.length()
 
-puts a.isEmpty();
+# puts a.isEmpty();
 
-puts a.length();
+# puts a.length();
 
-a.append("%1")
+# a.append("%1")
 
-# a.arg("uio")
+# # a.arg("uio") ### 参数太多，很难运行时确定。
+
+# a.contains("876");
+
+# a.indexOf("876");
+
+# a.toUpper;
+a.lastIndexOf("876")  # 是因为这个函数的默认参数，无法正常填入。
+
+# a.startsWith("kkkk")
 
 
 # s = Qt5::QString.new

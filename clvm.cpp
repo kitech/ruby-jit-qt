@@ -282,19 +282,29 @@ QVariant jit_vm_call(void *kthis, QString klass, QString method, QVector<QVarian
     QString symbol_name;
 
     // entry func
+    std::vector<llvm::Type *> entry_func_type = {builder.getVoidTy()->getPointerTo()};
+    llvm::ArrayRef<llvm::Type*> ref_entry_func_type(entry_func_type);
     llvm::Function *entry_func = 
-        llvm::Function::Create(llvm::FunctionType::get(builder.getVoidTy()->getPointerTo(), false),
+        llvm::Function::Create(llvm::FunctionType::get(builder.getVoidTy()->getPointerTo(), 
+                                                       ref_entry_func_type, false),
                                llvm::Function::ExternalLinkage,
                                "yamain2", module);
     builder.SetInsertPoint(llvm::BasicBlock::Create(ctx, "eee", entry_func));
+    int i = 0;
+    for (auto it = entry_func->arg_begin(); it != entry_func->arg_end(); it ++, i++) {
+        llvm::Argument &a = *it;
+        if (i == 0) a.setName("kthis");
+        else a.setName(QString("fa%1").arg(i).toStdString());
+    }
 
     irop->call(kthis, klass, method, args, symbol_name);
 
     module->dump();
+    qDebug()<<"============module dump end.";
 
     llvm::GenericValue gv = jit_execute_func(module, entry_func);
     int iret = gv.IntVal.getZExtValue();
-    qDebug()<<iret<<llvm::GVTOP(gv);
+    qDebug()<<"raw ret:"<<iret<<llvm::GVTOP(gv);
 
     // how to known return type
     // 需要把gv解释并转换为为什么类型呢。

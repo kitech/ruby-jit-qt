@@ -16,6 +16,8 @@
    是不是在解析的时候可以考虑处理一下。但这样yQxxx子类中的用于查找的slot方法将非常多。
    不过这种方案应该可行，可以考虑，复杂度越来越高了。
 
+在使用moc的时候，碰到一个问题，有时候执行过程中指针变成了Qt基类的指针，无法确定是不是绑定的子类对象。
+
 目录结构：
 metalize/{core,gui,widgets,network}
 metalize/metas_auto.cpp
@@ -33,12 +35,14 @@ operatorxxx方法
 也许可以有一个C/C++系统虚拟机CVM(像JVM)
 生成PCH文件，clang++ -cc1 -x c++ -emit-pch clang_pch_src.h
 
+
 组件，
 entry(ruby <==> c++)
 translator( c++ <==> qtcode)
 clvm ( qtcode <==> native)
 resolve_symbol
 resolve_return_type
+astbuilder,用于函数原型的核对和默认值相关的处理。便是有一个ast在内存中会点内存非常大。
 
 JIT的另一个选择？libjit from gnu.(other google c++ jit compiler)
 
@@ -87,6 +91,14 @@ jit虚拟机的优化。
 
 
 * 用于Qt5内部的QArrayData类分析。
+
+
+* 关于C++的一点整理
+原来函数的默认值是在编译时在调用端处理的。
+编译器如果发现传递的参数不够，并且函数有默认参数值，则分配相应的临时变量，
+再执行函数调用，也就是在函数体的实现中不需要做任何的处理。
+
+C++的函数名方法名的mangle，是一种简化的压缩格式。
 
 
 
