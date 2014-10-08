@@ -165,6 +165,19 @@ static void parser_decl_for_one(const clang::CXXMethodDecl *decl, const clang::A
             return QString();
         }
     };
+    auto is_typedef_type = [&](clang::QualType t) -> bool {
+        return QString(t->getTypeClassName()) == "Typedef";
+    };
+    auto is_currclass_typedef = [&](clang::QualType fret_type) -> bool {
+        if (clang::isa<clang::TypedefType>(fret_type)) {
+            const clang::TypedefType *t = fret_type->getAs<clang::TypedefType>();
+            clang::TypedefNameDecl *d = t->getDecl();
+            clang::DeclContext *dc = d->getLexicalDeclContext();
+            clang::CXXRecordDecl *cxxd = clang::cast<clang::CXXRecordDecl>(dc);
+            if (QString(cxxd->getName().data()) == klass_name) return true;
+        }
+        return false;
+    };
 
     // 
     clang::SourceRange sr = decl->getSourceRange();
@@ -172,6 +185,7 @@ static void parser_decl_for_one(const clang::CXXMethodDecl *decl, const clang::A
     // decl->getNameInfo().getName().dump();
     clang::QualType fret_type = decl->getReturnType();
     clang::QualType res_type = decl->getCallResultType(); // maby lost '&' reference char
+    clang::QualType unq_type = fret_type.getUnqualifiedType();
     qDebug()<<"return type:"<< decl->isNoReturn() << res_type->isVoidType()
             << res_type.getAsString().c_str()
             << "decled:"<<decl->isDefined()
@@ -186,6 +200,7 @@ static void parser_decl_for_one(const clang::CXXMethodDecl *decl, const clang::A
             << "is tpl inst:"<<decl->isTemplateInstantiation();
     fret_type->dump();
     res_type->dump();
+    unq_type->dump();
     qDebug()<<"ret enumt:"<<fret_type->isIntegralOrEnumerationType()
             <<res_type->isIntegralOrEnumerationType();
     qDebug()<<"res enumt:"<<fret_type->isIntegralOrUnscopedEnumerationType()
@@ -193,10 +208,25 @@ static void parser_decl_for_one(const clang::CXXMethodDecl *decl, const clang::A
     qDebug()<<"is enut:"<<fret_type->isEnumeralType()
             <<res_type->isEnumeralType()
             <<fret_type->getTypeClassName()
-            <<fret_type.getCanonicalType().getAsString().c_str();
+            <<fret_type.getCanonicalType().getAsString().c_str()
+            <<"is typedef:"<<is_typedef_type(fret_type)
+            <<llvm::isa<clang::TypedefType>(fret_type);
+
     fret_type->getCanonicalTypeInternal()->dump();
     fret_type.getCanonicalType()->dump();
     if (is_qflag_type(fret_type)) qDebug()<<get_qflag_name(fret_type);
+    if (clang::isa<clang::TypedefType>(fret_type)) {
+        const clang::TypedefType *t = fret_type->getAs<clang::TypedefType>();
+        clang::TypedefNameDecl *d = t->getDecl();
+        clang::DeclContext *dc = d->getLexicalDeclContext();
+        // clang::DeclContext *pdc = dc->getParent();
+        clang::CXXRecordDecl *cxxd = clang::cast<clang::CXXRecordDecl>(dc);
+        qDebug()<<t<<d<<d->isCXXInstanceMember()<<dc->getDeclKindName()
+                <<dc->isRecord()<<clang::isa<clang::CXXRecordDecl>(dc)
+                <<cxxd->getName().data();
+        
+        d->dump();
+    }
 
     // 
     // fix some inline function define in *.h.
@@ -241,7 +271,9 @@ static void parser_decl_for_one(const clang::CXXMethodDecl *decl, const clang::A
 
 
     // template: [type] klass::method [:pname(a1,a2)](
-    ctmp += QString("%1 Ya%2::%3(")
+    ctmp += QString("%1%2 Ya%3::%4(")
+        .arg(is_typedef_type(fret_type) && is_currclass_typedef(fret_type) ?
+             QString("%1::").arg(klass_name) : "") // 认为是当前类的
         .arg(is_ctor(method_name) || is_dtor(method_name) 
              ? "" : (is_qflag_type(fret_type) ? get_qflag_name(fret_type) : return_type_str))
         .arg(klass_name)

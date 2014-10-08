@@ -12,10 +12,13 @@ done
 
 echo $CXXFLAGS
 
-care_classes="QObject QString QByteArray QThread QCoreApplication \
-QChar \
-QTimer QDateTime QUrl QFile \
+care_classes="QAccessible QAction QActionGroup QObject QString QBitArray \
+QBitmap QBuffer QBoxLayout \
+QByteArray QThread QCoreApplication \
+QChar QStringList \
+QTimer QDateTime QUrl QFile QRegExp \
 QHostAddress QAbstractSocket QTcpSocket QTcpServer \
+QNetworkAccessManager QNetworkRequest QNetworkReply \
 QGuiApplication QBitmap QIcon \
 QWidget QMainWindow";
 
