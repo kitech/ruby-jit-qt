@@ -425,6 +425,9 @@ typedef struct {
     int iretval;
     bool bretval;
     QString sretval;
+    QChar cretval;
+
+    QString *sbyvalret; // by value return result
 
     // 最大支持10个参数，参数的临时值放在这
     int ival[10];
@@ -486,6 +489,7 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
     QString retype_str = this->resolve_return_type(klass, method, args, tmp_mangle_name);
     QStringList retype_part = retype_str.split(" ");
     bool need_sret = true; // 采用黑名单方式，排除
+    // TODO 使用clang的更快速的类型判断，可以考虑在frontengine中判断
     for (int i = 0; i < retype_part.count(); i ++) {
         QString str = retype_part.at(i).trimmed();
         if (str == "*" || str == "&" || str == "void" || str == "int" || str == "uint"
@@ -500,17 +504,41 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
     // emu param
     llvm::Value *lv;
     llvm::Constant *lc;
-    llvm::Value *lr; // return value
+    llvm::Value *ilr; // internal return value
+    llvm::Value *rlr; // real return value for by value returned 
     QVector<QVariant> callee_params = mrg_args; // TODO 名字是不是搞反了，caller是主调，callee是被调
     std::vector<llvm::Type*> caller_arg_types;
     std::vector<llvm::Value*> caller_arg_values;
     QBitArray derefbit(callee_params.count());
 
     if (need_sret) {
+        // TODO memory leak for ilr alloc, no destructor call now
         llvm::Type *retype = module->getTypeByName(QString("class.%1").arg(retype_str).toStdString());
         caller_arg_types.push_back(retype->getPointerTo());
-        lr = builder.CreateAlloca(retype);
-        caller_arg_values.push_back(lr);
+        ilr = builder.CreateAlloca(retype);
+        // caller_arg_values.push_back(ilr);
+        // for real ret
+        gis.sbyvalret = (decltype(gis.sbyvalret))calloc(1, sizeof(decltype(*gis.sbyvalret)));
+        llvm::Constant *rlr1 = builder.getInt64((int64_t)gis.sbyvalret);
+        llvm::Value *rlr2 = llvm::ConstantExpr::getIntToPtr(rlr1, retype->getPointerTo());
+        llvm::Value *rlr3 = builder.CreateAlloca(retype->getPointerTo(), builder.getInt32(1), "oretaddr");
+        llvm::Value *rlr4 = builder.CreateStore(rlr2, rlr3);
+        llvm::Value *rlr5 = builder.CreateLoad(rlr3, "sret2");
+        caller_arg_values.push_back(rlr5);
+        qDebug()<<(int64_t)&gis.sbyvalret<<(int64_t)gis.sbyvalret
+                <<&gis.sbyvalret<<gis.sbyvalret
+                <<retype->getPrimitiveSizeInBits()
+                <<retype->getScalarSizeInBits();
+        /*
+        llvm::Constant *rlr1 = builder.getInt64((int64_t)&gis.sbyvalret);
+        llvm::Value *rlr2 = llvm::ConstantExpr::getIntToPtr(rlr1, retype->getPointerTo()
+                                                            ->getPointerTo()->getPointerTo());
+
+        llvm::LoadInst *rlr3 = builder.CreateLoad(rlr2, "oretaddr2");
+        llvm::StoreInst *li = builder.CreateStore(ilr, rlr3);
+        */
+        // builder.CreateRet(rlr3);
+        rlr = rlr5;
     }
 
     // 处理this指针    
@@ -602,11 +630,13 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
     // builder.CreateCall(mfunc, rmfvalues);
     // cval to int??? not need
     // builder.CreateRet(cval);
-    // builder.CreateRet(lr); // 要析构了，不能返回
+    // builder.CreateRet(ilr); // 要析构了，不能返回
     // builder.CreateRetVoid();
     if (need_sret) {
         cval->addAttribute(1, llvm::Attribute::StructRet);
-        builder.CreateRetVoid();
+        builder.CreateRet(rlr);
+        // builder.CreateRetVoid();
+        // builder.CreateRet(builder.getInt32(0));
     } else {
         builder.CreateRet(cval);
     }
