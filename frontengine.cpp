@@ -53,9 +53,11 @@ bool FrontEngine::initCompiler()
         (char*)"myjitqtrunner", (char*)"flycode.cxx",
         (char*)"-fPIC", (char*)"-x", (char*)"c++", 
         (char*)"-I/usr/include/qt", (char*)"-I/usr/include/qt/QtCore",
+        (char*)"-I/usr/include/qt/QtGui", (char*)"-I/usr/include/qt/QtWidgets",
+        (char*)"-I/usr/include/qt/QtNetwork",
         (char*)"-I/usr/lib/clang/3.5.0/include",
     };
-    static int argc = 8;
+    static int argc = 11;
     char **targv = argv;
 
     llvm::SmallVector<const char*, 16> drv_args(targv, targv + argc);
@@ -107,10 +109,74 @@ bool FrontEngine::parseClass(QString klass)
     return true;
 }
 
+// from ast file
+bool FrontEngine::parseHeader()
+{
+    std::string astfile = "qthdrsrc.ast";
+    clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> mydiag;
+    clang::FileSystemOptions fsopts;
+
+    QDateTime btime = QDateTime::currentDateTime();
+    clang::ASTUnit *unit = clang::ASTUnit::LoadFromASTFile(astfile, mydiag, fsopts);
+        // clang::ASTUnit::LoadFromASTFile(const std::string &Filename, 
+        //                                 IntrusiveRefCntPtr<clang::DiagnosticsEngine> Diags, 
+        //                                 const clang::FileSystemOptions &FileSystemOpts, 
+        //                                 bool OnlyLocalDecls, 
+        //                                 ArrayRef<RemappedFile> RemappedFiles);
+    QDateTime etime = QDateTime::currentDateTime();
+    clang::ASTContext &tctx = unit->getASTContext();
+    clang::SourceManager &srcman = unit->getSourceManager();
+    clang::FileManager &fman = unit->getFileManager();
+    clang::TranslationUnitDecl *trud = tctx.getTranslationUnitDecl();
+    // bool bret = unit->Reparse();
+    // unit->Save("abc.ast");
+    tctx.PrintStats();
+    srcman.PrintStats();
+    fman.PrintStats();
+
+    unit->getStartOfMainFileID();
+    
+    // unit->loadModule(unit->getStartOfMainFileID());
+
+    int fic = 0;
+    for (auto it = srcman.fileinfo_begin(); it != srcman.fileinfo_end(); it++) {
+        fic ++;
+        const clang::FileEntry *fe = it->first;
+        qDebug()<<it->first<<it->second<<fe->getName()<<fe->getSize();
+    }
+    int dic = 0;
+    for (auto it = trud->decls_begin(); it != trud->decls_end(); it++) {
+        dic++;
+        clang::Decl *d = *it;
+        if (dic % 500 == 1) {
+            qDebug()<<d->getDeclKindName();
+        }
+    }
+    qDebug()<<"fic:"<<fic<<trud<<trud->decls_empty()<<"decls count:"<<dic;
+
+    // 遍历一次用时120ms,加载5,6ms，很快了。3M内存？？？
+    qDebug()<<"time "<<etime.msecsTo(btime)
+            <<tctx.getASTAllocatedMemory()
+            <<tctx.getSideTableAllocatedMemory();
+
+    qDebug()<<unit<<unit->isMainFileAST()<<unit->getOriginalSourceFileName().data()
+            <<unit->getASTFileName().data()
+            <<unit->getMainFileName().data()
+            <<unit->top_level_size()
+            <<unit->top_level_empty()
+            <<unit->isModuleFile()
+            <<unit->getPCHFile()
+        ;
+
+
+    return true;
+}
+
 bool FrontEngine::parseHeader(QString path)
 {
     qDebug()<<path;
 
+    path = "./qthdrsrc.h";
     QFile fp(path);
     fp.open(QIODevice::ReadOnly);
     QByteArray ba = fp.readAll();
@@ -128,6 +194,8 @@ bool FrontEngine::parseHeader(QString path)
         clang::ASTUnit::LoadFromCompilerInvocation(mciv, mydiag);
     clang::ASTContext &tctx = pastu->getASTContext();
     QDateTime etime = QDateTime::currentDateTime();
+
+    pastu->Save("abc.ast");
 
     // about 3.5M for qstring.h, 310ms
     // about 9.3M for qwidget.h, 770ms

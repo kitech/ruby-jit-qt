@@ -76,6 +76,7 @@ JIT的另一个选择？libjit from gnu.(other google c++ jit compiler)
 
 
 现在的基本框架已经试验完成，还需要解决的实用问题，
+更多的功能测试。
 线程安全。
 jit虚拟机的优化。
 生成的IR代码的优化。

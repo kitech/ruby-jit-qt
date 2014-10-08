@@ -41,6 +41,7 @@ public:
     bool init();
     bool initCompiler();
 
+    bool parseHeader();
     bool parseHeader(QString path);
     bool parseClass(QString klass);
     bool get_method_default_args(QString klass, QString method, QString symbol_name

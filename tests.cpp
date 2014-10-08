@@ -2,6 +2,8 @@
 // usage: 在其他位置直接插入#include代码。
 // #include "tests.cpp"
 
+#include <QtCore>
+
 #include "tests.h"
 
 #include <stdio.h>
@@ -62,6 +64,15 @@ void test_parse_class()
     fe->parseClass("QWidget");
 
     fe->parseClass("QTcpServer");
+}
+
+void test_parse_ast()
+{
+    FrontEngine *fe = new FrontEngine();
+    QDateTime btime = QDateTime::currentDateTime();
+    fe->parseHeader();
+    QDateTime etime = QDateTime::currentDateTime();
+    qDebug()<<"use time:"<<btime.msecsTo(etime);
 }
 
 // test_fe();
