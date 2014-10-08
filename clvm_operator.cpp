@@ -512,11 +512,8 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
     QBitArray derefbit(callee_params.count());
 
     if (need_sret) {
-        // TODO memory leak for ilr alloc, no destructor call now
         llvm::Type *retype = module->getTypeByName(QString("class.%1").arg(retype_str).toStdString());
         caller_arg_types.push_back(retype->getPointerTo());
-        ilr = builder.CreateAlloca(retype);
-        // caller_arg_values.push_back(ilr);
         // for real ret
         gis.sbyvalret = (decltype(gis.sbyvalret))calloc(1, sizeof(decltype(*gis.sbyvalret)));
         llvm::Constant *rlr1 = builder.getInt64((int64_t)gis.sbyvalret);
@@ -529,15 +526,6 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
                 <<&gis.sbyvalret<<gis.sbyvalret
                 <<retype->getPrimitiveSizeInBits()
                 <<retype->getScalarSizeInBits();
-        /*
-        llvm::Constant *rlr1 = builder.getInt64((int64_t)&gis.sbyvalret);
-        llvm::Value *rlr2 = llvm::ConstantExpr::getIntToPtr(rlr1, retype->getPointerTo()
-                                                            ->getPointerTo()->getPointerTo());
-
-        llvm::LoadInst *rlr3 = builder.CreateLoad(rlr2, "oretaddr2");
-        llvm::StoreInst *li = builder.CreateStore(ilr, rlr3);
-        */
-        // builder.CreateRet(rlr3);
         rlr = rlr5;
     }
 
