@@ -385,26 +385,29 @@ bool IROperator::knew(QString klass)
     llvm::Module *module = this->dmod;
 
     // test new operator, TODOOOOOOOOOOOOOOOOOO
-    llvm::Type *TQString = module->getTypeByName("class.YaQString");
-    llvm::Type *TQklass = module->getTypeByName(QString("class.%1").arg(klass).toStdString());
-    qDebug()<<"type:"<<TQString<<TQklass;
-    TQString->dump();
+    // llvm::Type *TQString = module->getTypeByName("class.YaQString");
+    llvm::Type *TQklass = module->getTypeByName(QString("class.Ya%1").arg(klass).toStdString());
+    qDebug()<<"type:"<<TQklass;
+    TQklass->dump();
 
     // new op
-    std::vector<llvm::Type*> fargs = {TQString->getPointerTo()};
+    std::vector<llvm::Type*> fargs = {TQklass->getPointerTo()};
     llvm::ArrayRef<llvm::Type*> rfargs(fargs);
     llvm::FunctionType *funt = llvm::FunctionType::get(builder.getVoidTy(), rfargs, false);
-    llvm::Constant *func = module->getOrInsertFunction("_ZN9YaQStringC1Ev", funt);
+    // llvm::Constant *func = module->getOrInsertFunction("_ZN9YaQStringC1Ev", funt);
+    // 默认构造函数的格式
+    QString symbol_name = QString("_ZN%1Ya%2C1Ev").arg(klass.length()+2).arg(klass);
+    llvm::Constant *func = module->getOrInsertFunction(symbol_name.toLatin1().data(), funt);
 
     // new func
     std::vector<llvm::Type*> new_fargs = {builder.getInt32Ty()};
     llvm::ArrayRef<llvm::Type*> new_rfargs(new_fargs);
     llvm::FunctionType *new_funt = llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(), new_rfargs, false);
-    llvm::Constant *new_func = module->getOrInsertFunction("_Znwj",new_funt);
+    llvm::Constant *new_func = module->getOrInsertFunction("_Znwj", new_funt);
 
-    llvm::Value *val = builder.CreateAlloca(TQString->getPointerTo());
+    llvm::Value *val = builder.CreateAlloca(TQklass->getPointerTo());
     llvm::Value *mval = builder.CreateCall(new_func, builder.getInt32(1));
-    llvm::Value *cval = builder.CreateBitCast(mval, TQString->getPointerTo());
+    llvm::Value *cval = builder.CreateBitCast(mval, TQklass->getPointerTo());
     llvm::Value *val2 = builder.CreateStore(cval, val);
 
     llvm::LoadInst *rval = builder.CreateLoad(val);

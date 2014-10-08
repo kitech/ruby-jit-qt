@@ -3,11 +3,13 @@
 #include <llvm/Support/Host.h>
 
 #include <clang/AST/AST.h>
+#include <clang/AST/Mangle.h>
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/Tool.h"
+
 
 #include "frontengine.h"
 
@@ -139,6 +141,8 @@ bool FrontEngine::parseHeader()
     // unit->loadModule(unit->getStartOfMainFileID());
 
     int fic = 0;
+    mgctx = tctx.createMangleContext();
+
     for (auto it = srcman.fileinfo_begin(); it != srcman.fileinfo_end(); it++) {
         fic ++;
         const clang::FileEntry *fe = it->first;
@@ -148,8 +152,15 @@ bool FrontEngine::parseHeader()
     for (auto it = trud->decls_begin(); it != trud->decls_end(); it++) {
         dic++;
         clang::Decl *d = *it;
-        if (dic % 500 == 1) {
+        if (dic % 100 == 1) {
             qDebug()<<d->getDeclKindName();
+            if (QString(d->getDeclKindName()) == "CXXMethod") {
+                clang::CXXMethodDecl *mthdecl = llvm::cast<clang::CXXMethodDecl>(d);
+                std::string str;
+                llvm::raw_string_ostream los(str);
+                mgctx->mangleCXXName(mthdecl, los);
+                qDebug()<<los.str().c_str();
+            }
         }
     }
     qDebug()<<"fic:"<<fic<<trud<<trud->decls_empty()<<"decls count:"<<dic;
@@ -176,7 +187,7 @@ bool FrontEngine::parseHeader(QString path)
 {
     qDebug()<<path;
 
-    path = "./qthdrsrc.h";
+    // path = "./qthdrsrc.h";
     QFile fp(path);
     fp.open(QIODevice::ReadOnly);
     QByteArray ba = fp.readAll();
@@ -195,7 +206,7 @@ bool FrontEngine::parseHeader(QString path)
     clang::ASTContext &tctx = pastu->getASTContext();
     QDateTime etime = QDateTime::currentDateTime();
 
-    pastu->Save("abc.ast");
+    // pastu->Save("abc.ast");
 
     // about 3.5M for qstring.h, 310ms
     // about 9.3M for qwidget.h, 770ms

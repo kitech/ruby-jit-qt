@@ -15,6 +15,8 @@ namespace clang {
     class CompilerInvocation;
     class ASTUnit;
     class ASTImporter;
+    class MangleContext;
+
     namespace driver {
         class Driver;
     };
@@ -27,7 +29,7 @@ public:
     clang::CompilerInstance *mcis;
     clang::CompilerInvocation *mciv;
     clang::driver::Driver *mdrv;
-
+    clang::MangleContext *mgctx;
 public:
     QHash<QString, clang::ASTUnit*> units;
     clang::ASTUnit *mrgunit;

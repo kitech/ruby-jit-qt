@@ -4,59 +4,71 @@
 a = File.absolute_path(File.dirname(__FILE__))
 ret = require "#{a}/test_init.rb"
 
-a = Qt5::QString.new
+def test_qstring()
+  
+  a = Qt5::QString.new
 
-puts "==========";
+  puts "==========";
 
-puts a.length()
-a.append("876")
+  puts a.length()
+  a.append("876")
 
-puts a.length()
+  puts a.length()
 
-puts a.isEmpty();
+  puts a.isEmpty();
 
-puts a.length();
+  puts a.length();
 
-a.append("%1")
+  a.append("%1")
 
-a.arg("uio") ### 参数太多，很难运行时确定。已经修正，返回值处理问题。
+  a.arg("uio") ### 参数太多，很难运行时确定。已经修正，返回值处理问题。
 
-a.contains("876");
+  a.contains("876");
 
-a.indexOf("876");  # ok
+  a.indexOf("876");  # ok
 
-a.toUpper; # crash
-a.lastIndexOf("876")  # 是因为这个函数的默认参数，无法正常填入。已修正
+  a.toUpper; # crash
+  a.lastIndexOf("876")  # 是因为这个函数的默认参数，无法正常填入。已修正
 
- a.startsWith("kkkk")
+  a.startsWith("kkkk")
 
 
-# s = Qt5::QString.new
+  a.append("哈哈哈")
 
-# puts s
+end
 
-# puts s.length
+def test_qbytearray()
+  ba = Qt5::QByteArray.new
+  ba.append("yuio");
+  ba.count();
+  # ba.fill(6);  # crash, char type's process
+  ba.indexOf("uio");
+  ba.indexOf('gggggg');
+  ba.lastIndexOf("uio");
+  ba.lastIndexOf('fffffff');
+  ba.isEmpty();
+  ba.isNull();
+  ba.resize(100);
+  ba.truncate(5);
+  # ba.toLong();  # shit _Bool
+  ba.at(1)
+  ba.toLower();
+end
 
-# s.append("abc")
+def test_qurl()
+  u = Qt5::QUrl.new
+  u.setUrl("http://www.abc.com/hehe?jie=123#mmm");
+  #u.port(); #???
+  u.setPort(5678);
+  u.toLocalFile();
+  #u.path(); # enum和flag默认值的问题
+  u.scheme();
+end
 
-# puts s.length
 
-# puts s.append("456789")
+# test_qstring
+# test_qbytearray
+test_qurl
 
-# puts s.length
-
-# puts s.toUpper()
-
-# s.append("%1")
-
-# puts s.arg(9999)
-
-# puts s.contains("123")
-
-# puts s.contains("456")
-
-# s.append("哈哈哈")
-
-# puts s.to_s
 
 
