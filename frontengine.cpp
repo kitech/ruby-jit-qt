@@ -418,6 +418,13 @@ bool FrontEngine::get_method_default_args(QString klass, QString method, QString
 }
 
 
+bool FrontEngine::symbol_resolve(QString klass, QString method, QVector<QVariant> uargs,
+                    QString &symbol_name, QString &proto_str)
+{
+    
+
+    return true;
+}
 
 
 
