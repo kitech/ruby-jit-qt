@@ -24,7 +24,7 @@ SSL error
 
 QSslKey
 
-care_classes="QAbstractSocket QAccessible QAction QActionGroup QObject QString QBitArray \
+care_classes="QAccessible QAction QActionGroup QObject QString QBitArray \
 QBitmap QBuffer QBoxLayout \
 QByteArray QThread QCoreApplication \
 QChar QStringList \
@@ -33,17 +33,21 @@ QHostAddress QAbstractSocket QTcpSocket QTcpServer \
 QSslSocket QSslCipher QSslConfiguration QSslError QSslKey \
 QNetworkCookie QNetworkCookieJar  \
 QNetworkAccessManager QNetworkRequest QNetworkReply \
-QGuiApplication QBitmap QIcon \
+QGuiApplication  QIcon \
 QWidget QMainWindow";
 
 
 ##### gen jit types body
 jit_types_body_file="metalize/jit_types_body.cpp"
+qtruby_register_file="metalize/qtruby_auto_body.cpp"
 echo "// auto generated" > $jit_types_body_file
+echo "// auto generated" > $qtruby_register_file
 for klass in $care_classes ; do
     echo "aaa $klass bbb"
-    echo "(Ya${klass}*)v0;" >> $jit_types_body_file
+    echo "(void)(Ya${klass}*)v0;" >> $jit_types_body_file
+    echo "RQCLASS_REGISTER(${klass});" >> $qtruby_register_file
 done
+
 
 #### exit
 
@@ -185,3 +189,9 @@ ast_file="./data/qthdrsrc.ast"
 clang++ -x c++ -S -emit-ast "./qthdrsrc.h" -fPIC -I/usr/include/qt -I/usr/include/qt/QtCore \
     -I/usr/include/qt/QtGui -I/usr/include/qt/QtWidgets -I/usr/include/qt/QtNetwork
 mv -v "qthdrsrc.ast" "${ast_file}"
+
+### generator jit_types.ll
+clang++ -S -emit-llvm metalize/jit_types.cpp -I. -I/usr/include/qt/QtCore/ -I/usr/include/qt \
+    -fPIC -std=c++11 -I/usr/include/qt/QtGui -I/usr/include/qt/QtWidgets -I/usr/include/qt/QtNetwork
+mv -v jit_types.ll metalize/jit_types.ll
+

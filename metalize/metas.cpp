@@ -1,9 +1,6 @@
 
 #include <QtCore>
 
-#include "kitech_qtcore.h"
-#include "kitech_qtnetwork.h"
-
 #include "metar_classes_qtcore.h"
 #include "metar_classes_qtgui.h"
 #include "metar_classes_qtwidgets.h"

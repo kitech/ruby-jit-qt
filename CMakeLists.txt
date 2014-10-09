@@ -37,6 +37,7 @@ message("clang defs: ${CLANG_CXXFLAGS_OUTPUT}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CLANG_CXXFLAGS_OUTPUT}")
 
 set(handby_lib_SRCS
+  qtruby.cpp
   qom.cpp
   entry.cpp
   frontengine.cpp
@@ -49,8 +50,8 @@ set(handby_lib_SRCS
   metalize/metar_classes_qtnetwork.cpp
 #  rcoreapplication.cpp
 #  functionize/kitech_qtcore.cpp
-  metalize/kitech_qtcore.cpp
-  metalize/kitech_qtnetwork.cpp
+#  metalize/kitech_qtcore.cpp
+#  metalize/kitech_qtnetwork.cpp
   metalize/metas.cpp
   debugoutput.cpp
 )

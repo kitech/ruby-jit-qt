@@ -366,7 +366,7 @@ IROperator::~IROperator()
 
 bool IROperator::init()
 {
-    QFile fp("./jit_types.ll");
+    QFile fp("./metalize/jit_types.ll");
     fp.open(QIODevice::ReadOnly);
     QByteArray llcode = fp.readAll();
     fp.close();

@@ -24,11 +24,9 @@
 
 // #include "rcoreapplication.h"
 
-#include "metalize/kitech_qtcore.h"
-#include "metalize/kitech_qtnetwork.h"
 #include "metalize/metar_classes_qtcore.h"
 #include "metalize/metas.h"
-
+#include "qtruby.h"
 
 // extern "C" {
 
@@ -1040,9 +1038,9 @@ static VALUE x_Qt_Method_missing(int argc, VALUE* argv, VALUE self)
 
 extern "C" {
     // VALUE cQString;
-    VALUE cQApplication;
+    // VALUE cQApplication;
     VALUE cModuleQt;
-
+    
     void Init_handby()
     {
         qInstallMessageHandler(myMessageOutput);
@@ -1052,9 +1050,11 @@ extern "C" {
         rb_define_module_function(cModuleQt, "const_missing", FUNVAL x_Qt_Constant_missing, -1);
         // rb_define_module_function(cModuleQt, "method_missing", FUNVAL x_Qt_Method_missing, -1);
 
+        register_qtruby_classes(cModuleQt);
+
         // register_QCoreApplication_methods(cModuleQt);
-        register_qtcore_methods(cModuleQt);
-        register_qtnetwork_methods(cModuleQt);
+        // register_qtcore_methods(cModuleQt);
+        // register_qtnetwork_methods(cModuleQt);
 
         // cQByteArray = rb_define_class("QByteArray", rb_cObject);
         // rb_define_method(cQByteArray, "initialize", FUNVAL x_QByteArray_init, 0);
@@ -1076,9 +1076,9 @@ extern "C" {
         */
 
         // 
-        cQApplication = rb_define_class("QApplication", rb_cObject);
-        rb_define_method(cQApplication, "initialize", FUNVAL x_QApplication_init, 0);
-        rb_define_method(cQApplication, "exec", FUNVAL x_QApplication_exec, 0);
+        // cQApplication = rb_define_class("QApplication", rb_cObject);
+        // rb_define_method(cQApplication, "initialize", FUNVAL x_QApplication_init, 0);
+        // rb_define_method(cQApplication, "exec", FUNVAL x_QApplication_exec, 0);
 
     }
 
