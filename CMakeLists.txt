@@ -42,13 +42,13 @@ set(handby_lib_SRCS
   frontengine.cpp
   clvm_operator.cpp
   clvm.cpp
-  metalize/metar_qt.cpp
+#  metalize/metar_qt.cpp
   metalize/metar_classes_qtcore.cpp
   metalize/metar_classes_qtgui.cpp
   metalize/metar_classes_qtwidgets.cpp
   metalize/metar_classes_qtnetwork.cpp
 #  rcoreapplication.cpp
-  functionize/kitech_qtcore.cpp
+#  functionize/kitech_qtcore.cpp
   metalize/kitech_qtcore.cpp
   metalize/kitech_qtnetwork.cpp
   metalize/metas.cpp

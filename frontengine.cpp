@@ -114,7 +114,7 @@ bool FrontEngine::parseClass(QString klass)
 // from ast file
 bool FrontEngine::parseHeader()
 {
-    std::string astfile = "qthdrsrc.ast";
+    std::string astfile = "data/qthdrsrc.ast";
     clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> mydiag;
     clang::FileSystemOptions fsopts;
 
@@ -393,7 +393,7 @@ bool FrontEngine::get_method_default_args(QString klass, QString method, QString
                 bool bret = daexpr->isIntegerConstantExpr(daiv, unit->getASTContext());
                 qDebug()<<"valid int v:"<<bret<<daiv.getZExtValue();
                 if (bret) {
-                    dargs[idx] = QVariant(daiv.getZExtValue());
+                    dargs[idx] = QVariant((qlonglong)daiv.getZExtValue());
                 }
 
                 // CXXContructExpr

@@ -227,7 +227,7 @@ QVariant mapGV2Variant(QString klass, QString method, QString symbol_name, llvm:
     if (retype == "int" || retype == "uint" || retype == "long" || retype == "ulong"
         || retype == "qlonglong" || retype == "qulonglong"
         || retype == "short" || retype == "ushort" ) {
-        return QVariant((int)llvm::GVTOP(gv));
+        return QVariant((qlonglong)llvm::GVTOP(gv));
     } else if (retype == "bool") {
         return QVariant((bool)llvm::GVTOP(gv));
     } else if (retype == "double" || retype == "float") {
@@ -313,7 +313,7 @@ QVariant jit_vm_call(void *kthis, QString klass, QString method, QVector<QVarian
     int tyno = QMetaType::Int;
     switch (tyno) {
     case QMetaType::Int: 
-        iret = (int)(llvm::GVTOP(gv));
+        iret = (long)(llvm::GVTOP(gv));
         // return QVariant(iret);
     default:
         break;
