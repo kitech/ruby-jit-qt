@@ -30,7 +30,8 @@ bool irop_new(llvm::LLVMContext &ctx, llvm::IRBuilder<> &builder,
     std::vector<llvm::Type*> new_fargs = {builder.getInt32Ty()};
     llvm::ArrayRef<llvm::Type*> new_rfargs(new_fargs);
     llvm::FunctionType *new_funt = llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(), new_rfargs, false);
-    llvm::Constant *new_func = module->getOrInsertFunction("_Znwj",new_funt);
+    // llvm::Constant *new_func = module->getOrInsertFunction("_Znwj",new_funt); // for x86
+    llvm::Constant *new_func = module->getOrInsertFunction("_Znwm",new_funt); // x64
 
     llvm::Value *val = builder.CreateAlloca(TQString->getPointerTo());
     llvm::Value *mval = builder.CreateCall(new_func, builder.getInt32(1));
@@ -403,7 +404,8 @@ bool IROperator::knew(QString klass)
     std::vector<llvm::Type*> new_fargs = {builder.getInt32Ty()};
     llvm::ArrayRef<llvm::Type*> new_rfargs(new_fargs);
     llvm::FunctionType *new_funt = llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(), new_rfargs, false);
-    llvm::Constant *new_func = module->getOrInsertFunction("_Znwj", new_funt);
+    // llvm::Constant *new_func = module->getOrInsertFunction("_Znwj",new_funt); // for x86
+    llvm::Constant *new_func = module->getOrInsertFunction("_Znwm",new_funt); // x64
 
     llvm::Value *val = builder.CreateAlloca(TQklass->getPointerTo());
     llvm::Value *mval = builder.CreateCall(new_func, builder.getInt32(1));

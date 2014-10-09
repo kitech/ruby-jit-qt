@@ -63,6 +63,8 @@ def test_qurl()
   u.toLocalFile();
   #u.path(); # enum和flag默认值的问题
   u.scheme();
+  puts u.to_s;
+  return;
 end
 
 

@@ -12,12 +12,26 @@ done
 
 echo $CXXFLAGS
 
-care_classes="QAccessible QAction QActionGroup QObject QString QBitArray \
+QSslConfiguration
+
+
+Holds the configuration and state of an SSL connection
+
+QSslError
+
+
+SSL error
+
+QSslKey
+
+care_classes="QAbstractSocket QAccessible QAction QActionGroup QObject QString QBitArray \
 QBitmap QBuffer QBoxLayout \
 QByteArray QThread QCoreApplication \
 QChar QStringList \
 QTimer QDateTime QUrl QFile QRegExp \
 QHostAddress QAbstractSocket QTcpSocket QTcpServer \
+QSslSocket QSslCipher QSslConfiguration QSslError QSslKey \
+QNetworkCookie QNetworkCookieJar  \
 QNetworkAccessManager QNetworkRequest QNetworkReply \
 QGuiApplication QBitmap QIcon \
 QWidget QMainWindow";

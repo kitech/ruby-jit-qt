@@ -41,11 +41,25 @@ static VALUE x_QString_to_s(VALUE self)
 }
 
 extern "C" {
+
+    // 注意这个符号""#klass => """QUrl"
+    // <===> 
+    // cQUrl = rb_define_class_under(module, "QUrl", rb_cObject);
+    // rb_define_method(cQUrl, "initialize", FUNVAL x_Qt_meta_class_init_jit, -1);
+    // rb_define_method(cQUrl, "method_missing", FUNVAL x_Qt_meta_class_method_missing_jit, -1);
+
+#define RQCLASS_REGISTER(klass)                                         \
+    static VALUE c##klass = rb_define_class_under(module, ""#klass, rb_cObject); \ 
+    rb_define_method(c##klass, "initialize", (VALUE (*) (...)) x_Qt_meta_class_init_jit, -1); \
+    rb_define_method(c##klass, "to_s", (VALUE (*) (...)) x_Qt_meta_class_to_s, -1); \
+    rb_define_method(c##klass, "method_missing", (VALUE (*) (...)) x_Qt_meta_class_method_missing_jit, -1);
+
+
     VALUE cQObject;
     VALUE cQString;
     VALUE cQCoreApplication;
     VALUE cQByteArray;
-    VALUE cQUrl;
+    // VALUE cQUrl;
 
     int register_qtcore_methods(VALUE module)
     {
@@ -75,9 +89,10 @@ extern "C" {
         rb_define_method(cQByteArray, "initialize", FUNVAL x_Qt_meta_class_init_jit, -1);
         rb_define_method(cQByteArray, "method_missing", FUNVAL x_Qt_meta_class_method_missing_jit, -1);
 
-        cQUrl = rb_define_class_under(module, "QUrl", rb_cObject);
-        rb_define_method(cQUrl, "initialize", FUNVAL x_Qt_meta_class_init_jit, -1);
-        rb_define_method(cQUrl, "method_missing", FUNVAL x_Qt_meta_class_method_missing_jit, -1);
+        RQCLASS_REGISTER(QUrl);
+        // cQUrl = rb_define_class_under(module, "QUrl", rb_cObject);
+        // rb_define_method(cQUrl, "initialize", FUNVAL x_Qt_meta_class_init_jit, -1);
+        // rb_define_method(cQUrl, "method_missing", FUNVAL x_Qt_meta_class_method_missing_jit, -1);
 
         cQCoreApplication = rb_define_class_under(module, "QCoreApplication", rb_cObject);
         rb_define_method(cQCoreApplication, "initialize", FUNVAL x_Qt_meta_class_init, 0);
