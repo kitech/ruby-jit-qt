@@ -4,6 +4,7 @@
 
 #include <clang/AST/AST.h>
 #include <clang/AST/Mangle.h>
+#include <clang/AST/APValue.h>
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include "clang/Driver/Compilation.h"
@@ -108,6 +109,55 @@ bool FrontEngine::parseClass(QString klass)
         qDebug()<<"class not found, no parse:"<<klass;
     } 
     return parseHeader(path);
+    return true;
+}
+
+bool FrontEngine::loadPreparedASTFile()
+{
+    // 可以看作是parseHeader方法的正式版本，实时方法，不过一般通过自身内部调度调用
+
+    if (mtrunit != NULL) {
+        qDebug()<<"ast file alread loaded.";
+        return true;
+    }
+
+    std::string astfile = "data/qthdrsrc.ast";
+    clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> mydiag;
+    clang::FileSystemOptions fsopts;
+
+    QDateTime btime = QDateTime::currentDateTime();
+    clang::ASTUnit *unit = clang::ASTUnit::LoadFromASTFile(astfile, mydiag, fsopts);
+        // clang::ASTUnit::LoadFromASTFile(const std::string &Filename, 
+        //                                 IntrusiveRefCntPtr<clang::DiagnosticsEngine> Diags, 
+        //                                 const clang::FileSystemOptions &FileSystemOpts, 
+        //                                 bool OnlyLocalDecls, 
+        //                                 ArrayRef<RemappedFile> RemappedFiles);
+    QDateTime etime = QDateTime::currentDateTime();
+    clang::ASTContext &tctx = unit->getASTContext();
+    clang::SourceManager &srcman = unit->getSourceManager();
+    clang::FileManager &fman = unit->getFileManager();
+    clang::TranslationUnitDecl *trud = tctx.getTranslationUnitDecl();
+
+    if (trud == NULL) {
+        qDebug()<<"load ast file error.";
+        return false;
+    }
+    
+    mtrunit = trud;
+    mgctx = tctx.createMangleContext();
+
+    int ndic = std::count_if(trud->decls_begin(), trud->decls_end(), [](clang::Decl *d){return true;});
+    int dic = 0;
+    for (auto it = trud->decls_begin(); it != trud->decls_end(); it++) {
+        dic++;
+    }
+    qDebug()<<trud<<trud->decls_empty()<<"decls count:"<<dic<<ndic;
+
+    // 遍历一次用时120ms,加载5,6ms，很快了。3M内存？？？
+    qDebug()<<"time "<<etime.msecsTo(btime)
+            <<tctx.getASTAllocatedMemory()
+            <<tctx.getSideTableAllocatedMemory();
+
     return true;
 }
 
@@ -417,17 +467,271 @@ bool FrontEngine::get_method_default_args(QString klass, QString method, QString
     return true;
 }
 
+bool FrontEngine::get_method_default_args2(QString klass, QString method, QString symbol_name
+                                         , QVector<QVariant> &dargs)
+{
+    this->loadPreparedASTFile();
+
+
+    return false;
+}
 
 bool FrontEngine::symbol_resolve(QString klass, QString method, QVector<QVariant> uargs,
                     QString &symbol_name, QString &proto_str)
 {
+    this->loadPreparedASTFile();
+
+    clang::CXXRecordDecl *recdecl = this->find_class_decl(klass);
+    QVector<clang::CXXMethodDecl*> mthdecls = this->find_method_decls(recdecl, klass, method);
+    bool match = false;
+
+    QVector<clang::CXXMethodDecl*> mats;
+    for (clang::CXXMethodDecl *d: mthdecls) {
+        match = this->method_match_by_uargs(d, klass, method, uargs);
+        if (match) {
+            mats << d;
+        }
+    }
+    qDebug()<<"matcc:"<<mats.count()<<"mats:"<<mats;
     
+    if (mats.count() <= 0) {
+        qDebug()<<"method not found:";
+        return false;
+    }
+
+    if (mats.count() > 1) {
+        qDebug()<<"find more matched method, try first now.";
+    }
+
+    clang::CXXMethodDecl *md = mats.at(0);
+    bool ok = this->mangle_method_to_symbol(md, symbol_name, proto_str);
+    Q_ASSERT(ok);
 
     return true;
 }
 
 
+clang::CXXRecordDecl* FrontEngine::find_class_decl(QString klass)
+{
+    clang::TranslationUnitDecl *udecl = this->mtrunit;
+    qDebug()<<klass<<udecl;
+    Q_ASSERT(udecl != NULL);
 
+    // 1st, find class record decl
+    // 2nd, find method decl
+    // 2.5nd, overload method resolve
+    // 3rd, find the default arg's value
+    clang::CXXRecordDecl * res_recdecl = NULL;
+    clang::CXXMethodDecl * res_mthdecl = NULL;
+
+    for (auto it = udecl->decls_begin(); it != udecl->decls_end(); it++) {
+        clang::Decl *decl = *it;
+        clang::CXXRecordDecl *recdecl;
+        clang::CXXMethodDecl *mthdecl;
+        QString declname;
+        // qDebug()<<decl<<decl->getDeclKindName()<<decl->getKind();
+        switch (decl->getKind()) {
+        case clang::Decl::CXXMethod:
+            break;
+        case clang::Decl::CXXRecord:
+            recdecl = llvm::cast<clang::CXXRecordDecl>(decl);
+            // qDebug()<<"name.."<<recdecl->getName().data();
+            declname = QString(recdecl->getName().data());
+            if (recdecl->hasDefinition() && declname == klass) {
+                res_recdecl = recdecl;
+                break;
+            }
+            break;
+        default:
+            break;
+        }
+
+    }
+    
+    if (res_recdecl == NULL) {
+        qDebug()<<"klass decl not found:";
+        return NULL;
+    }
+
+    clang::CXXRecordDecl *recdecl = res_recdecl;
+    return recdecl;
+}
+
+QVector<clang::CXXMethodDecl*> FrontEngine::find_method_decls(clang::CXXRecordDecl *decl,
+                                                 QString klass, QString method)
+{
+    QVector<clang::CXXMethodDecl*> mdecls;
+
+    clang::CXXRecordDecl *recdecl = decl;
+
+    for (auto ait = recdecl->method_begin(); ait != recdecl->method_end(); ait++) {
+        clang::CXXMethodDecl *mthdecl = *ait;
+        // qDebug()<<"name .."<<mthdecl->getName().data();
+        if (QString(mthdecl->getName().data()) == method) {
+            qDebug()<<"found it, maybe rc:";
+            // mthdecl->dump();
+            mdecls.append(mthdecl);
+                
+            // QString tmp_dmname = QString("Ya%1::%2(").arg(klass).arg(method);
+            // for (auto bit = mthdecl->param_begin(); bit != mthdecl->param_end(); bit++) {
+            //     int idx = bit - mthdecl->param_begin();
+            //     clang::ParmVarDecl *pvdecl = *bit;
+            //     clang::QualType pvtype = pvdecl->getType();
+            //     qDebug()<<pvtype.getAsString().c_str();
+            //     tmp_dmname += QString("%1%2")
+            //         .arg(trim_type_class(QString(pvtype.getAsString().c_str())))
+            //         .arg(idx == mthdecl->param_size() - 1 ? "" : ", ");
+            // }
+            // tmp_dmname += QString(")%1").arg(mthdecl->isConst() ? " const" : "");
+
+            // QString s1 = QMetaObject::normalizedSignature(dmname.toLatin1().data());
+            // QString s2 = QMetaObject::normalizedSignature(tmp_dmname.toLatin1().data());
+            // qDebug()<<"tmp name:"<<tmp_dmname<<"==?"<<(tmp_dmname == dmname)
+            //         <<(s1 == s2);
+
+            // if (s1 == s2) {
+            //     res_mthdecl = mthdecl;
+            //     break;
+            // }
+        }
+    }
+    qDebug()<<"found method count:"<<method<<mdecls.count();
+    
+    return mdecls;
+}
+
+bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl, 
+                           QString klass, QString method, QVector<QVariant> uargs)
+{
+    /*
+      解析过滤该方法的每一个参数，如果有给定的用户参数，则查看类型是否匹配
+      如果类型不匹配，也无法隐式转换到方法需要的类型，则false，不匹配。
+      否则，继续下一个参数。
+      如果下一个参数没有提供用户参数，看是否有默认参数值，如果有，则匹配。
+      如果没有，则记录累计缺失参数的个数，后续计算匹配度。
+     */
+    
+    int idx = 0;
+    int pless = 0; //
+    QVector<int> lessed;
+    for (auto it = decl->param_begin(); it != decl->param_end(); it++, idx++) {
+        clang::ParmVarDecl *pd = *it;
+        clang::QualType ptype = pd->getType();
+        QString tstr = ptype.getAsString().c_str(); // type str 
+
+        if (uargs.count() > idx) {
+            bool ok = false;
+            switch ((int)uargs.at(idx).type()) {
+            case QMetaType::Int: case QMetaType::UInt:
+            case QMetaType::Long: case QMetaType::ULong:
+            case QMetaType::LongLong: case QMetaType::ULongLong:
+            case QMetaType::Short: case QMetaType::UShort:
+                if (ptype->isIntegralOrEnumerationType()) ok = true;
+                break;
+            case QMetaType::Bool:
+                if (ptype->isBooleanType()) ok = true;
+                break;
+            case QMetaType::QString:
+                if (tstr.indexOf("QString") != -1 /* && tstr.indexOf('*') == -1*/) ok = true;
+                break;
+            case QMetaType::QChar:
+                if (ptype->isCharType()) ok = true;
+                break;
+
+            default: qDebug()<<"unknown type:"<<uargs.at(idx).type()<<uargs.at(idx);
+                break;
+            }
+            
+            if (!ok) {
+                pless ++; lessed << idx;
+            }
+        } else {
+            if (!pd->hasDefaultArg()) {
+                pless ++; lessed << idx;
+                continue;
+            }
+            clang::Expr *dae = pd->getDefaultArg();
+            // 在此不考虑其默认值了，只要确定有默认值就可以。
+        }
+    }
+
+    double match_degree = idx == 0 ? 1.0 : (1.0*pless/idx);
+    qDebug()<<"param count:"<<idx<<"less count:"<<pless<<"lessed:"<<lessed
+            <<"match degree:"<<match_degree;
+
+    if (match_degree == 1.0 || pless == 0) return true;
+    return false;
+    return true;
+}
+
+bool FrontEngine::mangle_method_to_symbol(clang::CXXMethodDecl *decl, 
+                             QString &symbol_name, QString &proto_str)
+{
+    Q_ASSERT(mgctx);
+
+    std::string strc;
+    llvm::raw_string_ostream stm(strc);
+    mgctx->mangleCXXName(decl, stm); // TODO, change to mangleCXXThunk for class method
+    // TODO mangle "operator new()" and "operator delete()"
+
+    if (stm.str().length() > 0) {
+        symbol_name = QString(stm.str().c_str());
+        return true;
+    }
+
+    return false;
+}
+
+bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<QVariant> &dparams)
+{
+    QVector<QVariant> &dps = dparams;
+
+    auto eval_ctor = [](clang::CXXConstructExpr* expr) -> QVariant {
+        clang::CXXConstructorDecl *decl = expr->getConstructor();
+        QString klass_name = (decl->getName().data());
+        if (klass_name == "QChar") {
+            return QVariant(QChar(' '));
+        }
+        return QVariant(99813721);
+    };
+
+    for (auto it = decl->param_begin(); it != decl->param_end(); it++) {
+        clang::ParmVarDecl *pd = *it;
+        if (!pd->hasDefaultArg()) {          
+            dps << QVariant();
+            continue;
+        }
+        clang::Expr *dae = pd->getDefaultArg();
+        llvm::APSInt ival;
+        if (dae->isIntegerConstantExpr(ival, this->mtrunit->getASTContext())) {
+            dps << QVariant((qlonglong)ival.getZExtValue());
+        } else if (clang::isa<clang::CXXConstructExpr>(dae)) {
+            dps << eval_ctor(clang::cast<clang::CXXConstructExpr>(dae));
+        }
+        else {
+            qDebug()<<dae->isCXX11ConstantExpr(mtrunit->getASTContext())
+                    <<dae->isConstantInitializer(mtrunit->getASTContext(), true)
+                    <<dae->isEvaluatable(mtrunit->getASTContext());
+        }
+
+    }
+
+    qDebug()<<"dargs:"<<dps;
+
+    return true;
+}
+
+QVariant FrontEngine::get_method_return_type(clang::CXXMethodDecl *decl)
+{
+    QVariant retype;
+    clang::QualType t = decl->getType();
+    retype = QString(t.getAsString().c_str());
+    qDebug()<<"retype:"<<retype;
+
+    // TODO maybe can convert to QMetaType
+
+    return retype;
+}
 
 
 
