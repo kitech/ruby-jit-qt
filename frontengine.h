@@ -67,8 +67,11 @@ public:
     // 通过正在调用的信息类名，方法名和参数，查找匹配的类方法。
     // 并返回方法的完整prototype和mangled symbol名
     // 在这是直接返回clang::Decl*呢，还是返回字符串表示呢？
-    bool symbol_resolve(QString klass, QString method, QVector<QVariant> uargs,
+    bool resolve_symbol(QString klass, QString method, QVector<QVariant> uargs,
                         QString &symbol_name, QString &proto_str);
+    // 查找一个方法的返回值类型
+    bool get_method_return_type(QString klass, QString method, QVector<QVariant> uargs, 
+                                QString mangle_name, QVariant &retype);
 
 private:
     clang::CXXRecordDecl* find_class_decl(QString klass);
@@ -78,6 +81,7 @@ private:
                                QString klass, QString method, QVector<QVariant> uargs);
     bool mangle_method_to_symbol(clang::CXXMethodDecl *decl, 
                                  QString &symbol_name, QString &proto_str);
+    // 获取方法的默认参数值
     bool get_method_default_params(clang::CXXMethodDecl *decl, QVector<QVariant> &dparams);
     // 获取一个方法的返回值类型，现在以字符串格式表示，后续可以考虑使用类型标识。
     QVariant get_method_return_type(clang::CXXMethodDecl *decl);

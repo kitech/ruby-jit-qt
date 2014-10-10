@@ -81,6 +81,7 @@
 #include "llvm/LTO/LTOModule.h"
 #include "llvm/Target/TargetOptions.h"
 
+#include "frontengine.h"
 #include "clvm_operator.h"
 #include "clvm.h"
 
@@ -220,8 +221,11 @@ QVariant mapGV2Variant(QString klass, QString method, QString symbol_name, llvm:
 {
     IROperator *irop = getIROp();
     QVector<QVariant> args;
-    QString retype = irop->resolve_return_type(klass, method, args, symbol_name);
-
+    // QString retype = irop->resolve_return_type(klass, method, args, symbol_name);
+    QVariant vretype;
+    bool bret = irop->mfe->get_method_return_type(klass, method, args, symbol_name, vretype);
+    QString retype = vretype.toString();
+    // if retype is empty, maybe a ctor
     if (retype.isEmpty()) return QVariant();
 
     if (retype == "int" || retype == "uint" || retype == "long" || retype == "ulong"

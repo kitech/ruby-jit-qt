@@ -27,7 +27,7 @@ def test_qstring()
 
   a.indexOf("876");  # ok
 
-  a.toUpper; # crash
+  a.toUpper; # crash ==> ok
   a.lastIndexOf("876")  # 是因为这个函数的默认参数，无法正常填入。已修正
 
   a.startsWith("kkkk")
@@ -57,12 +57,17 @@ end
 
 def test_qurl()
   u = Qt5::QUrl.new
-  u.setUrl("http://www.abc.com/hehe?jie=123#mmm");
-  #u.port(); #???
+  u.setUrl("http://www.abc.com/haha/hehe.html?jie=123#mmm");
+  u.port(); #???
   u.setPort(5678);
   u.toLocalFile();
-  #u.path(); # enum和flag默认值的问题
+  u.path(); # enum和flag默认值的问题 ==> ok
+  u.query();
+  u.host();
+  u.setScheme("ftp");
   u.scheme();
+  u.setPassword("pass123");
+  u.setUserName("userabc");
   puts u.to_s;
   return;
 end

@@ -458,29 +458,34 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
     // test
     // QVector<QVariant> _args = {QString("abc")};
     // resolve_mangle_name(klass, "append", _args);
-    QString mangle_name = "_ZN9YaQString6appendERK7QString";
-    this->resolve_return_type(klass, "append", args, mangle_name);
+    // QString mangle_name = "_ZN9YaQString6appendERK7QString";
+    // this->resolve_return_type(klass, "append", args, mangle_name);
 
     // 一些初始定义和初始化
     const QVector<QVariant> ori_args = args; // 不可修改
     QVector<QVariant> mrg_args = args;
     // parse this class, get default args
     QVector<QVariant> dargs;
-    bool bret = mfe->parseClass(klass);
+    // bool bret = mfe->parseClass(klass);
+    bool bret;
 
    // find method function symbol
     QString symbol_name = QString("_Z%1%2%3%4").arg(klass.length()).arg(klass)
         .arg(method.length()).arg(method);
+    QString proto_str;
     // klass = "QString";
     // method = "length";
     symbol_name = find_mangled_name(klass, method);
-    symbol_name = this->resolve_mangle_name(klass, method, args);
+    // symbol_name = this->resolve_mangle_name(klass, method, args);
+    symbol_name.clear();
+    bret = mfe->resolve_symbol(klass, method, args, symbol_name, proto_str);
     param_symbol_name = symbol_name;
     qDebug()<<"got symbol_name:"<<symbol_name<<param_symbol_name;
 
 
     // merge user args and dargs
-    bret = mfe->get_method_default_args(klass, method, symbol_name, dargs);
+    // bret = mfe->get_method_default_args(klass, method, symbol_name, dargs);
+    bret = mfe->get_method_default_args2(klass, method, symbol_name, dargs);
     qDebug()<<"got default args:"<<bret<<dargs;
     mrg_args.resize(dargs.count());
     for (int i = 0; i < dargs.count(); i ++) {
@@ -491,7 +496,10 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
 
     // 处理structret
     QString tmp_mangle_name = symbol_name;
-    QString retype_str = this->resolve_return_type(klass, method, args, tmp_mangle_name);
+    // QString retype_str = this->resolve_return_type(klass, method, args, tmp_mangle_name);
+    QVariant vretype;
+    bret = mfe->get_method_return_type(klass, method, args, tmp_mangle_name, vretype);
+    QString retype_str = vretype.toString();
     QStringList retype_part = retype_str.split(" ");
     bool need_sret = true; // 采用黑名单方式，排除
     // TODO 使用clang的更快速的类型判断，可以考虑在frontengine中判断

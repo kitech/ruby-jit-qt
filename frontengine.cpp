@@ -472,22 +472,46 @@ bool FrontEngine::get_method_default_args2(QString klass, QString method, QStrin
 {
     this->loadPreparedASTFile();
 
+    QString yaklass = QString("Ya%1").arg(klass);
+    clang::CXXRecordDecl *recdecl = this->find_class_decl(yaklass);
+    QVector<clang::CXXMethodDecl*> mthdecls = this->find_method_decls(recdecl, yaklass, method);
 
+    clang::CXXMethodDecl *mthdecl = NULL;
+    for (clang::CXXMethodDecl *d: mthdecls) {
+        QString tmp_symbol;
+        QString tmp_prototype;
+        bool ok = this->mangle_method_to_symbol(d, tmp_symbol, tmp_prototype);
+        if (ok && tmp_symbol == symbol_name) {
+            mthdecl = d;
+            break;
+        }
+    }
+    qDebug()<<"mat:"<<mthdecl;
+
+    if (mthdecl == NULL) {
+        return false;
+    }
+
+    bool ok = this->get_method_default_params(mthdecl, dargs);
+    Q_ASSERT(ok);
+    
+    return ok;
     return false;
 }
 
-bool FrontEngine::symbol_resolve(QString klass, QString method, QVector<QVariant> uargs,
+bool FrontEngine::resolve_symbol(QString klass, QString method, QVector<QVariant> uargs,
                     QString &symbol_name, QString &proto_str)
 {
     this->loadPreparedASTFile();
 
-    clang::CXXRecordDecl *recdecl = this->find_class_decl(klass);
-    QVector<clang::CXXMethodDecl*> mthdecls = this->find_method_decls(recdecl, klass, method);
+    QString yaklass = QString("Ya%1").arg(klass);
+    clang::CXXRecordDecl *recdecl = this->find_class_decl(yaklass);
+    QVector<clang::CXXMethodDecl*> mthdecls = this->find_method_decls(recdecl, yaklass, method);
     bool match = false;
 
     QVector<clang::CXXMethodDecl*> mats;
     for (clang::CXXMethodDecl *d: mthdecls) {
-        match = this->method_match_by_uargs(d, klass, method, uargs);
+        match = this->method_match_by_uargs(d, yaklass, method, uargs);
         if (match) {
             mats << d;
         }
@@ -506,11 +530,44 @@ bool FrontEngine::symbol_resolve(QString klass, QString method, QVector<QVariant
     clang::CXXMethodDecl *md = mats.at(0);
     bool ok = this->mangle_method_to_symbol(md, symbol_name, proto_str);
     Q_ASSERT(ok);
-
+    return ok;
     return true;
 }
 
+bool FrontEngine::get_method_return_type(QString klass, QString method, QVector<QVariant> uargs, 
+                                         QString symbol_name, QVariant &retype)
+{
+    this->loadPreparedASTFile();
+    
+    QString yaklass = QString("Ya%1").arg(klass);
+    clang::CXXRecordDecl *recdecl = this->find_class_decl(yaklass);
+    QVector<clang::CXXMethodDecl*> mthdecls = this->find_method_decls(recdecl, yaklass, method);
 
+    clang::CXXMethodDecl *mthdecl = NULL;
+    for (clang::CXXMethodDecl *d: mthdecls) {
+        QString tmp_symbol;
+        QString tmp_prototype;
+        bool ok = this->mangle_method_to_symbol(d, tmp_symbol, tmp_prototype);
+        if (ok && tmp_symbol == symbol_name) {
+            mthdecl = d;
+            break;
+        }
+    }
+    qDebug()<<"mat:"<<mthdecl;
+
+    if (mthdecl == NULL) {
+        return false;
+    }
+
+    QVariant tmp_retype = this->get_method_return_type(mthdecl);
+    retype = tmp_retype;
+
+    return retype.isValid();
+    return false;
+}
+
+
+///// privates
 clang::CXXRecordDecl* FrontEngine::find_class_decl(QString klass)
 {
     clang::TranslationUnitDecl *udecl = this->mtrunit;
@@ -723,18 +780,18 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
 
 QVariant FrontEngine::get_method_return_type(clang::CXXMethodDecl *decl)
 {
-    QVariant retype;
-    clang::QualType t = decl->getType();
+    QVariant vretype;
+    QString retype;
+    clang::QualType t = decl->getReturnType();
     retype = QString(t.getAsString().c_str());
-    qDebug()<<"retype:"<<retype;
-
+    if (retype.startsWith("class ")) {
+        retype = retype.right(retype.length() - 6);
+    }
+    vretype = retype;
+    qDebug()<<"vretype:"<<vretype;
     // TODO maybe can convert to QMetaType
 
     return retype;
 }
-
-
-
-
 
 

@@ -13,6 +13,11 @@
 #include <QtWidgets>
 #include <QtNetwork>
 
+#include "metalize/metar_classes_qtcore.h"
+#include "metalize/metar_classes_qtgui.h"
+#include "metalize/metar_classes_qtwidgets.h"
+#include "metalize/metar_classes_qtnetwork.h"
+
 #endif /* QTHDRSRC_H */
 
 
