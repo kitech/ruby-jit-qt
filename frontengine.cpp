@@ -624,7 +624,12 @@ QVector<clang::CXXMethodDecl*> FrontEngine::find_method_decls(clang::CXXRecordDe
     for (auto ait = recdecl->method_begin(); ait != recdecl->method_end(); ait++) {
         clang::CXXMethodDecl *mthdecl = *ait;
         // qDebug()<<"name .."<<mthdecl->getName().data();
-        if (QString(mthdecl->getName().data()) == method) {
+        if (QString(mthdecl->getName().data()).length() == 0) {
+            // mthdecl->dumpColor();
+        }
+        if (clang::isa<clang::CXXConstructorDecl>(mthdecl)) {
+            mdecls.append(mthdecl);
+        } else if (QString(mthdecl->getName().data()) == method) {
             qDebug()<<"found it, maybe rc:";
             // mthdecl->dump();
             mdecls.append(mthdecl);
@@ -712,7 +717,7 @@ bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl,
         }
     }
 
-    double match_degree = idx == 0 ? 1.0 : (1.0*pless/idx);
+    double match_degree = idx == 0 ? 1.0 : (1.0*(idx - pless)/idx);
     qDebug()<<"param count:"<<idx<<"less count:"<<pless<<"lessed:"<<lessed
             <<"match degree:"<<match_degree;
 
@@ -760,10 +765,25 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
         }
         clang::Expr *dae = pd->getDefaultArg();
         llvm::APSInt ival;
+        bool bret;
+        int nulltype = 0;
+        clang::Expr::EvalResult eres, eres2;
         if (dae->isIntegerConstantExpr(ival, this->mtrunit->getASTContext())) {
             dps << QVariant((qlonglong)ival.getZExtValue());
         } else if (clang::isa<clang::CXXConstructExpr>(dae)) {
             dps << eval_ctor(clang::cast<clang::CXXConstructExpr>(dae));
+        } else if (dae->isCXX11ConstantExpr(mtrunit->getASTContext())) {
+            bret = dae->EvaluateAsRValue(eres, mtrunit->getASTContext());
+            qDebug()<<bret;
+            eres.Val.dump();
+            bret = dae->EvaluateAsInt(ival, mtrunit->getASTContext());
+            qDebug()<<bret;
+            ival.dump();
+            nulltype = dae->isNullPointerConstant(mtrunit->getASTContext(), 
+                                                  clang::Expr::NullPointerConstantValueDependence::NPC_NeverValueDependent);
+            if (nulltype == clang::Expr::NullPointerConstantKind::NPCK_ZeroLiteral) {
+                dps << QVariant(0);
+            }
         }
         else {
             qDebug()<<dae->isCXX11ConstantExpr(mtrunit->getASTContext())

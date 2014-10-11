@@ -391,13 +391,33 @@ bool IROperator::knew(QString klass)
     qDebug()<<"type:"<<TQklass;
     TQklass->dump();
 
+    bool bret;
+    QVector<QVariant> uargs;
+    QVector<QVariant> dargs;
+    QString tmp_symbol_name;
+    QString tmp_proto_str;
+    bret = mfe->resolve_symbol(klass, klass, uargs, tmp_symbol_name, tmp_proto_str);
+    qDebug()<<bret<<tmp_symbol_name;
+    bret = mfe->get_method_default_args2(klass, klass, tmp_symbol_name, dargs);
+    qDebug()<<bret<<dargs;
+    
+    QVector<QVariant> mrg_args;
+    mrg_args = dargs;
+
     // new op
+    std::vector<llvm::Value*> params
     std::vector<llvm::Type*> fargs = {TQklass->getPointerTo()};
+    for (auto elem: mrg_args) {
+        switch ((int)elem.type()) {
+            
+        }
+    }
     llvm::ArrayRef<llvm::Type*> rfargs(fargs);
     llvm::FunctionType *funt = llvm::FunctionType::get(builder.getVoidTy(), rfargs, false);
     // llvm::Constant *func = module->getOrInsertFunction("_ZN9YaQStringC1Ev", funt);
     // 默认构造函数的格式
     QString symbol_name = QString("_ZN%1Ya%2C1Ev").arg(klass.length()+2).arg(klass);
+    symbol_name = tmp_symbol_name;
     llvm::Constant *func = module->getOrInsertFunction(symbol_name.toLatin1().data(), funt);
 
     // new func

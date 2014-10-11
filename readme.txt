@@ -113,6 +113,9 @@ C++的方法或者函数，如果返回是结构体或者类，不是引用或�
 其他的参数依次类推向后移动。
 在llvm中，如何判断方法或者函数是这类型的，才能生成对应的IR。
 
+形参和实参，传进去之前的形参，在函数内部用到的参数叫实参，因为它有值。
+
+
 资料：
 http://woboq.com/blog/reflection-in-cpp-and-qt-moc.html
 http://woboq.com/blog/moc-with-clang.html

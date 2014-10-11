@@ -72,10 +72,14 @@ def test_qurl()
   return;
 end
 
+def test_signal_slots()
+  t = Qt5::QTimer.new
+  
+end
 
 # test_qstring
 # test_qbytearray
-test_qurl
-
+# test_qurl
+test_signal_slots
 
 
