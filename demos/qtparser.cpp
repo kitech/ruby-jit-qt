@@ -271,7 +271,8 @@ static void parser_decl_for_one(const clang::CXXMethodDecl *decl, const clang::A
 
 
     // template: [type] klass::method [:pname(a1,a2)](
-    ctmp += QString("%1%2 Ya%3::%4(")
+    ctmp += QString("%1%2%3 Ya%4::%5(")
+        .arg(decl->isPure() ? "// " : "")
         .arg(is_typedef_type(fret_type) && is_currclass_typedef(fret_type) ?
              QString("%1::").arg(klass_name) : "") // 认为是当前类的
         .arg(is_ctor(method_name) || is_dtor(method_name) 
@@ -355,12 +356,13 @@ static void parser_decl_for_one(const clang::CXXMethodDecl *decl, const clang::A
     }
 
     // template:  ) [const] [\n] {
-    tmp += QString (") %1; \n")
-        .arg(decl->isConst() ? "const" : "");
+    tmp += QString (") %1%2; \n")
+        .arg(decl->isConst() ? "const" : "")
+        .arg(decl->isPure() ? " = 0" : "");
 
     ctmp += QString(") %1 %2{")
         .arg(decl->isConst() ? "const" : "")
-        .arg((ctmp.length() > 80) ? QString("\n    ") : "");
+        .arg((ctmp.length() > 80) ? QString("\n    %1").arg(decl->isPure() ? "//" : "") : "");
 
     ptmp += QString (") %1")
         .arg(decl->isConst() ? "const" : "");

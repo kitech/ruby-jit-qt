@@ -109,6 +109,8 @@ target triple = "i386-pc-linux-gnu"
 %class.QNetworkRequest = type { %class.QSharedDataPointer.9 }
 %class.QSharedDataPointer.9 = type { %class.QNetworkRequestPrivate* }
 %class.QNetworkRequestPrivate = type opaque
+%class.YaQNetworkReply = type { %class.QNetworkReply }
+%class.QNetworkReply = type { %class.QIODevice }
 %class.YaQGuiApplication = type { %class.QGuiApplication }
 %class.QGuiApplication = type { %class.QCoreApplication }
 %class.YaQIcon = type { %class.QIcon }
@@ -262,21 +264,25 @@ define void @_Z16__keep_jit_typesv() #0 {
   %127 = load i8** %v0, align 4
   %128 = bitcast i8* %127 to %class.QNetworkRequest*
   %129 = load i8** %v0, align 4
-  %130 = bitcast i8* %129 to %class.YaQGuiApplication*
+  %130 = bitcast i8* %129 to %class.YaQNetworkReply*
   %131 = load i8** %v0, align 4
-  %132 = bitcast i8* %131 to %class.QGuiApplication*
+  %132 = bitcast i8* %131 to %class.QNetworkReply*
   %133 = load i8** %v0, align 4
-  %134 = bitcast i8* %133 to %class.YaQIcon*
+  %134 = bitcast i8* %133 to %class.YaQGuiApplication*
   %135 = load i8** %v0, align 4
-  %136 = bitcast i8* %135 to %class.QIcon*
+  %136 = bitcast i8* %135 to %class.QGuiApplication*
   %137 = load i8** %v0, align 4
-  %138 = bitcast i8* %137 to %class.YaQWidget*
+  %138 = bitcast i8* %137 to %class.YaQIcon*
   %139 = load i8** %v0, align 4
-  %140 = bitcast i8* %139 to %class.QWidget*
+  %140 = bitcast i8* %139 to %class.QIcon*
   %141 = load i8** %v0, align 4
-  %142 = bitcast i8* %141 to %class.YaQMainWindow*
+  %142 = bitcast i8* %141 to %class.YaQWidget*
   %143 = load i8** %v0, align 4
-  %144 = bitcast i8* %143 to %class.QMainWindow*
+  %144 = bitcast i8* %143 to %class.QWidget*
+  %145 = load i8** %v0, align 4
+  %146 = bitcast i8* %145 to %class.YaQMainWindow*
+  %147 = load i8** %v0, align 4
+  %148 = bitcast i8* %147 to %class.QMainWindow*
   ret void
 }
 

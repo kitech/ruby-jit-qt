@@ -32,7 +32,7 @@ QTimer QDateTime QUrl QFile QRegExp \
 QHostAddress QAbstractSocket QTcpSocket QTcpServer \
 QSslSocket QSslCipher QSslConfiguration QSslError QSslKey \
 QNetworkCookie QNetworkCookieJar  \
-QNetworkAccessManager QNetworkRequest \
+QNetworkAccessManager QNetworkRequest QNetworkReply \
 QGuiApplication  QIcon \
 QWidget QMainWindow";
 
