@@ -32,9 +32,12 @@ QTimer QDateTime QUrl QFile QRegExp \
 QHostAddress QAbstractSocket QTcpSocket QTcpServer \
 QSslSocket QSslCipher QSslConfiguration QSslError QSslKey \
 QNetworkCookie QNetworkCookieJar  \
-QNetworkAccessManager QNetworkRequest QNetworkReply \
+QNetworkAccessManager QNetworkRequest \
 QGuiApplication  QIcon \
 QWidget QMainWindow";
+
+# 32 位系统有问题
+broken_classes="QNetworkReply"
 
 
 ##### gen jit types body
@@ -45,6 +48,7 @@ echo "// auto generated" > $qtruby_register_file
 for klass in $care_classes ; do
     echo "aaa $klass bbb"
     echo "(void)(Ya${klass}*)v0;" >> $jit_types_body_file
+    echo "(void)(${klass}*)v0;" >> $jit_types_body_file
     echo "RQCLASS_REGISTER(${klass});" >> $qtruby_register_file
 done
 

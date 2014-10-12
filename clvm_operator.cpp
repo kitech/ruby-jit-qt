@@ -32,6 +32,11 @@ bool irop_new(llvm::LLVMContext &ctx, llvm::IRBuilder<> &builder,
     llvm::FunctionType *new_funt = llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(), new_rfargs, false);
     // llvm::Constant *new_func = module->getOrInsertFunction("_Znwj",new_funt); // for x86
     llvm::Constant *new_func = module->getOrInsertFunction("_Znwm",new_funt); // x64
+    if (sizeof(int) == 4) {
+        new_func = module->getOrInsertFunction("_Znwj",new_funt); // for x86
+    } else {
+        new_func = module->getOrInsertFunction("_Znwm",new_funt); // x64
+    }
 
     llvm::Value *val = builder.CreateAlloca(TQString->getPointerTo());
     llvm::Value *mval = builder.CreateCall(new_func, builder.getInt32(1));
@@ -401,15 +406,38 @@ bool IROperator::knew(QString klass)
     bret = mfe->get_method_default_args2(klass, klass, tmp_symbol_name, dargs);
     qDebug()<<bret<<dargs;
     
+    // new func
+    std::vector<llvm::Type*> new_fargs = {builder.getInt32Ty()};
+    llvm::ArrayRef<llvm::Type*> new_rfargs(new_fargs);
+    llvm::FunctionType *new_funt = llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(), new_rfargs, false);
+    // llvm::Constant *new_func = module->getOrInsertFunction("_Znwj",new_funt); // for x86
+    llvm::Constant *new_func = module->getOrInsertFunction("_Znwm",new_funt); // x64
+    if (sizeof(int) == 4) {
+        new_func = module->getOrInsertFunction("_Znwj",new_funt); // for x86
+    } else {
+        new_func = module->getOrInsertFunction("_Znwm",new_funt); // x64
+    }
+
+    llvm::Value *val = builder.CreateAlloca(TQklass->getPointerTo());
+    llvm::Value *mval = builder.CreateCall(new_func, builder.getInt32(1));
+    llvm::Value *cval = builder.CreateBitCast(mval, TQklass->getPointerTo());
+    llvm::Value *val2 = builder.CreateStore(cval, val);
+
+    llvm::LoadInst *rval = builder.CreateLoad(val);
+
     QVector<QVariant> mrg_args;
     mrg_args = dargs;
-
     // new op
-    std::vector<llvm::Value*> params
+    std::vector<llvm::Value*> params = {rval};
     std::vector<llvm::Type*> fargs = {TQklass->getPointerTo()};
     for (auto elem: mrg_args) {
         switch ((int)elem.type()) {
-            
+        case QMetaType::Int: case QMetaType::UInt:
+            params.push_back(builder.getInt32(elem.toInt()));
+            fargs.push_back(builder.getInt32Ty());
+            break;
+        default:
+            break;
         }
     }
     llvm::ArrayRef<llvm::Type*> rfargs(fargs);
@@ -420,20 +448,8 @@ bool IROperator::knew(QString klass)
     symbol_name = tmp_symbol_name;
     llvm::Constant *func = module->getOrInsertFunction(symbol_name.toLatin1().data(), funt);
 
-    // new func
-    std::vector<llvm::Type*> new_fargs = {builder.getInt32Ty()};
-    llvm::ArrayRef<llvm::Type*> new_rfargs(new_fargs);
-    llvm::FunctionType *new_funt = llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(), new_rfargs, false);
-    // llvm::Constant *new_func = module->getOrInsertFunction("_Znwj",new_funt); // for x86
-    llvm::Constant *new_func = module->getOrInsertFunction("_Znwm",new_funt); // x64
-
-    llvm::Value *val = builder.CreateAlloca(TQklass->getPointerTo());
-    llvm::Value *mval = builder.CreateCall(new_func, builder.getInt32(1));
-    llvm::Value *cval = builder.CreateBitCast(mval, TQklass->getPointerTo());
-    llvm::Value *val2 = builder.CreateStore(cval, val);
-
-    llvm::LoadInst *rval = builder.CreateLoad(val);
-    builder.CreateCall(func, rval);
+    // builder.CreateCall(func, rval); // 一个参数的调用方式
+    builder.CreateCall(func, params); // 多个参数的调用方式
     // builder.CreateRet(builder.getInt32(123));
     builder.CreateRet(rval);
 
@@ -545,6 +561,7 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
     QBitArray derefbit(callee_params.count());
 
     if (need_sret) {
+        qDebug()<<retype_str;
         llvm::Type *retype = module->getTypeByName(QString("class.%1").arg(retype_str).toStdString());
         caller_arg_types.push_back(retype->getPointerTo());
         // for real ret
@@ -622,7 +639,7 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
     // declare the method func
     std::vector<llvm::Type*> mfargs = {builder.getInt32Ty()};
     llvm::ArrayRef<llvm::Type*> rmfargs(caller_arg_types); // (mfargs);
-    llvm::Type* frettype =  module->getTypeByName(QString("class.%1").arg(klass).toStdString())->getPointerTo();
+    llvm::Type* frettype =  module->getTypeByName(QString("class.Ya%1").arg(klass).toStdString())->getPointerTo();
     // llvm::FunctionType *mfunt = llvm::FunctionType::get(builder.getInt32Ty(), rmfargs, false);
     llvm::FunctionType *mfunt = llvm::FunctionType::get(frettype, rmfargs, false);
     // 针对QString::arg这个方法，如果改成没有返回值的，则执行正常，如果有QString返回值，则程序崩溃。
