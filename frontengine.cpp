@@ -112,6 +112,11 @@ bool FrontEngine::parseClass(QString klass)
     return true;
 }
 
+clang::ASTContext &FrontEngine::getASTContext()
+{
+    return mtrunit->getASTContext();
+}
+
 bool FrontEngine::loadPreparedASTFile()
 {
     // 可以看作是parseHeader方法的正式版本，实时方法，不过一般通过自身内部调度调用
@@ -599,10 +604,15 @@ clang::CXXRecordDecl* FrontEngine::find_class_decl(QString klass)
             break;
         case clang::Decl::CXXRecord:
             recdecl = llvm::cast<clang::CXXRecordDecl>(decl);
-            // qDebug()<<"name.."<<recdecl->getName().data();
+            // qDebug()<<"name.."<<recdecl->getName().data()<<recdecl->hasBody();
             declname = QString(recdecl->getName().data());
-            if (recdecl->hasDefinition() && declname == klass) {
+            if (recdecl->isCompleteDefinition() && declname == klass) {
+                qDebug()<<"name.."<<recdecl->getName().data()<<recdecl->hasBody()
+                        <<recdecl->isBeingDefined()
+                        <<recdecl->isCanonicalDecl()<<recdecl->isFirstDecl()
+                        <<recdecl->isCompleteDefinition();
                 res_recdecl = recdecl;
+                // recdecl->dump();
                 break;
             }
             break;

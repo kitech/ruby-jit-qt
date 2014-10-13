@@ -35,11 +35,16 @@ message("clang defs: ${CLANG_CXXFLAGS_OUTPUT}")
 #add_definitions(${CLANG_CXXFLAGS_OUTPUT} )
 #set(COMPILER_FLAGS ${CLANG_CXXFLAGS_OUTPUT})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CLANG_CXXFLAGS_OUTPUT}")
+set(LLVM_SRC_DIR "/mnt/sda3/mptemp/llvm-3.5.0.src")
+set(CLANG_SRC_DIR ${LLVM_SRC_DIR}/tools/clang)
+include_directories(${CLANG_SRC_DIR}/lib/CodeGen)
 
 set(handby_lib_SRCS
   qtruby.cpp
   qom.cpp
   entry.cpp
+  ctrlengine.cpp
+  compilerengine.cpp
   frontengine.cpp
   clvm_operator.cpp
   clvm.cpp

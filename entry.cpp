@@ -395,7 +395,8 @@ VALUE x_Qt_meta_class_init_jit(int argc, VALUE *argv, VALUE self)
     // test_fe();
     // test_parse_class();
     // test_parse_ast();
-    // exit(-1);
+    test_piece_compiler();
+    exit(-1);
     
     auto code_templater = [] () -> QString * {
         return new QString();

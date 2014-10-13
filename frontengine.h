@@ -50,6 +50,7 @@ public:
     bool init();
     bool initCompiler();
 
+    clang::ASTContext &getASTContext();
     // 单独的加载ast文件方法，
     bool loadPreparedASTFile();
     // 通过预先生成的AST文件，加载AST工作。
@@ -74,6 +75,7 @@ public:
                                 QString mangle_name, QVariant &retype);
 
 private:
+public:
     clang::CXXRecordDecl* find_class_decl(QString klass);
     QVector<clang::CXXMethodDecl*> find_method_decls(clang::CXXRecordDecl *decl, 
                                                      QString klass, QString method);
