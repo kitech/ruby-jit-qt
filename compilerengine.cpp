@@ -9,6 +9,7 @@
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/ExternalASTSource.h>
+#include <clang/AST/Type.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendAction.h>
 #include <clang/Frontend/FrontendActions.h>
@@ -184,7 +185,7 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
     // cgmod.EmitAnnotationString("hhhh");
 
     qDebug()<<"heeeeee...";
-    clang::CodeGen::CodeGenFunction cgf(cgmod, true);
+    clang::CodeGen::CodeGenFunction cgf(cgmod, false);
 
     qDebug()<<"heeeeee...";
     // cgmod.EmitTopLevelDecl(decl);
@@ -204,35 +205,44 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
             // cgmod.addUsedGlobal(mod.getNamedValue(cgmod.getMangledName(mthdecl)));
             // cgmod.addCompilerUsedGlobal(mod.getNamedValue(cgmod.getMangledName(mthdecl)));
             // cgmod.EmitGlobal(mthdecl);
-            llvm::Constant * v = cgmod.GetAddrOfFunction(mthdecl, 0, false, false);
+
             if (mthdecl->isInlined()) {
                 mthdecl->dumpColor();
                 mthdecl->getBody()->dumpColor();
-                clang::CodeGen::FunctionArgList fal;
-                clang::QualType retype = mthdecl->getReturnType();
-                llvm::Function *f = llvm::cast<llvm::Function>(v);
-                
-                
-                // cgf.EmitFunctionBody(fal, mthdecl->getBody());
-                // cgmod.addUsedGlobal(v);
-                // llvm::Function *f = llvm::cast<llvm::Function>(v);
-                // llvm::BasicBlock *blk = cgf.createBasicBlock("nnc", f);
-                // llvm::BasicBlock *blk = llvm::BasicBlock::Create(vmctx, "nn", f);
-                // cgf.EmitBranch(blk);
-                // cgf.EmitBlockAfterUses(blk);
 
-                // qDebug()<<clang::isa<llvm::Function>(v)<<v->getName().data()
-                //         <<"hav body:"<<mthdecl->hasBody()
-                //         <<"have ip1:"<<cgf.HaveInsertPoint();
+                auto genmth = [](clang::CodeGen::CodeGenModule &cgm,
+                                 clang::CodeGen::CodeGenFunction &cgf,
+                                 clang::CXXMethodDecl *decl) -> bool {
+                    clang::CodeGen::CodeGenTypes &cgtypes = cgm.getTypes();
 
-                // mod.SetInsertPoint(blk);
-                // qDebug()<<blk;
-                // cgf.EmitBlock(blk);
-                // cgf.EnsureInsertPoint();
-                    // cgf.EmitCompoundStmt(*llvm::cast<clang::CompoundStmt>(mthdecl->getBody()));
+                    const clang::CodeGen::CGFunctionInfo &FI = 
+                    cgtypes.arrangeCXXMethodDeclaration(decl);
+                    
+                    llvm::FunctionType *FTy = cgtypes.GetFunctionType(FI);
+
+                    clang::QualType retype = decl->getReturnType();
+                    llvm::Type *lvtype = cgtypes.ConvertType(retype);
+                    llvm::Constant * v = cgm.GetAddrOfFunction(decl, FTy,
+                                                               false, false);
+
+                    llvm::Function *f = llvm::cast<llvm::Function>(v);
+                    qDebug()<<"dbg func:"<<f->arg_size()
+                    << cgf.CapturedStmtInfo;
+                    // f->viewCFG();
+                    clang::Stmt *stmt = decl->getBody();
+                    clang::CodeGen::FunctionArgList alist;
+                    cgf.GenerateCode(decl, f, FI);
+                    f->addFnAttr(llvm::Attribute::AlwaysInline);
+                    cgm.setFunctionLinkage(decl, f);
+
+                    return false;
+                };
+                QDateTime btime = QDateTime::currentDateTime();
+                genmth(cgmod, cgf, mthdecl);
+                QDateTime etime = QDateTime::currentDateTime();
+                qDebug()<<"gen func time:"<<btime.msecsTo(etime);
+
                 // f->addFnAttr(llvm::Attribute::AlwaysInline);
-                // cgmod.EmitGlobalFunctionDefinition(mthdecl);
-                // cgmod.EmitGlobalDefinition(mthdecl);
                 // cgmod.setFunctionLinkage(mthdecl, f);
 
                 if (mthdecl->hasBody()) {
