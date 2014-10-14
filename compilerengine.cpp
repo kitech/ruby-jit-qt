@@ -229,21 +229,42 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
         for (auto it = decl->method_begin(); it != decl->method_end(); it ++, cnter++) {
             clang::CXXMethodDecl *mthdecl = *it;
             if (!clang::isa<clang::CXXConstructorDecl>(mthdecl)) continue;
+            if (!mthdecl->isInlined()) continue;
 
             clang::CXXConstructorDecl *ctor = clang::cast<clang::CXXConstructorDecl>(mthdecl);
             clang::CodeGen::CodeGenTypes &cgtypes = cgmod.getTypes();
+
+            if (ctor->isCopyConstructor()) continue;
 
             int cnter2 = 0;
             for (auto it = ctor->init_begin(); it != ctor->init_end(); it ++, cnter2 ++) {
                 qDebug()<<"init..."<<*it;
             }
+            // if (cnter2 != 0) continue;   // 如果没有CtorInitializer
+
+            int cnter3 = 0;
+            for (auto it = ctor->redecls_begin(); it != ctor->redecls_end(); it ++, cnter3++) {
+                qDebug()<<"redecl:"<<*it;
+                (*it)->dumpColor();
+            }
+
+            if (cnter3 == 2) {
+                qDebug()<<"rewrite to redecl decl...";
+                mthdecl = clang::cast<clang::CXXMethodDecl>(*(++ctor->redecls_begin()));
+                ctor = clang::cast<clang::CXXConstructorDecl>(mthdecl);
+            }
+            // mthdecl->hasInlineBody()方法起到判断的决定作用，这样才能用definition的decl*生成正确的ll代码。
             qDebug()<<"init count:"<<cnter2<<mthdecl->isThisDeclarationADefinition()
-                    <<mthdecl->isOutOfLine();
-            if (cnter2 == 0) continue;
+                    <<mthdecl->isOutOfLine()<<mthdecl->isDefinedOutsideFunctionOrMethod()
+                    <<"redecl count:"<<cnter3
+                    <<",inline body:"<<mthdecl->hasInlineBody()
+                    <<",is first:"<<mthdecl->isFirstDecl();
+
             mthdecl->getBody()->dumpColor();
             mthdecl->dumpColor();
-            mthdecl->getCanonicalDecl()->dumpColor();
-            mthdecl->getCorrespondingMethodInClass(decl)->dumpColor();
+            // mthdecl->getCanonicalDecl()->dumpColor();
+            // mthdecl->getCorrespondingMethodInClass(decl)->dumpColor();
+
 
             // try ctor base , 不能生成正确的Base代码
             const clang::CodeGen::CGFunctionInfo &FIB = 
@@ -264,8 +285,9 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
             // cgmod.EmitGlobal(clang::GlobalDecl(ctor, clang::Ctor_Base));
             // cgf.FinishFunction();
 
-
+            // mod.dump();
             // break;
+            qDebug()<<"========================";
         }
         mod.dump();
         return false;
