@@ -121,6 +121,11 @@ C++的方法或者函数，如果返回是结构体或者类，不是引用或�
 
 形参和实参，传进去之前的形参，在函数内部用到的参数叫实参，因为它有值。
 
+编译器需要考虑的C++的3种构造函数，C1,C2,C3
+编译器需要考虑的C++的3种析构函数，D1，D2,D3
+
+C1叫做complete constructor, C2叫做base constructor, C3叫做allocate constructor。
+一般只会用到C1和C2，而C2更常见。
 
 资料：
 http://woboq.com/blog/reflection-in-cpp-and-qt-moc.html

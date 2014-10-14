@@ -14,6 +14,7 @@ namespace clang {
     class ASTContext;
     class CompilerInstance;
     class CompilerInvocation;
+    class ASTUnit;
     namespace driver {
         class Driver;
     };
@@ -27,9 +28,9 @@ public:
 
 public:
     bool initCompiler();
-    bool tryCompile(clang::CXXRecordDecl *decl, clang::ASTContext &ctx);
+    bool tryCompile(clang::CXXRecordDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit);
     bool tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &ctx);
-    bool tryCompile3(clang::CXXRecordDecl *decl, clang::ASTContext &ctx);
+    bool tryCompile3(clang::CXXRecordDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit);
 
 public:
     clang::CompilerInstance *mcis = NULL;

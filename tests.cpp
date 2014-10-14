@@ -96,8 +96,9 @@ void test_piece_compiler()
     
     qDebug()<<recdecl<<mthdecls.count();
 
-    // ce->tryCompile(recdecl, ctx);
+    // ce->tryCompile(recdecl, ctx, fe->mrgunit);
     ce->tryCompile2(recdecl, ctx);
+    // ce->tryCompile3(recdecl, ctx, fe->mrgunit);
 }
 
 // test_fe();

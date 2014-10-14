@@ -147,7 +147,10 @@ bool FrontEngine::loadPreparedASTFile()
         qDebug()<<"load ast file error.";
         return false;
     }
-    
+
+    qDebug()<<"has sema:"<<unit->hasSema();
+
+    mrgunit = unit;
     mtrunit = trud;
     mgctx = tctx.createMangleContext();
 
