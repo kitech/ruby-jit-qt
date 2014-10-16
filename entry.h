@@ -4,13 +4,35 @@
 
 #include <ruby.hpp>
 
+/*
+  带meta的函数，是使用Qt moc方式实现的
+  带jit后缀的，是使用半jit方式的。
+  带jit后缀，不带meta的，是使用更接近jit的动态生成Qt库代码的方式，不需要预先生成YaQxxx类了。
+ */
+
+enum {
+    QT_BINDING_MOC, 
+    QT_BINDING_YAJIT,
+    QT_BINDING_JIT
+};
+
+
+// 不同方式的公用方法
 VALUE x_Qt_meta_class_to_s(int argc, VALUE *argv, VALUE obj);
-VALUE x_Qt_meta_class_init_jit(int argc, VALUE *argv, VALUE self);
+
+// 使用Qt moc方式
 VALUE x_Qt_meta_class_init(int argc, VALUE *argv, VALUE self);
 VALUE x_Qt_meta_class_const_missing(int argc, VALUE *argv, VALUE self);
 VALUE x_Qt_meta_class_method_missing(int argc, VALUE *argv, VALUE self);
-VALUE x_Qt_meta_class_method_missing_jit(int argc, VALUE *argv, VALUE self);
 VALUE x_Qt_meta_class_singleton_method_missing(int argc, VALUE *argv, VALUE self);
+
+// 使用预生成YaQxxx类方式
+VALUE x_Qt_meta_class_init_jit(int argc, VALUE *argv, VALUE self);
+VALUE x_Qt_meta_class_method_missing_jit(int argc, VALUE *argv, VALUE self);
+
+// 使用即时编译方式
+VALUE x_Qt_class_init_jit(int argc, VALUE *argv, VALUE self);
+VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self);
 
 
 #endif /* ENTRY_H */

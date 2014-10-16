@@ -683,6 +683,22 @@ QVector<clang::CXXMethodDecl*> FrontEngine::find_method_decls(clang::CXXRecordDe
     return mdecls;
 }
 
+clang::CXXConstructorDecl* FrontEngine::find_ctor_decl(clang::CXXRecordDecl *decl, 
+                                          QString klass, QVector<QVariant> uargs)
+{
+    
+    for (auto d: decl->methods()) {
+        if (!clang::isa<clang::CXXConstructorDecl>(d)) continue;
+        auto cd = clang::cast<clang::CXXConstructorDecl>(d);
+        if (!cd->isDefaultConstructor()) continue; // 目前先使用默认构造函数
+        
+        return cd;
+    }
+
+    return 0;
+}
+
+
 bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl, 
                            QString klass, QString method, QVector<QVariant> uargs)
 {

@@ -11,6 +11,7 @@ namespace clang {
     class Decl;
     class CXXRecordDecl;
     class CXXMethodDecl;
+    class CXXConstructorDecl;
     class ASTContext;
     class CompilerInstance;
     class CompilerInvocation;
@@ -27,6 +28,10 @@ public:
     ~CompilerEngine();
 
 public:
+    bool conv_ctor(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor);
+    // bool check_inline_symbol();
+
+public:    
     bool initCompiler();
     bool tryCompile(clang::CXXRecordDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit);
     bool tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &ctx);
@@ -40,3 +45,8 @@ public:
 
 
 #endif /* COMPILERENGINE_H */
+
+
+
+
+

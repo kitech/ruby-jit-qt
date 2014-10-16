@@ -373,9 +373,41 @@ static VALUE x_Qt_meta_class_dtor(VALUE id)
     return Qnil;
 }
 
-
+#include "ctrlengine.h"
 #include "frontengine.h"
 #include "tests.cpp"
+
+static CtrlEngine *gce = new CtrlEngine();
+
+/*
+  通过Qt类的初始化函数
+  获取要实例化的类名，从staticMetaObject加载类信息，
+  使用Qt的QMetaObject::newInstance创建新的实例对象。
+  TODO:
+  处理初始化时的参数。
+ */
+VALUE x_Qt_class_init_jit(int argc, VALUE *argv, VALUE self)
+{
+    qDebug()<<argc<<TYPE(self);
+    QString klass_name = QString(rb_class2name(RBASIC_CLASS(self)));
+    klass_name = klass_name.split("::").at(1);
+    qDebug()<<"class name:"<<klass_name;
+
+    // test_fe();
+    // test_parse_class();
+    // test_parse_ast();
+    // test_piece_compiler();
+    // exit(-1);
+
+    
+    QVector<QVariant> args;
+    void *jo = gce->vm_new(klass_name, args);
+    qDebug()<<jo;    
+
+    Qom::inst()->jdobjs[rb_hash(self)] = jo;
+
+    return self;
+}
 
 /*
   通过Qt类的初始化函数
@@ -478,6 +510,49 @@ QString &test_ir_objref(YaQString *pthis, QString &str)
     return str;
 }
 */
+
+/*
+  stack structure:
+  [0] => SYM function name
+  [1] => arg0
+  [2] => arg1
+  [3] => arg2
+  ...
+ */
+VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
+{
+    void *jo = Qom::inst()->jdobjs[rb_hash(self)];
+    void *ci = jo;
+    qDebug()<<ci;
+    assert(ci != 0);
+    QString klass_name = QString(rb_class2name(RBASIC_CLASS(self)));
+    klass_name = klass_name.split("::").at(1);
+    QString method_name = QString(rb_id2name(SYM2ID(argv[0])));
+    qDebug()<<"calling:"<<klass_name<<method_name<<argc<<(argc > 1);
+    assert(argc >= 1);
+
+    QVector<QVariant> args;
+    for (int i = 0; i < argc; i ++) {
+        if (i == 0) continue;
+        if (i >= argc) break;
+
+        qDebug()<<"i == "<< i << (i<argc) << (i>argc);
+
+        args << VALUE2Variant(argv[i]);
+        qDebug()<<"i == "<< i << (i<argc) << (i>argc)<<VALUE2Variant(argv[i]);
+    }
+
+    // fix try_convert(obj) → array or nil
+    if (method_name == "to_ary") {
+        return Qnil;
+    }
+
+    if (method_name == "to_s") {
+        return Qnil;
+    }
+
+    return Qnil;
+}
 
 /*
   stack structure:

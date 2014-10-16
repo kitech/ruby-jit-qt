@@ -11,9 +11,16 @@ extern "C" {
 
 #define RQCLASS_REGISTER(klass)                                         \
     static VALUE c##klass = rb_define_class_under(module, ""#klass, rb_cObject); \
+    rb_define_method(c##klass, "initialize", (VALUE (*) (...)) x_Qt_class_init_jit, -1); \
+    rb_define_method(c##klass, "to_s", (VALUE (*) (...)) x_Qt_meta_class_to_s, -1); \
+    rb_define_method(c##klass, "method_missing", (VALUE (*) (...)) x_Qt_class_method_missing_jit, -1);
+
+#define RQCLASS_REGISTER_YAJIT(klass)                                         \
+    static VALUE c##klass = rb_define_class_under(module, ""#klass, rb_cObject); \
     rb_define_method(c##klass, "initialize", (VALUE (*) (...)) x_Qt_meta_class_init_jit, -1); \
     rb_define_method(c##klass, "to_s", (VALUE (*) (...)) x_Qt_meta_class_to_s, -1); \
     rb_define_method(c##klass, "method_missing", (VALUE (*) (...)) x_Qt_meta_class_method_missing_jit, -1);
+
     
     
     // VALUE cQObject;

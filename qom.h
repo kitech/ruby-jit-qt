@@ -3,7 +3,7 @@
 
 #include <QtCore>
 
-
+// Qt Object Manager
 class Qom 
 {
 public:

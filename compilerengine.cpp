@@ -104,6 +104,53 @@ bool CompilerEngine::initCompiler()
     return true;
 }
 
+// todo 还需要一个递归生成的过程，多次检查生成的结果是否有inline方法
+bool CompilerEngine::conv_ctor(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor)
+{
+    clang::CompilerInstance ci;
+    // ci.createASTContext();
+    ci.createDiagnostics();
+    ci.createFileManager();
+
+    clang::DiagnosticsEngine &diag = ci.getDiagnostics();
+    clang::CodeGenOptions &cgopt = ci.getCodeGenOpts();
+
+    auto vmctx = new llvm::LLVMContext();
+    auto mod = new llvm::Module("piecegen", *vmctx);
+
+    llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, *mod, dlo, diag);
+    auto &cgtypes = cgmod.getTypes();
+    auto cgf = new clang::CodeGen::CodeGenFunction(cgmod);
+
+    // assert(islined and hasinlinedbody)
+    auto get_decl_with_body = [](clang::CXXConstructorDecl *ctor) -> decltype(ctor) {
+        if (ctor->hasInlineBody()) return ctor;
+        for (auto rd: ctor->redecls()) {
+            if (rd == ctor) continue;
+            return clang::cast<clang::CXXConstructorDecl>(rd);
+        }
+        return 0;
+    };
+    ctor = get_decl_with_body(ctor);
+    
+    // try ctor base , 能生成正确的Base代码了
+    const clang::CodeGen::CGFunctionInfo &FIB = 
+        cgtypes.arrangeCXXConstructorDeclaration(ctor, clang::Ctor_Base);
+    llvm::FunctionType *FTyB = cgtypes.GetFunctionType(FIB);
+    llvm::Constant *ctor_base_val = 
+        cgmod.GetAddrOfCXXConstructor(ctor, clang::Ctor_Base, &FIB, true);
+    llvm::Function *ctor_base_fn = clang::cast<llvm::Function>(ctor_base_val);
+    clang::CodeGen::FunctionArgList alist;
+
+    cgmod.setFunctionLinkage(clang::GlobalDecl(ctor, clang::Ctor_Base), ctor_base_fn);
+    cgf->GenerateCode(clang::GlobalDecl(ctor, clang::Ctor_Base), ctor_base_fn, FIB);
+
+    mod->dump();
+    
+    return false;
+}
+
 bool CompilerEngine::tryCompile(clang::CXXRecordDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit)
 {
     clang::DiagnosticsEngine &diag = this->mcis->getDiagnostics();

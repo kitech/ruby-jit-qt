@@ -10,30 +10,30 @@ def test_qstring()
 
   puts "==========";
 
-  puts a.length()
-  a.append("876")
+  # puts a.length()
+  # a.append("876")
 
-  puts a.length()
+  # puts a.length()
 
-  puts a.isEmpty();
+  # puts a.isEmpty();
 
-  puts a.length();
+  # puts a.length();
 
-  a.append("%1")
+  # a.append("%1")
 
-  a.arg("uio") ### 参数太多，很难运行时确定。已经修正，返回值处理问题。
+  # a.arg("uio") ### 参数太多，很难运行时确定。已经修正，返回值处理问题。
 
-  a.contains("876");
+  # a.contains("876");
 
-  a.indexOf("876");  # ok
+  # a.indexOf("876");  # ok
 
-  a.toUpper; # crash ==> ok
-  a.lastIndexOf("876")  # 是因为这个函数的默认参数，无法正常填入。已修正
+  # a.toUpper; # crash ==> ok
+  # a.lastIndexOf("876")  # 是因为这个函数的默认参数，无法正常填入。已修正
 
-  a.startsWith("kkkk")
+  # a.startsWith("kkkk")
 
 
-  a.append("哈哈哈")
+  # a.append("哈哈哈")
 
 end
 
@@ -79,9 +79,9 @@ def test_signal_slots()
   # t.start(123); #  QObject::startTimer: Timers can only be used with threads started with QThread
 end
 
-# test_qstring
+test_qstring
 # test_qbytearray
 # test_qurl
-test_signal_slots
+# test_signal_slots
 
 

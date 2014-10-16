@@ -19,12 +19,18 @@ namespace clang {
     class TranslationUnitDecl;
     class CXXRecordDecl;
     class CXXMethodDecl;
+    class CXXConstructorDecl;
 
     namespace driver {
         class Driver;
     };
 };
 
+
+// 生成与维护动态的Qt类和相关方法和函数的AST
+// 这类里应该也不需要Compiler组件了，在确定完全使用预生成的ast文件后。
+// 或者是CompilerInstance或者CompilerInvocation能够更可定制化，
+// 不直接从文件系统搜索文件，使用PCH，这样也可以考虑更动态创建AST。
 class FrontEngine
 {
 public:
@@ -79,6 +85,9 @@ public:
     clang::CXXRecordDecl* find_class_decl(QString klass);
     QVector<clang::CXXMethodDecl*> find_method_decls(clang::CXXRecordDecl *decl, 
                                                      QString klass, QString method);
+    // 查找一个类的符合条件的构造函数定义。
+    clang::CXXConstructorDecl* find_ctor_decl(clang::CXXRecordDecl *decl, 
+                                              QString klass, QVector<QVariant> uargs);
     bool method_match_by_uargs(clang::CXXMethodDecl *decl, 
                                QString klass, QString method, QVector<QVariant> uargs);
     bool mangle_method_to_symbol(clang::CXXMethodDecl *decl, 
