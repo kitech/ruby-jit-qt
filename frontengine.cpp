@@ -607,8 +607,8 @@ clang::CXXRecordDecl* FrontEngine::find_class_decl(QString klass)
             break;
         case clang::Decl::CXXRecord:
             recdecl = llvm::cast<clang::CXXRecordDecl>(decl);
-            // qDebug()<<"name.."<<recdecl->getName().data()<<recdecl->hasBody();
             declname = QString(recdecl->getName().data());
+            // qDebug()<<"name.."<<recdecl->getName().data()<<recdecl->hasBody();
             if (recdecl->isCompleteDefinition() && declname == klass) {
                 qDebug()<<"name.."<<recdecl->getName().data()<<recdecl->hasBody()
                         <<recdecl->isBeingDefined()
@@ -619,7 +619,18 @@ clang::CXXRecordDecl* FrontEngine::find_class_decl(QString klass)
                 break;
             }
             break;
+            // case clang::Decl::ClassTemplate:    break;
         default:
+            /*
+            if (clang::isa<clang::NamedDecl>(decl)) {
+                clang::NamedDecl *nd = clang::cast<clang::NamedDecl>(decl);
+                declname = QString(nd->getName().data());
+                if (declname.indexOf("QTypedArrayData") >= 0) {
+                    nd->dumpColor();
+                    exit(0);
+                }
+            }
+            */
             break;
         }
 

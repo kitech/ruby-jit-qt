@@ -104,6 +104,23 @@ bool CompilerEngine::initCompiler()
     return true;
 }
 
+// 第一种方式，拿到还未定义的symbol，到ast中查找
+// 第二种方式，解析C++方法的源代码，找到这个未定义的symbol，从decl再把它编译成ll，效率更好。
+static void decl2def(llvm::Module *mod, clang::ASTContext &ctx, clang::CodeGen::CodeGenModule &cgmod)
+{
+
+    for (auto &f: mod->getFunctionList()) {
+        qDebug()<<"name:"<<f.getName().data()<<f.size()<<f.isDeclaration();
+        if (!f.isDeclaration()) {
+            continue;
+        }
+
+        // 
+        // llvm::Constant *c = 
+    }
+}
+
+
 // todo 还需要一个递归生成的过程，多次检查生成的结果是否有inline方法
 bool CompilerEngine::conv_ctor(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor)
 {
@@ -128,7 +145,7 @@ bool CompilerEngine::conv_ctor(clang::ASTContext &ctx, clang::CXXConstructorDecl
         if (ctor->hasInlineBody()) return ctor;
         for (auto rd: ctor->redecls()) {
             if (rd == ctor) continue;
-            return clang::cast<clang::CXXConstructorDecl>(rd);
+            return (decltype(ctor))rd;
         }
         return 0;
     };
@@ -146,6 +163,97 @@ bool CompilerEngine::conv_ctor(clang::ASTContext &ctx, clang::CXXConstructorDecl
     cgmod.setFunctionLinkage(clang::GlobalDecl(ctor, clang::Ctor_Base), ctor_base_fn);
     cgf->GenerateCode(clang::GlobalDecl(ctor, clang::Ctor_Base), ctor_base_fn, FIB);
 
+    mod->dump();
+
+
+    // 
+    QHash<QString, llvm::Function*> usyms;
+    for (auto &f: mod->getFunctionList()) {
+        qDebug()<<"name:"<<f.getName().data()<<f.size()<<f.isDeclaration();
+        if (f.isDeclaration()) usyms.insert(QString(f.getName().data()), &f);
+    }
+
+    ctor->dumpColor();
+    // 遍历body stmt
+    auto s = ctor->getBody();
+    s->dumpColor();
+
+    
+    // 遍历Ctor init
+    for (auto i: ctor->inits()) {
+        auto s = i->getInit();
+        auto cs = clang::cast<clang::CallExpr>(s);
+        s->dumpColor();
+        auto d = cs->getCalleeDecl();
+        d->dumpColor();
+
+        auto sd = clang::cast<clang::CXXMethodDecl>(d);
+        qDebug()<<"call name:"<<cgmod.getMangledName(clang::cast<clang::CXXMethodDecl>(d)).data();
+
+        // this->conv_ctor(ctx, sd);
+        QString tmp = cgmod.getMangledName(sd).data();
+        if (usyms.contains(tmp)) {
+             llvm::Function *f = usyms.value(tmp);
+             // need def
+             qDebug()<<"need def:"<<tmp<<f;
+
+        }
+        break;
+    }
+
+    mod->dump(); 
+    
+    return false;
+}
+
+// 难道说静态方法不能这么搞了。
+bool CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMethodDecl *mth)
+{
+    clang::CompilerInstance ci;
+    // ci.createASTContext();
+    ci.createDiagnostics();
+    ci.createFileManager();
+
+    clang::DiagnosticsEngine &diag = ci.getDiagnostics();
+    clang::CodeGenOptions &cgopt = ci.getCodeGenOpts();
+
+    auto vmctx = new llvm::LLVMContext();
+    auto mod = new llvm::Module("piecegen2", *vmctx);
+
+    llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, *mod, dlo, diag);
+    auto &cgtypes = cgmod.getTypes();
+    auto cgf = new clang::CodeGen::CodeGenFunction(cgmod);
+
+    auto genmth = [](clang::CodeGen::CodeGenModule &cgm,
+                     clang::CodeGen::CodeGenFunction &cgf,
+                     clang::CXXMethodDecl *decl) -> bool {
+        clang::CodeGen::CodeGenTypes &cgtypes = cgm.getTypes();
+
+        const clang::CodeGen::CGFunctionInfo &FI = 
+        cgtypes.arrangeCXXMethodDeclaration(decl);
+                    
+        llvm::FunctionType *FTy = cgtypes.GetFunctionType(FI);
+
+        clang::QualType retype = decl->getReturnType();
+        llvm::Type *lvtype = cgtypes.ConvertType(retype);
+        llvm::Constant * v = cgm.GetAddrOfFunction(decl, FTy,
+                                                   false, false);
+
+        llvm::Function *f = llvm::cast<llvm::Function>(v);
+        qDebug()<<"dbg func:"<<f<<f->arg_size()
+        << cgf.CapturedStmtInfo;
+        // f->viewCFG();
+        // clang::Stmt *stmt = decl->getBody();
+        clang::CodeGen::FunctionArgList alist;
+        cgf.GenerateCode(clang::GlobalDecl(decl), f, FI);
+        f->addFnAttr(llvm::Attribute::AlwaysInline);
+        cgm.setFunctionLinkage(decl, f);
+
+        return false;
+    };
+    genmth(cgmod, *cgf, mth);
+    
     mod->dump();
     
     return false;

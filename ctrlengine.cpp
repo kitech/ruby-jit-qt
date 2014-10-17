@@ -36,7 +36,24 @@ void *CtrlEngine::vm_new(QString klass_name, QVector<QVariant> uargs)
     qDebug()<<ctor_decl;
     ctor_decl->dumpColor();
 
-    mce->conv_ctor(mfe->getASTContext(), ctor_decl);
+    // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
+    // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
+
+    clang::CXXRecordDecl *rec_decl2 = mfe->find_class_decl("QTypedArrayData");
+    qDebug()<<"QTypedArrayData:"<<rec_decl2;
+    clang::Decl *td = NULL;
+
+    // for test;
+    for (auto d: rec_decl2->methods()) {
+        qDebug()<<d->getName().data();
+        QString mthname = QString(d->getName().data());
+        if (mthname == "sharedNull") {
+            td = d;
+            break;
+        }
+    }
+
+    td->dumpColor();
 
     return 0;
 }
