@@ -12,6 +12,7 @@
 
 #include "compilerengine.h"
 
+
 int test_demangle() 
 {
     auto demangle = [] (QString name) -> QString {
@@ -97,8 +98,50 @@ void test_piece_compiler()
     qDebug()<<recdecl<<mthdecls.count();
 
     // ce->tryCompile(recdecl, ctx, fe->mrgunit);
-    ce->tryCompile2(recdecl, ctx);
+    // ce->tryCompile2(recdecl, ctx);
     // ce->tryCompile3(recdecl, ctx, fe->mrgunit);
+    ce->tryCompile4(recdecl, ctx, fe->mrgunit);
 }
 
-// test_fe();
+void test_tpl_piece_compiler()
+{
+    FrontEngine *fe = new FrontEngine();
+    fe->loadPreparedASTFile();
+    CompilerEngine *ce = new CompilerEngine();
+    qDebug()<<fe<<ce;
+
+    clang::CXXMethodDecl *decl = 0;
+    clang::ClassTemplateDecl *tpldecl = 0;
+    clang::ASTContext &ctx = fe->getASTContext();
+
+    QString klass = "QTypedArrayData";
+    QString method = "sharedNull";
+    
+    tpldecl = fe->find_tpl_class_decl(klass);
+    QVector<clang::CXXMethodDecl*> mthdecls = fe->find_tpl_method_decls(tpldecl, klass, method);
+    
+    qDebug()<<tpldecl<<mthdecls.count();
+
+    // ce->tryCompile(recdecl, ctx, fe->mrgunit);
+    // ce->tryCompile2(recdecl, ctx);
+    // ce->tryCompile3(recdecl, ctx, fe->mrgunit);
+
+    ce->tryCompile_tpl(tpldecl, ctx, fe->mrgunit);
+}
+
+void test_dumpast()
+{
+    FrontEngine *fe = new FrontEngine();
+    fe->loadPreparedASTFile();
+    fe->dumpast();
+}
+
+
+
+void test_one()
+{
+    // test_fe();
+    // test_piece_compiler();
+    // test_dumpast();
+    test_tpl_piece_compiler();
+}

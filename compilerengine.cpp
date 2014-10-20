@@ -10,6 +10,9 @@
 #include <clang/Parse/ParseAST.h>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
+#include <clang/AST/DeclTemplate.h>
+#include <clang/AST/AST.h>
+#include <clang/AST/ASTImporter.h>
 #include <clang/AST/ExternalASTSource.h>
 #include <clang/AST/Type.h>
 #include <clang/Frontend/CompilerInstance.h>
@@ -206,7 +209,8 @@ bool CompilerEngine::conv_ctor(clang::ASTContext &ctx, clang::CXXConstructorDecl
     return false;
 }
 
-// 难道说静态方法不能这么搞了。
+// 这个方法支持普通方法，static也可以,非template
+// 已知问题，不支持模板类中的静态方法。
 bool CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMethodDecl *mth)
 {
     clang::CompilerInstance ci;
@@ -258,6 +262,8 @@ bool CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMethodDecl *m
     
     return false;
 }
+
+
 
 bool CompilerEngine::tryCompile(clang::CXXRecordDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit)
 {
@@ -334,6 +340,104 @@ bool CompilerEngine::tryCompile3(clang::CXXRecordDecl *decl, clang::ASTContext &
     qDebug()<<"what ctx:"<<&this->mcis->getASTContext()<<&ctx;
 
     bret = mcis->ExecuteAction(llvm_only_action);
+    llvm::Module *mod = llvm_only_action.takeModule();
+    QDateTime etime = QDateTime::currentDateTime();
+    qDebug()<<"compile code done."<<bret<<mod<<btime.msecsTo(etime);
+
+    mod->dump();
+
+    return false;
+}
+
+// test compileinstance with prepared astcontext
+bool CompilerEngine::tryCompile4(clang::CXXRecordDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit)
+{
+    bool bret;
+    QDateTime btime = QDateTime::currentDateTime();
+
+    clang::ASTContext *pctx = &ctx;
+    clang::FileManager &pfm = unit->getFileManager();
+    clang::SourceManager &srcman = unit->getSourceManager();
+    clang::DiagnosticsEngine &diag = ctx.getDiagnostics();
+    clang::Sema &sema = unit->getSema();
+    clang::Preprocessor &pp = unit->getPreprocessor();
+    const clang::TargetInfo &ti = ctx.getTargetInfo();
+
+    clang::CompilerInvocation *civ = new clang::CompilerInvocation();
+    clang::CompilerInstance *cis  = new clang::CompilerInstance();
+    cis->createDiagnostics();
+
+    std::string path = "./myjitqt";
+    clang::driver::Driver *drv = new clang::driver::Driver(path, llvm::sys::getProcessTriple(),
+                                                          cis->getDiagnostics());
+    drv->setTitle("myjitclangpp");
+    drv->setCheckInputsExist(false);
+
+    // this->mcis = cis;
+    // this->mciv = civ;
+    // this->mdrv = drv;
+
+    static char *argv[] = {
+        (char*)"myjitqtrunner", (char*)"flycode.cxx",
+        (char*)"-fPIC", (char*)"-x", (char*)"c++", 
+        //        (char*)"-I/usr/include/qt", (char*)"-I/usr/include/qt/QtCore",
+        (char*)"-I/usr/lib/clang/3.5.0/include",
+    };
+    static int argc = 6;
+    char **targv = argv;
+
+    llvm::SmallVector<const char*, 16> drv_args(targv, targv + argc);
+    drv_args.push_back("-S");
+
+    clang::driver::Compilation *C = drv->BuildCompilation(drv_args);
+
+    const clang::driver::JobList &Jobs = C->getJobs();
+    const clang::driver::Command *Cmd = llvm::cast<clang::driver::Command>(*Jobs.begin());
+    const clang::driver::ArgStringList &CCArgs = Cmd->getArguments();
+
+
+    // clang::CompilerInvocation *civ = new clang::CompilerInvocation();
+    bret = clang::CompilerInvocation::CreateFromArgs(*civ,
+                                                          const_cast<const char**>(CCArgs.data()),
+                                                          const_cast<const char**>(CCArgs.data()) + CCArgs.size(),
+                                                          cis->getDiagnostics());
+    cis->setInvocation(civ);
+
+    cis->setPreprocessor(&pp);
+    cis->setASTContext(pctx);
+    cis->setFileManager(&pfm);
+    cis->setSourceManager(&srcman);
+    cis->setDiagnostics(&diag);
+    // cis->setSema(&sema); // compile显示成功，但module是NULL
+
+    // cis->createFileManager();
+    // cis->createSourceManager(cis->getFileManager());
+    // cis->createFrontendTimer();
+    // cis->createASTContext(); // crash
+    // cis->createModuleManager(); // crash
+
+    // this->mcis->setSema(&unit->getSema());
+    // const char *pcode = strdup(code.toLatin1().data());
+    // const char *pcode = strdup("\n void abc() { QString(\"abcefg\").length(); } "); // ok
+    const char *pcode = strdup("/*#include \"qthdrsrc.h\"*/\n void abc() { QString(\"abcefg\").length(); } ");
+    llvm::MemoryBuffer *mbuf = llvm::MemoryBuffer::getMemBuffer(pcode);
+    clang::PreprocessorOptions &ppOpt = cis->getPreprocessorOpts();
+    ppOpt.addRemappedFile("flycode.cxx", mbuf);
+    // 解析这段代码，结合已有的astfile查找标识符号。???
+    // clang::ParseAST(unit->getSema());
+
+    qDebug()<<cis->hasASTConsumer();// false
+    // clang::ASTConsumer &cons = cis->getASTConsumer();
+    // clang::ParseAST(pp, &cons, ctx);
+
+    clang::EmitLLVMOnlyAction llvm_only_action;
+    // clang::FrontendInputFile fif("./data/qthdrsrc.ast", clang::IK_AST);
+    // llvm_only_action.setCurrentInput(fif, unit); // 不管用，不知道为什么。
+    qDebug()<<"ast support:"<<llvm_only_action.hasASTFileSupport();
+    qDebug()<<"what ctx:"<<cis->hasASTContext()<<&cis->getASTContext()<<pctx;
+    qDebug()<<ctx.getExternalSource();
+
+    bret = cis->ExecuteAction(llvm_only_action);
     llvm::Module *mod = llvm_only_action.takeModule();
     QDateTime etime = QDateTime::currentDateTime();
     qDebug()<<"compile code done."<<bret<<mod<<btime.msecsTo(etime);
@@ -600,3 +704,154 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
     return false;
 }
 
+// 不能正确生成ll代码
+bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit)
+{
+    qDebug()<<"kind name:"<<decl->getDeclKindName();
+
+    clang::CXXRecordDecl *rec_decl2 = decl->getTemplatedDecl();
+    qDebug()<<"QTypedArrayData:"<<rec_decl2;
+    clang::Decl *td = NULL;
+
+    // for test;
+    for (auto d: rec_decl2->methods()) {
+        qDebug()<<d->getName().data();
+        QString mthname = QString(d->getName().data());
+        if (mthname == "sharedNull") {
+            td = d;
+            break;
+        }
+    }
+    auto mthdecl = clang::cast<clang::CXXMethodDecl>(td);
+    td->dumpColor();
+    qDebug()<<mthdecl->getName().data();
+
+    auto genmth = [](clang::CodeGen::CodeGenModule &cgm,
+                     clang::CodeGen::CodeGenFunction &cgf,
+                     clang::CXXMethodDecl *decl) -> bool {
+        qDebug()<<cgm.getMangledName(decl).data();
+        clang::CodeGen::CodeGenTypes &cgtypes = cgm.getTypes();
+
+        const clang::CodeGen::CGFunctionInfo &FI = 
+        cgtypes.arrangeGlobalDeclaration(decl);
+                    
+        llvm::FunctionType *FTy = cgtypes.GetFunctionType(FI);
+        qDebug()<<"aaaaa";
+        FTy->dump();
+        qDebug()<<"aaaaa";
+
+        clang::QualType retype = decl->getReturnType();
+        qDebug()<<retype.getAsString().data();
+        llvm::Type *lvtype = cgtypes.ConvertType(retype);
+        llvm::Constant * v = cgm.GetAddrOfFunction(decl, FTy,
+                                                   false, true);
+
+        llvm::Function *f = llvm::cast<llvm::Function>(v);
+        qDebug()<<"dbg func:"<<f->arg_size()
+        << cgf.CapturedStmtInfo;
+        // f->viewCFG();
+        // clang::Stmt *stmt = decl->getBody();
+        // clang::CodeGen::FunctionArgList alist;
+        // f->addFnAttr(llvm::Attribute::AlwaysInline);
+        cgm.setFunctionLinkage(decl, f);
+
+        // cgm.getModule().dump();
+        clang::CodeGen::CodeGenFunction(cgm).GenerateCode(clang::GlobalDecl(decl), f, FI);
+        // cgf.GenerateCode(clang::GlobalDecl(decl), f, FI);
+
+        return false;
+    };
+
+    clang::CompilerInstance ci;
+    // ci.createASTContext();
+    ci.createDiagnostics();
+    ci.createFileManager();
+
+    // clang::ASTContext &astctx = ci.getASTContext();
+    clang::DiagnosticsEngine &diag = ci.getDiagnostics();
+    llvm::LLVMContext &vmctx = llvm::getGlobalContext();
+    llvm::Module mod("piecegen", vmctx);
+    llvm::Module libmod("libcodes", vmctx);
+    clang::CodeGenOptions &cgopt = ci.getCodeGenOpts();
+
+    llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+
+    clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, mod, dlo, diag);
+
+    qDebug()<<"heeeeee...";
+    clang::CodeGen::CodeGenFunction cgf(cgmod, false);
+
+    qDebug()<<cgmod.getMangledName(mthdecl).data();
+    auto mgctx = ctx.createMangleContext();
+    std::string stms;
+    llvm::raw_string_ostream stmo(stms);
+    mgctx->mangleCXXName(mthdecl, stmo);
+    qDebug()<<stmo.str().c_str();
+
+    decltype(mthdecl) mthdecl2;
+    for (auto d: decl->specializations()) {
+        for (auto rd: d->methods()) {
+            QString mthname = QString(rd->getName().data());
+            if (mthname != "sharedNull") {
+                continue;
+            }
+            stmo.flush();
+            stms.clear();
+            mgctx->mangleCXXName(rd, stmo);
+            // qDebug()<<mthname<<stmo.str().c_str();
+            if (QString(stmo.str().c_str()) == "_ZN15QTypedArrayDataItE10sharedNullEv") {
+                mthdecl2 = rd;
+                mthdecl2->dumpColor();
+            }
+        }
+    }
+
+    {
+        decltype(mthdecl) md = mthdecl;
+        qDebug()<<md->hasBody()<<md->hasInlineBody()
+                <<md->hasTrivialBody();
+        for (auto d: md->redecls()) {
+            qDebug()<<d;
+            d->dumpColor();
+        }
+        auto s = md->getBody();
+        s->dumpColor();
+        auto a = md->getInstantiatedFromMemberFunction();
+        // a->dumpColor();
+        // qDebug()<<"aaaaaaaaaaaaa";
+        // md->getTemplateInstantiationPattern()->dumpColor();
+    }
+
+    QDateTime btime = QDateTime::currentDateTime();
+    // genmth(cgmod, cgf, mthdecl);
+
+    {
+        decltype(mthdecl) td = mthdecl2;
+        decltype(cgmod) &cgm = cgmod;
+        auto &cgtypes = cgmod.getTypes();
+        llvm::Constant *v = cgm.GetAddrOfFunction(td, NULL, false, true);
+        qDebug()<<v->getName().data();
+        llvm::Function *f = clang::cast<llvm::Function>(v);
+        const clang::CodeGen::CGFunctionInfo &FI = 
+            cgtypes.arrangeGlobalDeclaration(td);
+        // const clang::Type *Ty = td->getType().getTypePtr();
+        // const clang::FunctionType *FT = clang::cast<clang::FunctionType>(Ty);
+        // const clang::FunctionProtoType *FPT = clang::dyn_cast<clang::FunctionProtoType>(FT);
+        // qDebug()<<Ty<<FT<<FPT;
+        // auto canq =
+        //     clang::CanQual<clang::FunctionProtoType>::CreateUnsafe(td->getType());
+        // auto &FI2 = cgtypes.arrangeFreeFunctionType(canq);
+        //     Ty = getTypes().ConvertType(cast<ValueDecl>(GD.getDecl())->getType());
+        // cgtypes.ConvertType(clang::cast<clang::ValueDecl>(td)->getType());
+        qDebug()<<cgm.getMangledName(clang::GlobalDecl(td)).data();
+        qDebug()<<td<<td->getCorrespondingUnsizedGlobalDeallocationFunction();
+        cgf.GenerateCode(td, f, FI);
+    }
+
+    QDateTime etime = QDateTime::currentDateTime();
+    qDebug()<<"gen func time:"<<btime.msecsTo(etime);
+
+    mod.dump();
+    
+    return false;
+}

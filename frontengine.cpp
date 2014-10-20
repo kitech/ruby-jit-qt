@@ -5,6 +5,7 @@
 #include <clang/AST/AST.h>
 #include <clang/AST/Mangle.h>
 #include <clang/AST/APValue.h>
+#include <clang/AST/DeclTemplate.h>
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include "clang/Driver/Compilation.h"
@@ -167,6 +168,48 @@ bool FrontEngine::loadPreparedASTFile()
             <<tctx.getSideTableAllocatedMemory();
 
     return true;
+}
+
+void FrontEngine::dumpast()
+{
+    clang::ASTUnit *unit = mrgunit;
+    clang::ASTContext &tctx = unit->getASTContext();
+    clang::SourceManager &srcman = unit->getSourceManager();
+    clang::FileManager &fman = unit->getFileManager();
+    clang::TranslationUnitDecl *trud = tctx.getTranslationUnitDecl();
+
+    qDebug()<<"==========";
+    tctx.PrintStats();
+    qDebug()<<"==========";
+    srcman.PrintStats();
+    qDebug()<<"==========";
+    fman.PrintStats();
+    qDebug()<<"==========";
+
+    int num = std::count_if(tctx.local_imports().begin(),
+                            tctx.local_imports().end(), [](clang::ImportDecl *d) {return true;});
+    qDebug()<<"importD:"<<num;
+    num = std::count_if(trud->decls_begin(), trud->decls_end(), [](clang::Decl *d){return true;});
+    qDebug()<<"decls:"<<num;
+    clang::ExternalASTSource *extsrc = tctx.getExternalSource();
+    qDebug()<<"extsrc:"<<extsrc<<extsrc->getModule(0); // 0x8322, 0
+    // extsrc->PrintStats();
+    
+    qDebug()<<"toplevel:"<<unit->top_level_size()<<unit->top_level_empty();
+    // 
+    auto fety = fman.getFile("/usrqstring.h");
+    qDebug()<<"fety:"<<fety; // 0
+    
+    // 
+    num = std::count_if(srcman.fileinfo_begin(), srcman.fileinfo_end(),
+                        [](std::pair<const clang::FileEntry*, clang::SrcMgr::ContentCache*> f){return true;});
+    qDebug()<<"fileinfo:"<<num<<srcman.getPreambleFileID().isInvalid(); // 0
+
+    qDebug()<<"oris:"<<unit->getOriginalSourceFileName().data();
+    qDebug()<<fman.getFile(unit->getOriginalSourceFileName());
+    auto fety2 = fman.getFile(unit->getOriginalSourceFileName());
+    
+    qDebug()<<"from ast:"<<trud->isFromASTFile()<<"own mod:"<<trud->getOwningModuleID();
 }
 
 // from ast file
@@ -645,12 +688,113 @@ clang::CXXRecordDecl* FrontEngine::find_class_decl(QString klass)
     return recdecl;
 }
 
+clang::ClassTemplateDecl* FrontEngine::find_tpl_class_decl(QString klass)
+{
+    clang::TranslationUnitDecl *udecl = this->mtrunit;
+    qDebug()<<klass<<udecl;
+    Q_ASSERT(udecl != NULL);
+
+    // 1st, find class record decl
+    // 2nd, find method decl
+    // 2.5nd, overload method resolve
+    // 3rd, find the default arg's value
+    clang::ClassTemplateDecl *res_tpldecl = NULL;
+
+    for (auto it = udecl->decls_begin(); it != udecl->decls_end(); it++) {
+        clang::Decl *decl = *it;
+        clang::ClassTemplateDecl *tpldecl;
+        QString declname;
+        // qDebug()<<decl<<decl->getDeclKindName()<<decl->getKind();
+        switch (decl->getKind()) {
+        case clang::Decl::ClassTemplate:
+            tpldecl = llvm::cast<clang::ClassTemplateDecl>(decl);
+            declname = QString(tpldecl->getName().data());
+            // qDebug()<<"name.."<<recdecl->getName().data()<<recdecl->hasBody();
+            if (declname == klass) {
+                res_tpldecl = tpldecl;
+                // recdecl->dump();
+            }
+            break;
+        default:
+            /*
+            if (clang::isa<clang::NamedDecl>(decl)) {
+                clang::NamedDecl *nd = clang::cast<clang::NamedDecl>(decl);
+                declname = QString(nd->getName().data());
+                if (declname.indexOf("QTypedArrayData") >= 0) {
+                    nd->dumpColor();
+                    exit(0);
+                }
+            }
+            */
+            break;
+        }
+
+    }
+    
+    if (res_tpldecl == NULL) {
+        qDebug()<<"tpl klass decl not found:";
+        return NULL;
+    }
+
+    clang::ClassTemplateDecl *tpldecl = res_tpldecl;
+    return tpldecl;
+}
+
 QVector<clang::CXXMethodDecl*> FrontEngine::find_method_decls(clang::CXXRecordDecl *decl,
                                                  QString klass, QString method)
 {
     QVector<clang::CXXMethodDecl*> mdecls;
 
     clang::CXXRecordDecl *recdecl = decl;
+
+    for (auto ait = recdecl->method_begin(); ait != recdecl->method_end(); ait++) {
+        clang::CXXMethodDecl *mthdecl = *ait;
+        // qDebug()<<"name .."<<mthdecl->getName().data();
+        if (QString(mthdecl->getName().data()).length() == 0) {
+            // mthdecl->dumpColor();
+        }
+        if (klass == method && clang::isa<clang::CXXConstructorDecl>(mthdecl)) {
+            mdecls.append(mthdecl);
+            // mthdecl->dumpColor();
+        } else if (QString(mthdecl->getName().data()) == method) {
+            qDebug()<<"found it, maybe rc:"<<method;
+            // mthdecl->dumpColor();
+            mdecls.append(mthdecl);
+                
+            // QString tmp_dmname = QString("Ya%1::%2(").arg(klass).arg(method);
+            // for (auto bit = mthdecl->param_begin(); bit != mthdecl->param_end(); bit++) {
+            //     int idx = bit - mthdecl->param_begin();
+            //     clang::ParmVarDecl *pvdecl = *bit;
+            //     clang::QualType pvtype = pvdecl->getType();
+            //     qDebug()<<pvtype.getAsString().c_str();
+            //     tmp_dmname += QString("%1%2")
+            //         .arg(trim_type_class(QString(pvtype.getAsString().c_str())))
+            //         .arg(idx == mthdecl->param_size() - 1 ? "" : ", ");
+            // }
+            // tmp_dmname += QString(")%1").arg(mthdecl->isConst() ? " const" : "");
+
+            // QString s1 = QMetaObject::normalizedSignature(dmname.toLatin1().data());
+            // QString s2 = QMetaObject::normalizedSignature(tmp_dmname.toLatin1().data());
+            // qDebug()<<"tmp name:"<<tmp_dmname<<"==?"<<(tmp_dmname == dmname)
+            //         <<(s1 == s2);
+
+            // if (s1 == s2) {
+            //     res_mthdecl = mthdecl;
+            //     break;
+            // }
+        }
+    }
+    qDebug()<<"found method count:"<<method<<mdecls.count();
+    
+    return mdecls;
+}
+
+QVector<clang::CXXMethodDecl*> FrontEngine::find_tpl_method_decls(clang::ClassTemplateDecl *decl,
+                                                                  QString klass, QString method)
+{
+    QVector<clang::CXXMethodDecl*> mdecls;
+
+    clang::CXXRecordDecl *recdecl = decl->getTemplatedDecl();
 
     for (auto ait = recdecl->method_begin(); ait != recdecl->method_end(); ait++) {
         clang::CXXMethodDecl *mthdecl = *ait;

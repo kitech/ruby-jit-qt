@@ -4,6 +4,8 @@ cmake_minimum_required(VERSION 3.0)
 set(CMAKE_VERBOSE_MAKEFILE on)
 
 # add_definitions(-g -O2 -std=c++11) # -std=c++14 -fno-rtti)  # -fno-rtti
+set(CMAKE_C_COMPILER ./myllvm/bin/clang)
+set(CMAKE_CXX_COMPILER ./myllvm/bin/clang++)
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_CXX_FLAGS "-g -O2 -std=c++11 -std=c++14")
@@ -28,20 +30,20 @@ find_package(Ruby)
 message("ruby?? ${RUBY_FOUND}, ${RUBY_INCLUDE_DIRS}, ${RUBY_LIBRARY}")
 include_directories(${RUBY_INCLUDE_DIRS})
 
-exec_program(llvm-config ARGS --cxxflags 
+exec_program(./myllvm/bin/llvm-config ARGS --cxxflags 
   OUTPUT_VARIABLE CLANG_CXXFLAGS_OUTPUT RETURN_VALUE CLANG_CXXFLAGS_VALUE)
 message("clang defs: ${CLANG_CXXFLAGS_OUTPUT}")
 # message(${CLANG_CXXFLAGS_VALUE})
 #add_definitions(${CLANG_CXXFLAGS_OUTPUT} )
 #set(COMPILER_FLAGS ${CLANG_CXXFLAGS_OUTPUT})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CLANG_CXXFLAGS_OUTPUT}")
-set(LLVM_SRC_DIR "/mnt/sda3/mptemp/llvm-3.5.0.src")
 set(LLVM_SRC_DIR2 "./llvm-3.5.0.src")  # maybe a symlink
-set(CLANG_SRC_DIR ${LLVM_SRC_DIR}/tools/clang)
 set(CLANG_SRC_DIR2 ${LLVM_SRC_DIR2}/tools/clang)
-include_directories(${CLANG_SRC_DIR}/lib/CodeGen ${CLANG_SRC_DIR2}/lib/CodeGen)
+include_directories(${CLANG_SRC_DIR2}/lib/CodeGen)
 
 set(handby_lib_SRCS
+  llvm-3.5.0.src/tools/clang/lib/CodeGen/CodeGenModule.cpp
+#  llvm-3.5.0.src/tools/clang/lib/CodeGen/CodeGenFunction.cpp
   qtruby.cpp
   qom.cpp
   entry.cpp
@@ -96,6 +98,7 @@ set(CLANGLIBS  -lclang -lLLVM-3.5
 
 add_library(handby SHARED ${handby_lib_SRCS})
 target_link_libraries(handby ruby  ${CLANGLIBS})
+# target_link_libraries(handby ruby -L./myllvm/lib  ${CLANGLIBS})
 qt5_use_modules(handby Core Gui Widgets Network WebSockets)
 #set_target_properties(handby PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "hdrsrc.h")
 #set_target_properties(handby PROPERTIES COTIRE_UNITY_LINK_LIBRARIES_INIT "COPY")

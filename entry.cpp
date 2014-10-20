@@ -397,6 +397,7 @@ VALUE x_Qt_class_init_jit(int argc, VALUE *argv, VALUE self)
     // test_parse_class();
     // test_parse_ast();
     // test_piece_compiler();
+    // test_tpl_piece_compiler();
     // exit(-1);
 
     
@@ -1120,6 +1121,11 @@ extern "C" {
     void Init_handby()
     {
         qInstallMessageHandler(myMessageOutput);
+
+        ///// test code
+        test_one();
+        exit(0);
+
         init_class_metas();
 
         cModuleQt = rb_define_module("Qt5");

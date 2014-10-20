@@ -20,6 +20,7 @@ namespace clang {
     class CXXRecordDecl;
     class CXXMethodDecl;
     class CXXConstructorDecl;
+    class ClassTemplateDecl;
 
     namespace driver {
         class Driver;
@@ -60,6 +61,8 @@ public:
     // 单独的加载ast文件方法，
     bool loadPreparedASTFile();
     // 通过预先生成的AST文件，加载AST工作。
+    void dumpast(); // for test
+
     bool parseHeader();
     // 给定头文件路径构建AST工作。
     bool parseHeader(QString path);
@@ -83,8 +86,12 @@ public:
 private:
 public:
     clang::CXXRecordDecl* find_class_decl(QString klass);
+    clang::ClassTemplateDecl* find_tpl_class_decl(QString klass);
     QVector<clang::CXXMethodDecl*> find_method_decls(clang::CXXRecordDecl *decl, 
                                                      QString klass, QString method);
+    QVector<clang::CXXMethodDecl*> find_tpl_method_decls(clang::ClassTemplateDecl *decl,
+                                                                  QString klass, QString method);
+
     // 查找一个类的符合条件的构造函数定义。
     clang::CXXConstructorDecl* find_ctor_decl(clang::CXXRecordDecl *decl, 
                                               QString klass, QVector<QVariant> uargs);

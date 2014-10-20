@@ -12,6 +12,7 @@ namespace clang {
     class CXXRecordDecl;
     class CXXMethodDecl;
     class CXXConstructorDecl;
+    class ClassTemplateDecl;
     class ASTContext;
     class CompilerInstance;
     class CompilerInvocation;
@@ -37,6 +38,8 @@ public:
     bool tryCompile(clang::CXXRecordDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit);
     bool tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &ctx);
     bool tryCompile3(clang::CXXRecordDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit);
+    bool tryCompile4(clang::CXXRecordDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit);
+    bool tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit);
 
 public:
     clang::CompilerInstance *mcis = NULL;

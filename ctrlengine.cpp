@@ -39,21 +39,11 @@ void *CtrlEngine::vm_new(QString klass_name, QVector<QVariant> uargs)
     // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
     // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
 
-    clang::CXXRecordDecl *rec_decl2 = mfe->find_class_decl("QTypedArrayData");
-    qDebug()<<"QTypedArrayData:"<<rec_decl2;
-    clang::Decl *td = NULL;
-
-    // for test;
-    for (auto d: rec_decl2->methods()) {
-        qDebug()<<d->getName().data();
-        QString mthname = QString(d->getName().data());
-        if (mthname == "sharedNull") {
-            td = d;
-            break;
-        }
+    QVector<clang::CXXMethodDecl*> mths = mfe->find_method_decls(rec_decl, klass_name, "fromLatin1");
+    if (mths.count() > 0) {
+        clang::CXXMethodDecl *mth = mths.at(0);
+        mce->conv_method(mfe->getASTContext(), mth);
     }
-
-    td->dumpColor();
 
     return 0;
 }
