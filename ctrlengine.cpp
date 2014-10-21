@@ -42,7 +42,8 @@ void *CtrlEngine::vm_new(QString klass_name, QVector<QVariant> uargs)
     // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
 
     OperatorEngine oe;
-    oe.bind(mod, "_ZN7QStringC2Ev", uargs);
+    QVector<QVariant> dargs;
+    QString lamsym = oe.bind(mod, "_ZN7QStringC2Ev", 0, uargs, dargs);
 
 
     // QVector<clang::CXXMethodDecl*> mths = mfe->find_method_decls(rec_decl, klass_name, "fromLatin1");

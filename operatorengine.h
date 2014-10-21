@@ -16,8 +16,16 @@ namespace llvm {
 class OperatorEngine
 {
 public:
+    OperatorEngine();
+    void init();
+
+public:
+    llvm::Module *mtmod = NULL;
+
+public:
     // 类似std::bind
-    QString bind(llvm::Module *mod, QString symbol, QVector<QVariant> uargs);
+    QString bind(llvm::Module *mod, QString symbol, void *kthis, QVector<QVariant> uargs
+                 , QVector<QVariant> dargs);
     
 };
 
