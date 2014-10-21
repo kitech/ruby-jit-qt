@@ -11,7 +11,7 @@
 #include <cxxabi.h>
 
 #include "compilerengine.h"
-
+#include "ctrlengine.h"
 
 int test_demangle() 
 {
@@ -136,6 +136,14 @@ void test_dumpast()
     fe->dumpast();
 }
 
+void test_ctrl()
+{
+    CtrlEngine *ce = new CtrlEngine();
+    QVector<QVariant> uargs;
+
+    void *oh = ce->vm_new("QString", uargs);
+    qDebug()<<oh;
+}
 
 
 void test_one()
@@ -143,5 +151,6 @@ void test_one()
     // test_fe();
     // test_piece_compiler();
     // test_dumpast();
-    test_tpl_piece_compiler();
+    // test_tpl_piece_compiler();
+    test_ctrl();
 }

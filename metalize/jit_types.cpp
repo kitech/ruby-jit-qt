@@ -17,6 +17,27 @@ void __keep_jit_types()
     #include "jit_types_body.cpp"
 }
 
+/*
+  由于目前发现一些方法无法正常动态生成ll代码
+  使用这种方式可以预先生成这部分代码，在动态调用这部分代码。
+  后续动态生成ll代码优化之后，这部分则可去掉。
+ */
+void __keep_jit_cannot_gen_functions()
+{
+    QTypedArrayData<unsigned short>::sharedNull();
+
+    {
+
+    }
+}
+
+
+
+
+
+
+
+
 
 
 

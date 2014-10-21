@@ -7,6 +7,10 @@
 
 #include <QtCore>
 
+namespace llvm {
+    class Module;
+};
+
 namespace clang {
     class Decl;
     class CXXRecordDecl;
@@ -29,8 +33,8 @@ public:
     ~CompilerEngine();
 
 public:
-    bool conv_ctor(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor);
-    bool conv_method(clang::ASTContext &ctx, clang::CXXMethodDecl *mth);
+    llvm::Module* conv_ctor(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor);
+    llvm::Module* conv_method(clang::ASTContext &ctx, clang::CXXMethodDecl *mth);
     // bool check_inline_symbol();
 
 public:    

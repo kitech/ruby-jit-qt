@@ -23,6 +23,8 @@
 #include <llvm/Support/Host.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/AsmParser/Parser.h>
+
 
 #include "compilerengine.h"
 
@@ -109,23 +111,105 @@ bool CompilerEngine::initCompiler()
 
 // 第一种方式，拿到还未定义的symbol，到ast中查找
 // 第二种方式，解析C++方法的源代码，找到这个未定义的symbol，从decl再把它编译成ll，效率更好。
-static void decl2def(llvm::Module *mod, clang::ASTContext &ctx, clang::CodeGen::CodeGenModule &cgmod)
+static void decl2def(llvm::Module *mod, clang::ASTContext &ctx, clang::CodeGen::CodeGenModule &cgmod, 
+                     clang::Decl *decl)
 {
+    static llvm::Module *jit_types_mod = NULL;
+    auto load_jit_types_module = []() -> llvm::Module* {
+        llvm::LLVMContext *ctx = new llvm::LLVMContext();
+        llvm::Module *module = new llvm::Module("jit_types_in_ce", *ctx);
 
+        // load module
+        QFile fp("./metalize/jit_types.ll");
+        fp.open(QIODevice::ReadOnly);
+        QByteArray asm_data = fp.readAll();
+        fp.close();
+
+        char *asm_str = strdup(asm_data.data());
+        qDebug()<<"llstrlen:"<<strlen(asm_str);
+
+        llvm::SMDiagnostic smdiag;
+        llvm::Module *rmod = NULL;
+
+        rmod = llvm::ParseAssemblyString(asm_str, NULL, smdiag, *ctx);
+        qDebug()<<"rmod="<<rmod;
+        free(asm_str);
+
+        return rmod;
+    };
+
+    QHash<QString, bool> efuns;
+    if (jit_types_mod == NULL) {
+        jit_types_mod = load_jit_types_module();
+        // jit_types_mod->dump();
+
+        for (auto &f: jit_types_mod->getFunctionList()) {
+            efuns.insert(QString(f.getName().data()), true);
+        }
+    }
+    qDebug()<<"exists funcs:"<<efuns.count()<<efuns;
+
+    int copyed = 0;
+    QVector<QString> gfuns;
     for (auto &f: mod->getFunctionList()) {
-        qDebug()<<"name:"<<f.getName().data()<<f.size()<<f.isDeclaration();
+        QString fname = f.getName().data();
+        qDebug()<<"name:"<<f.getName().data()<<f.size()<<"decl:"<<f.isDeclaration();
         if (!f.isDeclaration()) {
             continue;
         }
 
-        // 
-        // llvm::Constant *c = 
+        if (efuns.contains(fname)) {
+            // copy function from prepared module
+            qDebug()<<"copying func:"<<fname;
+            continue;
+
+            // copy可能遇到需要递归的指定，如call，或者一些全局变量也需要同时处理。
+            // 还是比较复杂的。
+            auto srcf = jit_types_mod->getFunction(fname.toLatin1().data());
+            auto dstf = mod->getFunction(fname.toLatin1().data());
+            
+            llvm::IRBuilder<> builder(mod->getContext());
+            // llvm::BasicBlock *entry = llvm::BasicBlock::Create(mod->getContext(),
+            //                                                    "clvm_func_entrypoint", dstf);
+            // builder.SetInsertPoint(entry);
+            // qDebug()<<entry<<dstf;
+            for (auto &blk: *srcf) {
+                qDebug()<<","<<blk.getName().data()<<",";
+                llvm::BasicBlock *tb = llvm::BasicBlock::Create(mod->getContext(),
+                                                                blk.getName(), dstf);
+                builder.SetInsertPoint(tb);                
+                for (auto &ins: blk) {
+                    auto ni = ins.clone();
+                    builder.Insert(ni);
+                    qDebug()<<&blk<<&ins<<ins.getName().data()<<"opc:"<<ins.getOpcodeName()<<ins.getOpcode();
+                    if (ins.getOpcode() == llvm::Instruction::Call) {
+                        llvm::CallInst *ci = llvm::cast<llvm::CallInst>(ni);
+                        qDebug()<<"call arg num:"<<ci->getNumArgOperands();
+                        auto called_func = ci->getArgOperand(0);
+                        qDebug()<<"afun?"<<called_func->getName().data()
+                                <<llvm::isa<llvm::Function>(called_func);
+                        
+                    }
+                }
+            }
+            copyed ++;
+            continue;
+        }
+        gfuns.append(fname);
     }
+
+    qDebug()<<"need gen funs:"<<gfuns.count()<<copyed;
+    if (gfuns.count() == 0 && copyed == 0) return;
+    for (auto fname: gfuns) {
+        
+    }
+
+    decl2def(mod, ctx, cgmod, decl);
 }
 
 
 // todo 还需要一个递归生成的过程，多次检查生成的结果是否有inline方法
-bool CompilerEngine::conv_ctor(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor)
+llvm::Module* CompilerEngine::conv_ctor(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor)
 {
     clang::CompilerInstance ci;
     // ci.createASTContext();
@@ -205,13 +289,17 @@ bool CompilerEngine::conv_ctor(clang::ASTContext &ctx, clang::CXXConstructorDecl
     }
 
     mod->dump(); 
-    
-    return false;
+
+    decl2def(mod, ctx, cgmod, ctor);
+
+    mod->dump(); 
+
+    return mod;
 }
 
 // 这个方法支持普通方法，static也可以,非template
 // 已知问题，不支持模板类中的静态方法。
-bool CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMethodDecl *mth)
+llvm::Module* CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMethodDecl *mth)
 {
     clang::CompilerInstance ci;
     // ci.createASTContext();
@@ -259,8 +347,8 @@ bool CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMethodDecl *m
     genmth(cgmod, *cgf, mth);
     
     mod->dump();
-    
-    return false;
+
+    return mod;
 }
 
 
@@ -704,6 +792,112 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
     return false;
 }
 
+void testGenerateCode(clang::CodeGen::CodeGenModule &CGM, clang::GlobalDecl GD, llvm::Function *Fn,
+                                   const clang::CodeGen::CGFunctionInfo &FnInfo) {
+    using namespace clang;
+    using namespace clang::CodeGen;
+    const FunctionDecl *FD = cast<FunctionDecl>(GD.getDecl());
+    qDebug()<<FD;
+
+    // Check if we should generate debug info for this function.
+    //     if (FD->hasAttr<NoDebugAttr>())
+    //    DebugInfo = nullptr; // disable debug info indefinitely for this function
+
+    FunctionArgList Args;
+    QualType ResTy = FD->getReturnType();
+
+    auto CurGD = GD;
+    const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD);
+    // if (MD && MD->isInstance()) {
+    //     if (CGM.getCXXABI().HasThisReturn(GD))
+    //         ResTy = MD->getThisType(getContext());
+    //     CGM.getCXXABI().buildThisParam(*this, Args);
+    // }
+
+    // for (unsigned i = 0, e = FD->getNumParams(); i != e; ++i)
+    //     Args.push_back(FD->getParamDecl(i));
+
+    // if (MD && (isa<CXXConstructorDecl>(MD) || isa<CXXDestructorDecl>(MD)))
+    //     CGM.getCXXABI().addImplicitStructorParams(*this, ResTy, Args);
+
+    SourceRange BodyRange;
+    if (Stmt *Body = FD->getBody()) BodyRange = Body->getSourceRange();
+    auto CurEHLocation = BodyRange.getEnd();
+
+    // Use the location of the start of the function to determine where
+    // the function definition is located. By default use the location
+    // of the declaration as the location for the subprogram. A function
+    // may lack a declaration in the source code if it is created by code
+    // gen. (examples: _GLOBAL__I_a, __cxx_global_array_dtor, thunk).
+    SourceLocation Loc = FD->getLocation();
+
+    // If this is a function specialization then use the pattern body
+    // as the location for the function.
+    if (const FunctionDecl *SpecDecl = FD->getTemplateInstantiationPattern())
+        if (SpecDecl->hasBody(SpecDecl))
+            Loc = SpecDecl->getLocation();
+
+    // Emit the standard function prologue.
+    // StartFunction(GD, ResTy, Fn, FnInfo, Args, Loc, BodyRange.getBegin());
+
+    FunctionDecl *UnsizedDealloc = 
+        FD->getCorrespondingUnsizedGlobalDeallocationFunction();
+    bool ok = (UnsizedDealloc != NULL);
+    qDebug()<<UnsizedDealloc<<ok;
+    if (UnsizedDealloc) {
+        qDebug()<<"error match if";
+    }
+    // Generate the body of the function.
+    // PGO.assignRegionCounters(GD.getDecl(), CurFn);
+    if (isa<CXXDestructorDecl>(FD)) {
+        // EmitDestructorBody(Args);
+        qDebug()<<"hhhhhhhhhhh";
+    }
+    else if (isa<CXXConstructorDecl>(FD)) {
+        // EmitConstructorBody(Args);
+        qDebug()<<"hhhhhhhhhhh";
+    }
+    // else if (getLangOpts().CUDA &&
+    //          !CGM.getCodeGenOpts().CUDAIsDevice &&
+    //          FD->hasAttr<CUDAGlobalAttr>()) {
+    //     // CGM.getCUDARuntime().EmitDeviceStubBody(*this, Args);
+    // }
+    else if (isa<CXXConversionDecl>(FD) &&
+             cast<CXXConversionDecl>(FD)->isLambdaToBlockPointerConversion()) {
+        // The lambda conversion to block pointer is special; the semantics can't be
+        // expressed in the AST, so IRGen needs to special-case it.
+        // EmitLambdaToBlockPointerBody(Args);
+        qDebug()<<"hhhhhhhhhhh";
+    } else if (isa<CXXMethodDecl>(FD) &&
+               cast<CXXMethodDecl>(FD)->isLambdaStaticInvoker()) {
+        // The lambda static invoker function is special, because it forwards or
+        // clones the body of the function call operator (but is actually static).
+        // EmitLambdaStaticInvokeFunction(cast<CXXMethodDecl>(FD));
+        qDebug()<<"hhhhhhhhhhh";
+    } else if (FD->isDefaulted() && isa<CXXMethodDecl>(FD) &&
+               (cast<CXXMethodDecl>(FD)->isCopyAssignmentOperator() ||
+                cast<CXXMethodDecl>(FD)->isMoveAssignmentOperator())) {
+        // Implicit copy-assignment gets the same special treatment as implicit
+        // copy-constructors.
+        // emitImplicitAssignmentOperatorBody(Args);
+        qDebug()<<"hhhhhhhhhhh";
+    } else if (Stmt *Body = FD->getBody()) {
+        // EmitFunctionBody(Args, Body);
+        qDebug()<<"hhhhhhhhhhh";
+        // } else if (UnsizedDealloc != NULL) {
+    } else if (FunctionDecl *UnsizedDealloc = 
+               FD->getCorrespondingUnsizedGlobalDeallocationFunction()) {
+        // Global sized deallocation functions get an implicit weak definition if
+        // they don't have an explicit definition.
+        // EmitSizedDeallocationFunction(*this, UnsizedDealloc);
+        // EmitSizedDeallocationFunction(CGM, UnsizedDealloc);
+        qDebug()<<"why hereeeeeeeeee"<<UnsizedDealloc<<(UnsizedDealloc != NULL);
+    } else {
+        qDebug()<<"hhhhhhhhhhh";
+        llvm_unreachable("no definition for emitted function");
+    }
+}
+
 // 不能正确生成ll代码
 bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit)
 {
@@ -806,7 +1000,7 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
         }
     }
 
-    {
+    if (0) {
         decltype(mthdecl) md = mthdecl;
         qDebug()<<md->hasBody()<<md->hasInlineBody()
                 <<md->hasTrivialBody();
@@ -846,6 +1040,7 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
         qDebug()<<cgm.getMangledName(clang::GlobalDecl(td)).data();
         qDebug()<<td<<td->getCorrespondingUnsizedGlobalDeallocationFunction();
         cgf.GenerateCode(td, f, FI);
+        // testGenerateCode(cgm, clang::GlobalDecl(td), f, FI);
     }
 
     QDateTime etime = QDateTime::currentDateTime();

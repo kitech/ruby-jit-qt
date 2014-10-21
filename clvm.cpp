@@ -92,7 +92,7 @@
 
 llvm::GenericValue jit_execute_func(llvm::Module *mod, llvm::Function *func)
 {
-   llvm::GenericValue gv;
+    llvm::GenericValue gv;
 
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
@@ -126,7 +126,7 @@ llvm::GenericValue jit_execute_func(llvm::Module *mod, llvm::Function *func)
 
     qDebug()<<"run done.";   
 
-   return gv;
+    return gv;
 }
 
 llvm::GenericValue jit_vm_execute(QString code, QVector<llvm::GenericValue> &envp)

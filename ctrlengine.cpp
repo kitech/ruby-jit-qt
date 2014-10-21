@@ -5,7 +5,8 @@
 #include "compilerengine.h"
 #include "operatorengine.h"
 #include "ctrlengine.h"
-
+#include "clvm.h"
+#include "clvmengine.h"
 
 CtrlEngine::CtrlEngine()
 {
@@ -36,14 +37,19 @@ void *CtrlEngine::vm_new(QString klass_name, QVector<QVariant> uargs)
     qDebug()<<ctor_decl;
     ctor_decl->dumpColor();
 
-    // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
+    auto mod = mce->conv_ctor(mfe->getASTContext(), ctor_decl);
+    qDebug()<<mod;
     // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
 
-    QVector<clang::CXXMethodDecl*> mths = mfe->find_method_decls(rec_decl, klass_name, "fromLatin1");
-    if (mths.count() > 0) {
-        clang::CXXMethodDecl *mth = mths.at(0);
-        mce->conv_method(mfe->getASTContext(), mth);
-    }
+    OperatorEngine oe;
+    oe.bind(mod, "_ZN7QStringC2Ev", uargs);
+
+
+    // QVector<clang::CXXMethodDecl*> mths = mfe->find_method_decls(rec_decl, klass_name, "fromLatin1");
+    // if (mths.count() > 0) {
+    //     clang::CXXMethodDecl *mth = mths.at(0);
+    //     mce->conv_method(mfe->getASTContext(), mth);
+    // }
 
     return 0;
 }
