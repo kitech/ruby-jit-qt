@@ -688,6 +688,8 @@ clang::CXXRecordDecl* FrontEngine::find_class_decl(QString klass)
     return recdecl;
 }
 
+
+
 clang::ClassTemplateDecl* FrontEngine::find_tpl_class_decl(QString klass)
 {
     clang::TranslationUnitDecl *udecl = this->mtrunit;
@@ -874,6 +876,7 @@ clang::CXXMethodDecl* FrontEngine::find_method_decl(clang::CXXRecordDecl *decl,
     
     if (mats.count() <= 0) {
         qDebug()<<"method not found:";
+        return this->find_method_decl_from_base(decl, klass, method, uargs);
         return NULL;
     }
 
@@ -885,6 +888,27 @@ clang::CXXMethodDecl* FrontEngine::find_method_decl(clang::CXXRecordDecl *decl,
     Q_ASSERT(md);
     return md;
 }
+
+clang::CXXMethodDecl* 
+FrontEngine::find_method_decl_from_base(clang::CXXRecordDecl *decl, 
+                                        QString klass, QString method, QVector<QVariant> uargs)
+{
+    qDebug()<<"base classes:"<<decl->getNumBases();
+    for (auto bs: decl->bases()) {
+        auto bt = bs.getType();
+        qDebug()<<bt.getAsString().data();
+        auto tp = QString(bt.getAsString().data()).split(' ');
+        qDebug()<<tp;
+        QString bklass = tp.at(1);
+        clang::CXXRecordDecl *bdecl = this->find_class_decl(bklass);
+        clang::CXXMethodDecl *mth_decl = this->find_method_decl(bdecl, bklass, method, uargs);
+        if (mth_decl != NULL) {
+            return mth_decl;
+        }
+    }
+    return 0;
+}
+
 
 
 bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl, 
@@ -919,13 +943,19 @@ bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl,
                 if (ptype->isBooleanType()) ok = true;
                 break;
             case QMetaType::QString:
-                if (tstr.indexOf("QString") != -1 /* && tstr.indexOf('*') == -1*/) ok = true;
+                if (tstr.indexOf("QString") != -1) ok = true;
+                if (tstr.indexOf("char *") != -1) ok = true;
                 break;
             case QMetaType::QChar:
                 if (ptype->isCharType()) ok = true;
                 break;
-
-            default: qDebug()<<"unknown type:"<<uargs.at(idx).type()<<uargs.at(idx);
+            case QMetaType::VoidStar:
+                if (ptype->isObjectType() && ptype->isPointerType()) ok = true;
+                break;
+            default: qDebug()<<"unknown type:"<<uargs.at(idx).type()<<uargs.at(idx)
+                             <<ptype.getAsString().data()
+                             <<ptype->isClassType()<<ptype->isPointerType()
+                             <<ptype->isObjectType();
                 break;
             }
             

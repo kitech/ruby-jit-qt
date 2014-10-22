@@ -45,10 +45,12 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
 
     OperatorEngine oe;
     QVector<QVariant> dargs;
+    mfe->get_method_default_params(ctor_decl, dargs);
     void *kthis = calloc(oe.getClassAllocSize(klass), 1);
+    qDebug()<<oe.getClassAllocSize(klass)<<kthis<<(int64_t)kthis<<dargs.count();
 
     // QString lamsym = oe.bind(mod, "_ZN7QStringC2Ev", kthis, uargs, dargs);
-    QString lamsym = oe.bind(mod, symname, kthis, klass, uargs, dargs);
+    QString lamsym = oe.bind(mod, symname, kthis, klass, uargs, dargs, false);
     qDebug()<<lamsym;
     Clvm *vm = new Clvm;
     auto gv = vm->execute2(mod, lamsym);
@@ -68,7 +70,7 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     clang::CXXRecordDecl *rec_decl = mfe->find_class_decl(klass);
     qDebug()<<rec_decl;
     clang::CXXMethodDecl *mth_decl = mfe->find_method_decl(rec_decl, klass, method, uargs);
-    qDebug()<<mth_decl;
+    qDebug()<<mth_decl<<mth_decl->isStatic();
     mth_decl->dumpColor();
 
     auto mod = mce->conv_method(mfe->getASTContext(), mth_decl);
@@ -80,7 +82,7 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     OperatorEngine oe;
     QVector<QVariant> dargs;
     mfe->get_method_default_params(mth_decl, dargs);
-    QString lamsym = oe.bind(mod, symname, kthis, klass, uargs, dargs);
+    QString lamsym = oe.bind(mod, symname, kthis, klass, uargs, dargs, mth_decl->isStatic());
     qDebug()<<lamsym;
     Clvm *vm = new Clvm;
     auto gv = vm->execute2(mod, lamsym);

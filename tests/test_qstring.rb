@@ -74,14 +74,14 @@ end
 
 def test_signal_slots()
   t = Qt5::QTimer.new
-  # puts t.to_s();
-  # t.connect(t, "timeout()", t, "stop()");
+  puts t.to_s();
+  t.connect(t, "2timeout()", t, "1stop()");
   # t.start(123); #  QObject::startTimer: Timers can only be used with threads started with QThread
 end
 
-test_qstring
+# test_qstring
 # test_qbytearray
-test_qurl
-# test_signal_slots
+# test_qurl
+test_signal_slots
 
 

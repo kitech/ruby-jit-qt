@@ -221,6 +221,9 @@ static QGenericArgument Variant2Arg(int type, QVariant &v, int idx, InvokeStorag
 static QVariant VALUE2Variant(VALUE v)
 {
     QVariant rv;
+    QString str, str2;
+    void *ci = NULL;
+    QObject *obj = NULL;
 
     switch (TYPE(v)) {
     case T_NONE:  rv = QVariant(); break;
@@ -230,8 +233,14 @@ static QVariant VALUE2Variant(VALUE v)
     case T_NIL:   rv = 0; break;
     case T_TRUE:  rv = true; break;
     case T_FALSE: rv = false; break;
+    case T_OBJECT:
+        str = QString(rb_class2name(RBASIC_CLASS(v)));
+        ci = Qom::inst()->jdobjs[rb_hash(v)];
+        // obj = dynamic_cast<QObject*>(ci);
+        qDebug()<<"unimpl VALUE:"<<str<<ci<<obj;
+        rv = QVariant(QMetaType::VoidStar, ci);
+        break;
     case T_CLASS:
-        
     default:
         qDebug()<<"unknown VALUE type:"<<TYPE(v);
         break;

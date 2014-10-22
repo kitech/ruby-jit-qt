@@ -46,7 +46,8 @@ InvokeStorage gis2;
 // 把用户传递过来的值转换成ll调用的值
 std::vector<llvm::Value*>
 ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
-                  QVector<QVariant> uargs, QVector<QVariant> dargs)
+                  QVector<QVariant> uargs, QVector<QVariant> dargs,
+                  llvm::Module *tymod, llvm::Function *dstfun, bool is_static)
 {
     std::vector<llvm::Value*> cargs;
     std::vector<llvm::Type*> ctypes;
@@ -58,15 +59,34 @@ ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
             mrg_args[i] = dargs.at(i);
         }
     }
-   
+
+    auto &func_params = dstfun->getArgumentList();
+    qDebug()<<"param count:"<<func_params.size();
+    auto fpit = func_params.begin();
+    // skip sret param
+    if (dstfun->hasStructRetAttr()) {
+        fpit++;
+    }
+    // skip this param
+    if (!is_static) {
+        fpit++;
+    }
+
     // emu param
     llvm::Value *lv;
     llvm::Constant *lc;
-    for (int i = 0; i < mrg_args.count(); i ++) {
+    llvm::Type *aty;
+    QString sty;
+    for (int i = 0; i < mrg_args.count(); i ++, fpit++) {
         QVariant v = mrg_args.at(i);
+        aty = (*fpit).getType();
+        std::string ostr; llvm::raw_string_ostream ostm(ostr); aty->print(ostm);
+        sty = QString(ostm.str().c_str());
+
         switch ((int)v.type()) {
         case QMetaType::QString:
-            ctypes.push_back(module->getTypeByName("class.QString")->getPointerTo());
+            qDebug()<<"string real type:"<<sty;
+            ctypes.push_back(tymod->getTypeByName("class.QString")->getPointerTo());
             // 传这个值老是crash，是因为一直把is定义为局部变量了，从当前方法return后，这个is消失了。
             // 所以会有内存问题。
             gis2.sval[i] = QString(mrg_args.at(i).toString());
@@ -74,7 +94,7 @@ ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
             lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)&gis2.sval[i]);
             // 这不会和C++的VTable有关系吧。
             // 可能和返回值是值，而非引用或指针，没有相应的存储空间导致程序崩溃。
-            lv = llvm::ConstantExpr::getIntToPtr(lc, module->getTypeByName("class.QString")->getPointerTo());
+            lv = llvm::ConstantExpr::getIntToPtr(lc, tymod->getTypeByName("class.QString")->getPointerTo());
             cargs.push_back(lv);
             // mfunc->addAttribute(i+1, llvm::Attribute::Dereferenceable); // i+1, for first this*
             break;
@@ -97,10 +117,17 @@ ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
             cargs.push_back(builder.getInt1(v.toBool()));
             break;
         case QMetaType::QChar:
-            ctypes.push_back(module->getTypeByName("class.QChar")->getPointerTo());
+            ctypes.push_back(tymod->getTypeByName("class.QChar")->getPointerTo());
             gis2.cval[i] = mrg_args.at(i).toChar();
             lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)&gis2.cval[i]);
-            lv = llvm::ConstantExpr::getIntToPtr(lc, module->getTypeByName("class.QChar")->getPointerTo());
+            lv = llvm::ConstantExpr::getIntToPtr(lc, tymod->getTypeByName("class.QChar")->getPointerTo());
+            cargs.push_back(lv);
+            break;
+        case QMetaType::VoidStar:
+            ctypes.push_back(builder.getVoidTy()->getPointerTo());
+            gis2.vval[i] = mrg_args.at(i).value<void*>();
+            lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)gis2.vval[i]);
+            lv = llvm::ConstantExpr::getIntToPtr(lc, builder.getVoidTy()->getPointerTo());
             cargs.push_back(lv);
             break;
         default:
@@ -114,7 +141,8 @@ ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
 }
 
 QString OperatorEngine::bind(llvm::Module *mod, QString symbol, void *kthis, QString klass,
-                             QVector<QVariant> uargs, QVector<QVariant> dargs)
+                             QVector<QVariant> uargs, QVector<QVariant> dargs,
+                             bool is_static)
 {
     QString lamsym;
 
@@ -129,11 +157,14 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, void *kthis, QSt
     builder.SetInsertPoint(llvm::BasicBlock::Create(mod->getContext(), "eee", lamfun));
 
     std::vector<llvm::Value*> callee_arg_values;
-    llvm::Type *thisTy = this->mtmod->getTypeByName(QString("class.%1").arg(klass).toStdString());
-    callee_arg_values.push_back(llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)kthis));
+    if (is_static) {
+    } else {
+        llvm::Type *thisTy = this->mtmod->getTypeByName(QString("class.%1").arg(klass).toStdString());
+        callee_arg_values.push_back(llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)kthis));
+    }
 
     // add uarg
-    std::vector<llvm::Value*> more_values = ConvertToCallArgs(mod, builder, uargs, dargs);
+    std::vector<llvm::Value*> more_values = ConvertToCallArgs(mod, builder, uargs, dargs, mtmod, dstfun, is_static);
     // std::copy(more_values.begin(), more_values.end(), callee_arg_values.end());// why???
     for (auto v: more_values) callee_arg_values.push_back(v);
 
@@ -147,10 +178,20 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, void *kthis, QSt
         sretype = sret_arg.getType();
         std::string ostr; llvm::raw_string_ostream ostm(ostr);
         sretype->print(ostm);
-        // 不在一个LLVMContext中，不能这么比较
+        qDebug()<<"sret type:"<<ostm.str().c_str();
+
         if (ostm.str() == "%class.QString*") {
             gis2.sbyvalret = (decltype(gis2.sbyvalret))calloc(1, sizeof(decltype(*gis2.sbyvalret)));
             llvm::Constant *rlr1 = builder.getInt64((int64_t)gis2.sbyvalret);
+            llvm::Value *rlr2 = llvm::ConstantExpr::getIntToPtr(rlr1, sretype);
+            llvm::Value *rlr3 = builder.CreateAlloca(sretype, builder.getInt32(1), "oretaddr");
+            llvm::Value *rlr4 = builder.CreateStore(rlr2, rlr3);
+            llvm::Value *rlr5 = builder.CreateLoad(rlr3, "sret2");
+            callee_arg_values.insert(callee_arg_values.begin(), rlr5);    
+        } else {
+            auto dlo = mtmod->getDataLayout();
+            gis2.vbyvalret = calloc(1, dlo->getTypeAllocSize(sretype));
+            llvm::Constant *rlr1 = builder.getInt64((int64_t)gis2.vbyvalret);
             llvm::Value *rlr2 = llvm::ConstantExpr::getIntToPtr(rlr1, sretype);
             llvm::Value *rlr3 = builder.CreateAlloca(sretype, builder.getInt32(1), "oretaddr");
             llvm::Value *rlr4 = builder.CreateStore(rlr2, rlr3);

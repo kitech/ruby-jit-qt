@@ -98,6 +98,8 @@ public:
     // 查找一个类的符合条件的方法定义。
     clang::CXXMethodDecl* find_method_decl(clang::CXXRecordDecl *decl, 
                                            QString klass, QString method, QVector<QVariant> uargs);
+    clang::CXXMethodDecl* find_method_decl_from_base(clang::CXXRecordDecl *decl, 
+                                                     QString klass, QString method, QVector<QVariant> uargs);
     bool method_match_by_uargs(clang::CXXMethodDecl *decl, 
                                QString klass, QString method, QVector<QVariant> uargs);
     bool mangle_method_to_symbol(clang::CXXMethodDecl *decl, 
