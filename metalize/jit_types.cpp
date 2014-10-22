@@ -25,6 +25,7 @@ void __keep_jit_types()
 void __keep_jit_cannot_gen_functions()
 {
     QTypedArrayData<unsigned short>::sharedNull();
+    QTypedArrayData<char>::sharedNull();
 
     {
 

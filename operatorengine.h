@@ -24,8 +24,8 @@ public:
 
 public:
     // 类似std::bind
-    QString bind(llvm::Module *mod, QString symbol, void *kthis, QVector<QVariant> uargs
-                 , QVector<QVariant> dargs);
+    QString bind(llvm::Module *mod, QString symbol, void *kthis, QString klass,
+                 QVector<QVariant> uargs, QVector<QVariant> dargs);
     int getClassAllocSize(QString klass);
 };
 

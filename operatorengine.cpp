@@ -4,6 +4,7 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/AsmParser/Parser.h>
 #include <llvm/Support/SourceMgr.h>
+#include <llvm/Support/raw_ostream.h>
 
 #include "operatorengine.h"
 
@@ -112,8 +113,8 @@ ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
     return cargs;
 }
 
-QString OperatorEngine::bind(llvm::Module *mod, QString symbol, void *kthis, QVector<QVariant> uargs
-                             , QVector<QVariant> dargs)
+QString OperatorEngine::bind(llvm::Module *mod, QString symbol, void *kthis, QString klass,
+                             QVector<QVariant> uargs, QVector<QVariant> dargs)
 {
     QString lamsym;
 
@@ -125,35 +126,42 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, void *kthis, QVe
     
     auto c_lamfun = mod->getOrInsertFunction(lamname, builder.getVoidTy()->getPointerTo(), NULL);
     lamfun = (decltype(lamfun))(c_lamfun); // cast it
+    builder.SetInsertPoint(llvm::BasicBlock::Create(mod->getContext(), "eee", lamfun));
 
     std::vector<llvm::Value*> callee_arg_values;
-    QString klass = "QString";
     llvm::Type *thisTy = this->mtmod->getTypeByName(QString("class.%1").arg(klass).toStdString());
     callee_arg_values.push_back(llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)kthis));
 
     // add uarg
     std::vector<llvm::Value*> more_values = ConvertToCallArgs(mod, builder, uargs, dargs);
-    std::copy(more_values.begin(), more_values.end(), callee_arg_values.begin()+1);
+    // std::copy(more_values.begin(), more_values.end(), callee_arg_values.end());// why???
+    for (auto v: more_values) callee_arg_values.push_back(v);
+
 
     // deal sret
+    qDebug()<<"sret:"<<dstfun->hasStructRetAttr()<<"noret:"<<dstfun->doesNotReturn();
     if (dstfun->hasStructRetAttr()) {
-        llvm::Type *sretype = dstfun->getReturnType();
-        if (mtmod->getTypeByName("class.QString") == sretype) {
+        // qDebug()<<"arg size:"<<dstfun->arg_size();
+        auto &sret_arg = *dstfun->arg_begin();
+        llvm::Type *sretype = dstfun->getReturnType(); // 如果是sret，则获取不到returntype了
+        sretype = sret_arg.getType();
+        std::string ostr; llvm::raw_string_ostream ostm(ostr);
+        sretype->print(ostm);
+        // 不在一个LLVMContext中，不能这么比较
+        if (ostm.str() == "%class.QString*") {
             gis2.sbyvalret = (decltype(gis2.sbyvalret))calloc(1, sizeof(decltype(*gis2.sbyvalret)));
             llvm::Constant *rlr1 = builder.getInt64((int64_t)gis2.sbyvalret);
-            llvm::Value *rlr2 = llvm::ConstantExpr::getIntToPtr(rlr1, sretype->getPointerTo());
-            llvm::Value *rlr3 = builder.CreateAlloca(sretype->getPointerTo(), builder.getInt32(1), "oretaddr");
+            llvm::Value *rlr2 = llvm::ConstantExpr::getIntToPtr(rlr1, sretype);
+            llvm::Value *rlr3 = builder.CreateAlloca(sretype, builder.getInt32(1), "oretaddr");
             llvm::Value *rlr4 = builder.CreateStore(rlr2, rlr3);
             llvm::Value *rlr5 = builder.CreateLoad(rlr3, "sret2");
             callee_arg_values.insert(callee_arg_values.begin(), rlr5);    
         }
     }
 
-    builder.SetInsertPoint(llvm::BasicBlock::Create(mod->getContext(), "eee", lamfun));
     llvm::ArrayRef<llvm::Value*> callee_arg_values_ref(callee_arg_values);
     llvm::CallInst *cval = builder.CreateCall(dstfun, callee_arg_values_ref);
 
-    qDebug()<<"sret:"<<dstfun->hasStructRetAttr()<<"noret:"<<dstfun->doesNotReturn();
     if (dstfun->hasStructRetAttr()) {
         builder.CreateRet(callee_arg_values.at(0));
     } else if (dstfun->doesNotReturn() || dstfun->getReturnType() == builder.getVoidTy()) {

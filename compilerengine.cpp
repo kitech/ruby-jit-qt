@@ -112,7 +112,7 @@ bool CompilerEngine::initCompiler()
 // 第一种方式，拿到还未定义的symbol，到ast中查找
 // 第二种方式，解析C++方法的源代码，找到这个未定义的symbol，从decl再把它编译成ll，效率更好。
 static void decl2def(llvm::Module *mod, clang::ASTContext &ctx, clang::CodeGen::CodeGenModule &cgmod, 
-                     clang::Decl *decl)
+                     clang::Decl *decl, int level, QHash<QString, bool> noinlined)
 {
     static llvm::Module *jit_types_mod = NULL;
     auto load_jit_types_module = []() -> llvm::Module* {
@@ -157,6 +157,11 @@ static void decl2def(llvm::Module *mod, clang::ASTContext &ctx, clang::CodeGen::
         if (!f.isDeclaration()) {
             continue;
         }
+        if (noinlined.contains(fname)) {
+            continue;
+        }
+
+        // 如果判断是不是inline的呢。
 
         if (efuns.contains(fname)) {
             // copy function from prepared module
@@ -204,7 +209,11 @@ static void decl2def(llvm::Module *mod, clang::ASTContext &ctx, clang::CodeGen::
         
     }
 
-    decl2def(mod, ctx, cgmod, decl);
+    if (level > 10) {
+        qDebug()<<"maybe too much recursive level.";
+        exit(-1);
+    }
+    decl2def(mod, ctx, cgmod, decl, ++level, noinlined);
 }
 
 
@@ -230,6 +239,10 @@ llvm::Module* CompilerEngine::conv_ctor(clang::ASTContext &ctx, clang::CXXConstr
     // assert(islined and hasinlinedbody)
     auto get_decl_with_body = [](clang::CXXConstructorDecl *ctor) -> decltype(ctor) {
         if (ctor->hasInlineBody()) return ctor;
+        int cnt = 0;
+        for (auto rd: ctor->redecls()) cnt++;
+        if (cnt == 1) return ctor;
+
         for (auto rd: ctor->redecls()) {
             if (rd == ctor) continue;
             return (decltype(ctor))rd;
@@ -247,13 +260,17 @@ llvm::Module* CompilerEngine::conv_ctor(clang::ASTContext &ctx, clang::CXXConstr
     llvm::Function *ctor_base_fn = clang::cast<llvm::Function>(ctor_base_val);
     clang::CodeGen::FunctionArgList alist;
 
-    cgmod.setFunctionLinkage(clang::GlobalDecl(ctor, clang::Ctor_Base), ctor_base_fn);
-    cgf->GenerateCode(clang::GlobalDecl(ctor, clang::Ctor_Base), ctor_base_fn, FIB);
+    QHash<QString, bool> noinlined; // 不需要生成define的symbol，在decl2def中使用。
+    if (ctor->isInlined()) {
+        cgmod.setFunctionLinkage(clang::GlobalDecl(ctor, clang::Ctor_Base), ctor_base_fn);
+        cgf->GenerateCode(clang::GlobalDecl(ctor, clang::Ctor_Base), ctor_base_fn, FIB);
+    } else {
+        noinlined[ctor_base_fn->getName().data()] = true;
+    }
 
     mod->dump();
 
-
-    // 
+    // ??? 没用了吧
     QHash<QString, llvm::Function*> usyms;
     for (auto &f: mod->getFunctionList()) {
         qDebug()<<"name:"<<f.getName().data()<<f.size()<<f.isDeclaration();
@@ -290,7 +307,7 @@ llvm::Module* CompilerEngine::conv_ctor(clang::ASTContext &ctx, clang::CXXConstr
 
     mod->dump(); 
 
-    decl2def(mod, ctx, cgmod, ctor);
+    decl2def(mod, ctx, cgmod, ctor, 0, noinlined);
 
     mod->dump(); 
 
@@ -316,6 +333,21 @@ llvm::Module* CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMeth
     clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, *mod, dlo, diag);
     auto &cgtypes = cgmod.getTypes();
     auto cgf = new clang::CodeGen::CodeGenFunction(cgmod);
+
+    // assert(islined and hasinlinedbody)
+    auto get_decl_with_body = [](clang::CXXMethodDecl *mth) -> decltype(mth) {
+        if (mth->hasInlineBody()) return mth;
+        int cnt = 0;
+        for (auto rd: mth->redecls()) cnt++;
+        if (cnt == 1) return mth;
+
+        for (auto rd: mth->redecls()) {
+            if (rd == mth) continue;
+            return (decltype(mth))rd;
+        }
+        return 0;
+    };
+    mth = get_decl_with_body(mth);
 
     auto genmth = [](clang::CodeGen::CodeGenModule &cgm,
                      clang::CodeGen::CodeGenFunction &cgf,
@@ -344,7 +376,35 @@ llvm::Module* CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMeth
 
         return false;
     };
-    genmth(cgmod, *cgf, mth);
+
+    auto genmth_decl = [](clang::CodeGen::CodeGenModule &cgm,
+                     clang::CodeGen::CodeGenFunction &cgf,
+                     clang::CXXMethodDecl *decl) -> bool {
+        clang::CodeGen::CodeGenTypes &cgtypes = cgm.getTypes();
+
+        const clang::CodeGen::CGFunctionInfo &FI = 
+        cgtypes.arrangeCXXMethodDeclaration(decl);
+                    
+        llvm::FunctionType *FTy = cgtypes.GetFunctionType(FI);
+
+        clang::QualType retype = decl->getReturnType();
+        llvm::Type *lvtype = cgtypes.ConvertType(retype);
+        llvm::Constant * v = cgm.GetAddrOfFunction(decl, FTy,
+                                                   false, false);
+
+        llvm::Function *f = llvm::cast<llvm::Function>(v);
+        qDebug()<<"dbg func:"<<f<<f->arg_size()
+        << cgf.CapturedStmtInfo;
+
+        return false;
+    };
+
+
+    if (mth->isInlined()) {
+        genmth(cgmod, *cgf, mth);
+    } else {
+        genmth_decl(cgmod, *cgf, mth);
+    }
     
     mod->dump();
 
@@ -368,17 +428,6 @@ QString CompilerEngine::mangle_ctor(clang::ASTContext &ctx, clang::CXXConstructo
     clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, *mod, dlo, diag);
     auto &cgtypes = cgmod.getTypes();
     auto cgf = new clang::CodeGen::CodeGenFunction(cgmod);
-
-    // assert(islined and hasinlinedbody)
-    auto get_decl_with_body = [](clang::CXXConstructorDecl *ctor) -> decltype(ctor) {
-        if (ctor->hasInlineBody()) return ctor;
-        for (auto rd: ctor->redecls()) {
-            if (rd == ctor) continue;
-            return (decltype(ctor))rd;
-        }
-        return 0;
-    };
-    ctor = get_decl_with_body(ctor);
 
     auto  vm_symname = cgmod.getMangledName(clang::GlobalDecl(ctor, clang::Ctor_Base));
     QString symname = vm_symname.data();

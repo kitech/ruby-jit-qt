@@ -20,7 +20,7 @@ CtrlEngine::~CtrlEngine()
 }
 
 
-void *CtrlEngine::vm_new(QString klass_name, QVector<QVariant> uargs)
+void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
 {
     // 处理流程，
     // 使用fe获取这个类的定义CXXRecordDecl*结构
@@ -31,9 +31,9 @@ void *CtrlEngine::vm_new(QString klass_name, QVector<QVariant> uargs)
     // 以module的方式传入vme执行
     
     mfe->loadPreparedASTFile();
-    clang::CXXRecordDecl *rec_decl = mfe->find_class_decl(klass_name);
+    clang::CXXRecordDecl *rec_decl = mfe->find_class_decl(klass);
     qDebug()<<rec_decl;
-    clang::CXXConstructorDecl *ctor_decl = mfe->find_ctor_decl(rec_decl, klass_name, uargs);
+    clang::CXXConstructorDecl *ctor_decl = mfe->find_ctor_decl(rec_decl, klass, uargs);
     qDebug()<<ctor_decl;
     ctor_decl->dumpColor();
 
@@ -45,10 +45,10 @@ void *CtrlEngine::vm_new(QString klass_name, QVector<QVariant> uargs)
 
     OperatorEngine oe;
     QVector<QVariant> dargs;
-    void *kthis = calloc(oe.getClassAllocSize(klass_name), 1);
+    void *kthis = calloc(oe.getClassAllocSize(klass), 1);
 
     // QString lamsym = oe.bind(mod, "_ZN7QStringC2Ev", kthis, uargs, dargs);
-    QString lamsym = oe.bind(mod, symname, kthis, uargs, dargs);
+    QString lamsym = oe.bind(mod, symname, kthis, klass, uargs, dargs);
     qDebug()<<lamsym;
     Clvm *vm = new Clvm;
     auto gv = vm->execute2(mod, lamsym);
@@ -79,7 +79,8 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
 
     OperatorEngine oe;
     QVector<QVariant> dargs;
-    QString lamsym = oe.bind(mod, symname, kthis, uargs, dargs);
+    mfe->get_method_default_params(mth_decl, dargs);
+    QString lamsym = oe.bind(mod, symname, kthis, klass, uargs, dargs);
     qDebug()<<lamsym;
     Clvm *vm = new Clvm;
     auto gv = vm->execute2(mod, lamsym);

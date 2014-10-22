@@ -215,6 +215,7 @@ define void @_Z16__keep_jit_typesv() #0 {
 ; Function Attrs: uwtable
 define void @_Z31__keep_jit_cannot_gen_functionsv() #1 {
   %1 = call %struct.QTypedArrayData* @_ZN15QTypedArrayDataItE10sharedNullEv()
+  %2 = call %struct.QTypedArrayData.0* @_ZN15QTypedArrayDataIcE10sharedNullEv()
   ret void
 }
 
@@ -223,6 +224,13 @@ define linkonce_odr %struct.QTypedArrayData* @_ZN15QTypedArrayDataItE10sharedNul
   %1 = call %struct.QArrayData* @_ZN10QArrayData10sharedNullEv()
   %2 = bitcast %struct.QArrayData* %1 to %struct.QTypedArrayData*
   ret %struct.QTypedArrayData* %2
+}
+
+; Function Attrs: nounwind uwtable
+define linkonce_odr %struct.QTypedArrayData.0* @_ZN15QTypedArrayDataIcE10sharedNullEv() #0 align 2 {
+  %1 = call %struct.QArrayData* @_ZN10QArrayData10sharedNullEv()
+  %2 = bitcast %struct.QArrayData* %1 to %struct.QTypedArrayData.0*
+  ret %struct.QTypedArrayData.0* %2
 }
 
 ; Function Attrs: nounwind uwtable
