@@ -38,19 +38,33 @@ void *CtrlEngine::vm_new(QString klass_name, QVector<QVariant> uargs)
     ctor_decl->dumpColor();
 
     auto mod = mce->conv_ctor(mfe->getASTContext(), ctor_decl);
-    qDebug()<<mod;
+    qDebug()<<mod;// <<mod->getDataLayout();
     // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
 
     OperatorEngine oe;
     QVector<QVariant> dargs;
-    QString lamsym = oe.bind(mod, "_ZN7QStringC2Ev", 0, uargs, dargs);
-
-
+    void *kthis = calloc(oe.getClassAllocSize(klass_name), 1);
+    QString lamsym = oe.bind(mod, "_ZN7QStringC2Ev", kthis, uargs, dargs);
+    qDebug()<<lamsym;
+    
+    Clvm *vm = new Clvm;
+    auto gv = vm->execute2(mod, lamsym);
+    qDebug()<<"gv:"<<llvm::GVTOP(gv);
     // QVector<clang::CXXMethodDecl*> mths = mfe->find_method_decls(rec_decl, klass_name, "fromLatin1");
     // if (mths.count() > 0) {
     //     clang::CXXMethodDecl *mth = mths.at(0);
     //     mce->conv_method(mfe->getASTContext(), mth);
     // }
 
-    return 0;
+    return kthis;
 }
+
+
+
+
+
+
+
+
+
+

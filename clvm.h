@@ -35,6 +35,7 @@ public:
 
     llvm::GenericValue execute(QString &code, std::vector<llvm::GenericValue> & args,
                                QString func_entry);
+    llvm::GenericValue execute2(llvm::Module *mod, QString func_entry);
     virtual void run();
 
 public slots:

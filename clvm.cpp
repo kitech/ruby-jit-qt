@@ -456,6 +456,98 @@ Clvm::execute(QString &code, std::vector<llvm::GenericValue> &args, QString func
 }
 
 llvm::GenericValue 
+Clvm::execute2(llvm::Module *mod, QString func_entry)
+{
+    // 加载额外模块
+    static llvm::Module *jit_types_mod = NULL;
+    auto load_jit_types_module = []() -> llvm::Module* {
+        llvm::LLVMContext *ctx = new llvm::LLVMContext();
+        llvm::Module *module = new llvm::Module("jit_types_in_vme", *ctx);
+
+        // load module
+        QFile fp("./metalize/jit_types.ll");
+        fp.open(QIODevice::ReadOnly);
+        QByteArray asm_data = fp.readAll();
+        fp.close();
+
+        char *asm_str = strdup(asm_data.data());
+        qDebug()<<"llstrlen:"<<strlen(asm_str);
+
+        llvm::SMDiagnostic smdiag;
+        llvm::Module *rmod = NULL;
+
+        rmod = llvm::ParseAssemblyString(asm_str, NULL, smdiag, *ctx);
+        qDebug()<<"rmod="<<rmod;
+        free(asm_str);
+
+        return rmod;
+    };
+
+    if (jit_types_mod == NULL) {
+        jit_types_mod = load_jit_types_module();
+    }
+
+    // 只能放在这，run action之后，exeucte function之前
+    llvm::InitializeNativeTarget();
+    llvm::InitializeNativeTargetAsmPrinter();
+    llvm::InitializeNativeTargetAsmParser();
+    // llvm::InitializeNativeTargetDisassembler();
+
+    // run module
+    llvm::EngineBuilder eb(mod);
+    eb.setUseMCJIT(true);
+
+    llvm::ExecutionEngine *EE = eb.create();
+    EE->addModule(jit_types_mod);
+
+    //*
+    qDebug()<<"before load obj...";
+    llvm::ErrorOr<llvm::object::ObjectFile *> obj = 
+        llvm::object::ObjectFile::createObjectFile("/usr/lib/libQt5Sql.so");
+    if (!obj) {
+        qDebug()<<"create obj file error.";
+    } else {
+        // crash, 是不是因为当前已经是在.so中了呢？
+        // EE->addObjectFile(std::unique_ptr<llvm::object::ObjectFile>(obj.get()));
+    }
+    // */
+
+
+    EE->finalizeObject();
+    EE->runStaticConstructorsDestructors(false);
+
+    llvm::Function *etyfn = NULL;
+    QString mangle_name;
+    llvm::ValueSymbolTable &vst = mod->getValueSymbolTable();
+    for (auto sit = vst.begin(); sit != vst.end(); sit++) {
+        auto k = sit->first();
+        auto v = sit->second;
+        if (QString(v->getName().data()).startsWith("__PRETTY_FUNCTION__")) {
+            continue;
+        }
+        // if (QString(v->getName().data()).indexOf("jit_main") >= 0) {
+        if (QString(v->getName().data()).indexOf(func_entry) >= 0) {
+            etyfn = mod->getFunction(v->getName());
+            mangle_name = QString(v->getName().data());
+            // break;
+        }
+        qDebug()<<""<<k.data()<<v->getName().data();
+        //  v->dump();
+    }
+    qDebug()<<"our fun:"<<func_entry<<mangle_name<<etyfn;
+
+    std::vector<llvm::GenericValue> args;
+    llvm::GenericValue rgv = EE->runFunction(etyfn, args);
+
+    EE->runStaticConstructorsDestructors(true);
+    // cleanups
+
+    qDebug()<<"run code done.";
+    return rgv;
+}
+
+
+llvm::GenericValue 
 Clvm::run_module_func(llvm::Module *mod, std::vector<llvm::GenericValue> &args, QString func_entry)
 {
     // 只能放在这，run action之后，exeucte function之前

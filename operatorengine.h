@@ -26,7 +26,7 @@ public:
     // 类似std::bind
     QString bind(llvm::Module *mod, QString symbol, void *kthis, QVector<QVariant> uargs
                  , QVector<QVariant> dargs);
-    
+    int getClassAllocSize(QString klass);
 };
 
 #endif /* OPERATORENGINE_H */
