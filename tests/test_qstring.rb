@@ -10,7 +10,7 @@ def test_qstring()
 
   puts "==========";
 
-  # puts a.length()
+  puts a.length()
   # a.append("876")
 
   # puts a.length()

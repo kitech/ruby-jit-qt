@@ -30,9 +30,9 @@ public:
     ~CtrlEngine();
 
     // 可能的方法
-    void * vm_new(QString klass_name, QVector<QVariant> uargs);
+    void * vm_new(QString klass, QVector<QVariant> uargs);
     bool vm_delete();
-    bool vm_call();
+    QVariant vm_call(void *kthis, QString klass, QString method, QVector<QVariant> uargs);
     bool vm_static_call();
 
 public:

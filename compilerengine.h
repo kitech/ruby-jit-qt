@@ -36,6 +36,8 @@ public:
     llvm::Module* conv_ctor(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor);
     llvm::Module* conv_method(clang::ASTContext &ctx, clang::CXXMethodDecl *mth);
     // bool check_inline_symbol();
+    QString mangle_ctor(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor);
+    QString mangle_method(clang::ASTContext &ctx, clang::CXXMethodDecl *ctor);
 
 public:    
     bool initCompiler();

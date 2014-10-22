@@ -351,6 +351,64 @@ llvm::Module* CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMeth
     return mod;
 }
 
+QString CompilerEngine::mangle_ctor(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor)
+{
+    clang::CompilerInstance ci;
+    // ci.createASTContext();
+    ci.createDiagnostics();
+    ci.createFileManager();
+
+    clang::DiagnosticsEngine &diag = ci.getDiagnostics();
+    clang::CodeGenOptions &cgopt = ci.getCodeGenOpts();
+
+    auto vmctx = new llvm::LLVMContext();
+    auto mod = new llvm::Module("piecegen", *vmctx);
+
+    llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, *mod, dlo, diag);
+    auto &cgtypes = cgmod.getTypes();
+    auto cgf = new clang::CodeGen::CodeGenFunction(cgmod);
+
+    // assert(islined and hasinlinedbody)
+    auto get_decl_with_body = [](clang::CXXConstructorDecl *ctor) -> decltype(ctor) {
+        if (ctor->hasInlineBody()) return ctor;
+        for (auto rd: ctor->redecls()) {
+            if (rd == ctor) continue;
+            return (decltype(ctor))rd;
+        }
+        return 0;
+    };
+    ctor = get_decl_with_body(ctor);
+
+    auto  vm_symname = cgmod.getMangledName(clang::GlobalDecl(ctor, clang::Ctor_Base));
+    QString symname = vm_symname.data();
+    return symname;
+}
+
+QString CompilerEngine::mangle_method(clang::ASTContext &ctx, clang::CXXMethodDecl *mth)
+{
+    
+    clang::CompilerInstance ci;
+    // ci.createASTContext();
+    ci.createDiagnostics();
+    ci.createFileManager();
+
+    clang::DiagnosticsEngine &diag = ci.getDiagnostics();
+    clang::CodeGenOptions &cgopt = ci.getCodeGenOpts();
+
+    auto vmctx = new llvm::LLVMContext();
+    auto mod = new llvm::Module("piecegen", *vmctx);
+
+    llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, *mod, dlo, diag);
+    auto &cgtypes = cgmod.getTypes();
+    auto cgf = new clang::CodeGen::CodeGenFunction(cgmod);
+
+    auto  vm_symname = cgmod.getMangledName(clang::GlobalDecl(mth));
+    QString symname = vm_symname.data();
+    return symname;
+    return QString();
+}
 
 
 bool CompilerEngine::tryCompile(clang::CXXRecordDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit)

@@ -373,6 +373,28 @@ static VALUE x_Qt_meta_class_dtor(VALUE id)
     return Qnil;
 }
 
+
+/*
+  类实例的析构函数  
+  TODO:
+  使用通用方法之后，宏SAVE_XXX和GET_XXX就可以不需要了。
+ */
+static VALUE x_Qt_class_dtor(VALUE id)
+{
+    VALUE os = rb_const_get(rb_cModule, rb_intern("ObjectSpace"));
+    VALUE self = rb_funcall(os, rb_intern("_id2ref"), 1, id);
+
+    // GET_CI0();
+    // delete ci;
+
+    // void* now, can not delete, need dtor and free
+    void *qo = Qom::inst()->jdobjs[rb_hash(self)];
+    qDebug()<<qo;
+
+    return Qnil;
+}
+
+
 #include "ctrlengine.h"
 #include "frontengine.h"
 #include "tests.cpp"
@@ -406,6 +428,9 @@ VALUE x_Qt_class_init_jit(int argc, VALUE *argv, VALUE self)
     qDebug()<<jo;    
 
     Qom::inst()->jdobjs[rb_hash(self)] = jo;
+
+    VALUE free_proc = rb_proc_new(FUNVAL x_Qt_class_dtor, 0);
+    rb_define_finalizer(self, free_proc);
 
     return self;
 }
@@ -551,6 +576,8 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
     if (method_name == "to_s") {
         return Qnil;
     }
+
+    gce->vm_call(ci, klass_name, method_name, args);
 
     return Qnil;
 }
@@ -1123,8 +1150,8 @@ extern "C" {
         qInstallMessageHandler(myMessageOutput);
 
         ///// test code
-        test_one();
-        exit(0);
+        // test_one();
+        // exit(0);
 
         init_class_metas();
 

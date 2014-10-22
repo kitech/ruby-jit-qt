@@ -853,6 +853,39 @@ clang::CXXConstructorDecl* FrontEngine::find_ctor_decl(clang::CXXRecordDecl *dec
     return 0;
 }
 
+// 查找一个类的符合条件的方法定义。
+clang::CXXMethodDecl* FrontEngine::find_method_decl(clang::CXXRecordDecl *decl, 
+                                       QString klass, QString method, QVector<QVariant> uargs)
+{
+    this->loadPreparedASTFile();
+
+    clang::CXXRecordDecl *recdecl = this->find_class_decl(klass);
+    QVector<clang::CXXMethodDecl*> mthdecls = this->find_method_decls(recdecl, klass, method);
+    bool match = false;
+
+    QVector<clang::CXXMethodDecl*> mats;
+    for (clang::CXXMethodDecl *d: mthdecls) {
+        match = this->method_match_by_uargs(d, klass, method, uargs);
+        if (match) {
+            mats << d;
+        }
+    }
+    qDebug()<<"matcc:"<<mats.count()<<"mats:"<<mats;
+    
+    if (mats.count() <= 0) {
+        qDebug()<<"method not found:";
+        return NULL;
+    }
+
+    if (mats.count() > 1) {
+        qDebug()<<"find more matched method, try first now.";
+    }
+
+    clang::CXXMethodDecl *md = mats.at(0);
+    Q_ASSERT(md);
+    return md;
+}
+
 
 bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl, 
                            QString klass, QString method, QVector<QVariant> uargs)
