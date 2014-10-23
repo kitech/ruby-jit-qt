@@ -39,20 +39,22 @@ end
 
 def test_qbytearray()
   ba = Qt5::QByteArray.new
-  ba.append("yuio");
-  ba.count();
-  # ba.fill(6);  # crash, char type's process
-  ba.indexOf("uio");
-  ba.indexOf('gggggg');
-  ba.lastIndexOf("uio");
-  ba.lastIndexOf('fffffff');
-  ba.isEmpty();
-  ba.isNull();
-  ba.resize(100);
-  ba.truncate(5);
-  # ba.toLong();  # shit _Bool
-  ba.at(1)
-  ba.toLower();
+  ba.at(1) ## error
+
+  # ba.append("yuio");
+  # ba.count();
+  # ba.fill(6);  # crash, char type's process  # fixed now 
+  # ba.indexOf("uio");
+  # ba.indexOf('gggggg');
+  # ba.lastIndexOf("uio");
+  # ba.lastIndexOf('fffffff');
+  # ba.isEmpty();
+  # ba.isNull();
+  # ba.resize(100);
+  # ba.truncate(5);
+  # ba.toLong();  # shit _Bool  # fixed now
+  # ba.toLower();
+
 end
 
 def test_qurl()
@@ -76,12 +78,12 @@ def test_signal_slots()
   t = Qt5::QTimer.new
   puts t.to_s();
   t.connect(t, "2timeout()", t, "1stop()");
-  # t.start(123); #  QObject::startTimer: Timers can only be used with threads started with QThread
+  t.start(123); #  QObject::startTimer: Timers can only be used with threads started with QThread
 end
 
 # test_qstring
-# test_qbytearray
+test_qbytearray # 处理这个类问题还比较多
 # test_qurl
-test_signal_slots
+# test_signal_slots
 
 

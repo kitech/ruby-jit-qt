@@ -60,6 +60,7 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     //     clang::CXXMethodDecl *mth = mths.at(0);
     //     mce->conv_method(mfe->getASTContext(), mth);
     // }
+    qDebug()<<"======================";
 
     return kthis;
 }
@@ -87,6 +88,7 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     Clvm *vm = new Clvm;
     auto gv = vm->execute2(mod, lamsym);
     qDebug()<<"gv:"<<llvm::GVTOP(gv);
+    qDebug()<<"======================";
     
     return QVariant();
 }

@@ -26,7 +26,8 @@ void __keep_jit_cannot_gen_functions()
 {
     QTypedArrayData<unsigned short>::sharedNull();
     QTypedArrayData<char>::sharedNull();
-
+    // LLVM ERROR: Program used external function '_ZNK10QByteArray4sizeEv' which could not be resolved!
+    
     {
 
     }

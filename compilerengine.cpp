@@ -134,6 +134,19 @@ bool CompilerEngine::initCompiler()
     return true;
 }
 
+// 从一个模块转移到另一个模块
+bool irfunccpy(llvm::Module *smod, llvm::Function *sfun, llvm::Module *dmod, llvm::Function *dfun)
+{
+
+    return false;
+}
+
+// 起始decl，一般是一个函数或者方法的定义
+bool find_call_expr_by_symbol(clang::Decl *bdecl, QString callee_symbol)
+{
+    return false;
+}
+
 // 第一种方式，拿到还未定义的symbol，到ast中查找
 // 第二种方式，解析C++方法的源代码，找到这个未定义的symbol，从decl再把它编译成ll，效率更好。
 void CompilerEngine::decl2def(llvm::Module *mod, clang::ASTContext &ctx,
@@ -209,6 +222,7 @@ void CompilerEngine::decl2def(llvm::Module *mod, clang::ASTContext &ctx,
 
     qDebug()<<"need gen funs:"<<gfuns.count()<<copyed;
     if (gfuns.count() == 0 && copyed == 0) return;
+
     for (auto fname: gfuns) {
         
     }
@@ -418,13 +432,20 @@ llvm::Module* CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMeth
         return false;
     };
 
-
+    QHash<QString, bool> noinlined; // 不需要生成define的symbol，在decl2def中使用。
     if (mth->isInlined()) {
         genmth(cgmod, *cgf, mth);
     } else {
         genmth_decl(cgmod, *cgf, mth, mtmod);
+        noinlined[cgmod.getMangledName(mth).data()] = true;
     }
-    
+
+    qDebug()<<"dump module after gencode...";    
+    mod->dump();
+
+    decl2def(mod, ctx, cgmod, mth, 0, noinlined);
+
+    qDebug()<<"dump module after all...";
     mod->dump();
 
     return mod;
