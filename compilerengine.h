@@ -8,11 +8,13 @@
 #include <QtCore>
 
 namespace llvm {
+    class LLVMContext;
     class Module;
 };
 
 namespace clang {
     class Decl;
+    class FunctionDecl;
     class CXXRecordDecl;
     class CXXMethodDecl;
     class CXXConstructorDecl;
@@ -26,9 +28,11 @@ namespace clang {
     };
     namespace CodeGen {
         class CodeGenModule;
+        class CodeGenFunction;
     };
 };
 
+class CompilerUnit;
 class CompilerEngine
 {
 public:
@@ -47,6 +51,18 @@ public:
     void decl2def(llvm::Module *mod, clang::ASTContext &ctx,
                   clang::CodeGen::CodeGenModule &cgmod, 
                   clang::Decl *decl, int level, QHash<QString, bool> noinlined);
+    clang::FunctionDecl* find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_symbol);
+    CompilerUnit *createCompilerUnit(clang::ASTContext &ctx, clang::Decl *decl);
+    bool destroyCompilerUnit(CompilerUnit *cu);
+
+    llvm::Module* conv_ctor2(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor);
+    llvm::Module* conv_method2(clang::ASTContext &ctx, clang::CXXMethodDecl *mth);
+
+    bool gen_ctor(CompilerUnit *cu);
+    bool gen_method(CompilerUnit *cu);
+    bool gen_method_decl(CompilerUnit *cu);
+
+    clang::CXXMethodDecl *get_decl_with_body(clang::CXXMethodDecl *decl);
 
 public:
     bool initCompiler();
@@ -63,10 +79,16 @@ public:
     llvm::Module *mtmod = NULL;
 };
 
+class CompilerUnit
+{
+public:
+    clang::CompilerInstance *mcis = NULL;
+    llvm::LLVMContext *mvmctx = NULL;
+    llvm::Module *mmod = NULL;
+    clang::CodeGen::CodeGenModule *mcgm = NULL;
+    clang::CodeGen::CodeGenFunction *mcgf = NULL;
+    clang::Decl *mdecl = NULL;
+};
 
 #endif /* COMPILERENGINE_H */
-
-
-
-
 

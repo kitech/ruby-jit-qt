@@ -142,9 +142,55 @@ bool irfunccpy(llvm::Module *smod, llvm::Function *sfun, llvm::Module *dmod, llv
 }
 
 // 起始decl，一般是一个函数或者方法的定义
-bool find_call_expr_by_symbol(clang::Decl *bdecl, QString callee_symbol)
+clang::FunctionDecl*
+CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_symbol)
 {
-    return false;
+    clang::Stmt *stmts = bdecl->getBody();
+    QStack<clang::Stmt*> fexpr; // flat expr
+    QVector<clang::CallExpr*> cexpr; // call expr
+    int cnter = 0;
+    for (auto expr: stmts->children()) {
+        qDebug()<<"e:"<<cnter++<<expr->getStmtClassName();
+        expr->dumpColor();
+        fexpr.push(expr);
+    }
+
+    qDebug()<<"flat expr count:"<<fexpr.count();
+    while (!fexpr.isEmpty()) {
+        clang::Stmt *s = fexpr.pop();
+        for (auto expr: s->children()) {
+            fexpr.push(expr);
+        }
+        
+        if (clang::isa<clang::CallExpr>(s)) {
+            cexpr.append(clang::cast<clang::CallExpr>(s));
+        }
+    }
+    qDebug()<<"call expr count:"<<cexpr.count();
+
+    auto mgctx = bdecl->getASTContext().createMangleContext();
+    for (auto expr: cexpr) {
+        qDebug()<<"==========";
+        // expr->dumpColor();
+        auto d = expr->getCalleeDecl();
+        d->dumpColor();
+        std::string str; llvm::raw_string_ostream stm(str);
+        mgctx->mangleName(clang::cast<clang::NamedDecl>(d), stm);
+        qDebug()<<"mangle name:"<<stm.str().c_str();
+        if (stm.str() != callee_symbol.toStdString()) continue;
+
+        if (clang::isa<clang::FunctionDecl>(d)) {
+            return clang::cast<clang::FunctionDecl>(d);
+        }
+        assert(1==2);
+        // for test
+        if (clang::isa<clang::CXXMethodDecl>(d)) {
+            auto d1 = clang::cast<clang::CXXMethodDecl>(d);
+            this->conv_method(bdecl->getASTContext(), d1);
+        }
+    }
+
+    return NULL;
 }
 
 // 第一种方式，拿到还未定义的symbol，到ast中查找
@@ -223,8 +269,101 @@ void CompilerEngine::decl2def(llvm::Module *mod, clang::ASTContext &ctx,
     qDebug()<<"need gen funs:"<<gfuns.count()<<copyed;
     if (gfuns.count() == 0 && copyed == 0) return;
 
+
+    // assert(islined and hasinlinedbody)
+    auto get_decl_with_body = [](clang::CXXMethodDecl *mth) -> decltype(mth) {
+        if (mth->hasInlineBody()) return mth;
+        int cnt = 0;
+        for (auto rd: mth->redecls()) cnt++;
+        if (cnt == 1) return mth;
+
+        for (auto rd: mth->redecls()) {
+            if (rd == mth) continue;
+            return (decltype(mth))rd;
+        }
+        return 0;
+    };
+
+    auto genmth = [](clang::CodeGen::CodeGenModule &cgm,
+                     clang::CodeGen::CodeGenFunction &cgf,
+                     clang::CXXMethodDecl *decl) -> bool {
+        clang::CodeGen::CodeGenTypes &cgtypes = cgm.getTypes();
+
+        const clang::CodeGen::CGFunctionInfo &FI = 
+        cgtypes.arrangeCXXMethodDeclaration(decl);
+                    
+        llvm::FunctionType *FTy = cgtypes.GetFunctionType(FI);
+
+        clang::QualType retype = decl->getReturnType();
+        llvm::Type *lvtype = cgtypes.ConvertType(retype);
+        llvm::Constant * v = cgm.GetAddrOfFunction(decl, FTy,
+                                                   false, false);
+
+        llvm::Function *f = llvm::cast<llvm::Function>(v);
+        qDebug()<<"dbg func:"<<f<<f->arg_size()
+        << cgf.CapturedStmtInfo;
+        // f->viewCFG();
+        // clang::Stmt *stmt = decl->getBody();
+        clang::CodeGen::FunctionArgList alist;
+        cgf.GenerateCode(clang::GlobalDecl(decl), f, FI);
+        f->addFnAttr(llvm::Attribute::AlwaysInline);
+        cgm.setFunctionLinkage(decl, f);
+
+        return false;
+    };
+
+    // TODO 无法生成正确的函数参数信息，所有参数类型全部成了i64了
+    // eg. declare void @_ZN7QObject7connectEPKS_PKcS1_S3_N2Qt14ConnectionTypeE
+    //     (%"class.QMetaObject::Connection"* sret, i64, i64, i64, i64, i32) #0
+    auto genmth_decl = [](clang::CodeGen::CodeGenModule &cgm,
+                          clang::CodeGen::CodeGenFunction &cgf,
+                          clang::CXXMethodDecl *decl,
+                          llvm::Module *mtmod) -> bool {
+        clang::CodeGen::CodeGenTypes &cgtypes = cgm.getTypes();
+
+        const clang::CodeGen::CGFunctionInfo &FI = 
+        cgtypes.arrangeCXXMethodDeclaration(decl);
+                    
+        llvm::FunctionType *FTy = cgtypes.GetFunctionType(FI);
+
+        clang::QualType retype = decl->getReturnType();
+        llvm::Type *lvtype = cgtypes.ConvertType(retype);
+        cgm.EmitGlobal(decl);
+        llvm::Constant * v = cgm.GetAddrOfFunction(decl, FTy,
+                                                   false, false);
+
+        llvm::Function *f = llvm::cast<llvm::Function>(v);
+        // FTy->dump();
+        qDebug()<<"dbg func:"<<f<<f->arg_size()
+        << cgf.CapturedStmtInfo<<decl->param_size();
+
+        int cnter = 0;
+        for (auto &arg: f->getArgumentList()) {
+            if (arg.hasStructRetAttr()) continue; // skip sret
+            if (!decl->isStatic()) continue;     // skip this
+            // qDebug()<<cnter<<cgtypes.ConvertType(decl->getParamDecl(cnter)->getType());
+            arg.mutateType(cgtypes.ConvertType(decl->getParamDecl(cnter++)->getType()));
+            // 该函数执行后，mod->dump()看不出来变化，但是在用程序检测的时候却改变了。
+        }
+
+        return false;
+    };
+
+    
     for (auto fname: gfuns) {
-        
+        auto d = find_callee_decl_by_symbol(decl, fname);
+        if (d == NULL) continue;
+        if (clang::isa<clang::CXXMethodDecl>(d)) {
+            auto d1 = get_decl_with_body(clang::cast<clang::CXXMethodDecl>(d));
+            clang::CodeGen::CodeGenFunction cgf(cgmod);
+            if (d1->isInlined()) {
+                genmth(cgmod, cgf, d1);
+            } else {
+                genmth_decl(cgmod, cgf, d1, mtmod);                
+            }
+        }
+        mod->dump();
+        exit(-1);
     }
 
     if (level > 10) {
@@ -499,6 +638,73 @@ QString CompilerEngine::mangle_method(clang::ASTContext &ctx, clang::CXXMethodDe
     return QString();
 }
 
+llvm::Module* CompilerEngine::conv_ctor2(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor)
+{
+    
+    return 0;
+}
+
+llvm::Module* CompilerEngine::conv_method2(clang::ASTContext &ctx, clang::CXXMethodDecl *mth)
+{
+
+    return 0;
+}
+
+bool CompilerEngine::gen_ctor(CompilerUnit *cu)
+{
+    return false;
+}
+
+bool CompilerEngine::gen_method(CompilerUnit *cu)
+{
+    return false;
+}
+bool CompilerEngine::gen_method_decl(CompilerUnit *cu)
+{
+    return false;
+}
+
+clang::CXXMethodDecl *CompilerEngine::get_decl_with_body(clang::CXXMethodDecl *decl)
+{
+    if (decl->hasInlineBody()) return decl;
+    int cnt = 0;
+    for (auto rd: decl->redecls()) cnt++;
+    if (cnt == 1) return decl;
+
+    for (auto rd: decl->redecls()) {
+        if (rd == decl) continue;
+        return (decltype(decl))rd;
+    }
+
+    return 0;
+}
+
+CompilerUnit *CompilerEngine::createCompilerUnit(clang::ASTContext &ctx, clang::Decl *decl)
+{
+    CompilerUnit *cu = new CompilerUnit();
+    cu->mdecl = decl;
+    cu->mcis = new clang::CompilerInstance();
+    cu->mcis->createDiagnostics();
+    cu->mcis->createFileManager();
+
+    clang::DiagnosticsEngine &diag = cu->mcis->getDiagnostics();
+    clang::CodeGenOptions &cgopt = cu->mcis->getCodeGenOpts();
+
+    cu->mvmctx = new llvm::LLVMContext();
+    cu->mmod = new llvm::Module("piecegen2", *cu->mvmctx);
+
+    llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    dlo = *mtmod->getDataLayout();
+    cu->mcgm = new clang::CodeGen::CodeGenModule(ctx, cgopt, *cu->mmod, dlo, diag);
+    cu->mcgf = new clang::CodeGen::CodeGenFunction(*cu->mcgm);
+
+    return cu;
+}
+
+bool CompilerEngine::destroyCompilerUnit(CompilerUnit *cu)
+{
+    return true;
+}
 
 bool CompilerEngine::tryCompile(clang::CXXRecordDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit)
 {
