@@ -52,6 +52,31 @@ void test_raw_codegen()
 CompilerEngine::CompilerEngine()
 {
     this->initCompiler();
+
+    // static llvm::Module *jit_types_mod = NULL;
+    auto load_jit_types_module = []() -> llvm::Module* {
+        llvm::LLVMContext *ctx = new llvm::LLVMContext();
+        llvm::Module *module = new llvm::Module("jit_types_in_ce", *ctx);
+
+        // load module
+        QFile fp("./metalize/jit_types.ll");
+        fp.open(QIODevice::ReadOnly);
+        QByteArray asm_data = fp.readAll();
+        fp.close();
+
+        char *asm_str = strdup(asm_data.data());
+        qDebug()<<"llstrlen:"<<strlen(asm_str);
+
+        llvm::SMDiagnostic smdiag;
+        llvm::Module *rmod = NULL;
+
+        rmod = llvm::ParseAssemblyString(asm_str, NULL, smdiag, *ctx);
+        qDebug()<<"rmod="<<rmod;
+        free(asm_str);
+
+        return rmod;
+    };
+    mtmod = load_jit_types_module();
 }
 
 CompilerEngine::~CompilerEngine()
@@ -111,36 +136,15 @@ bool CompilerEngine::initCompiler()
 
 // 第一种方式，拿到还未定义的symbol，到ast中查找
 // 第二种方式，解析C++方法的源代码，找到这个未定义的symbol，从decl再把它编译成ll，效率更好。
-static void decl2def(llvm::Module *mod, clang::ASTContext &ctx, clang::CodeGen::CodeGenModule &cgmod, 
-                     clang::Decl *decl, int level, QHash<QString, bool> noinlined)
+void CompilerEngine::decl2def(llvm::Module *mod, clang::ASTContext &ctx,
+                              clang::CodeGen::CodeGenModule &cgmod, 
+                              clang::Decl *decl, int level, QHash<QString, bool> noinlined)
 {
-    static llvm::Module *jit_types_mod = NULL;
-    auto load_jit_types_module = []() -> llvm::Module* {
-        llvm::LLVMContext *ctx = new llvm::LLVMContext();
-        llvm::Module *module = new llvm::Module("jit_types_in_ce", *ctx);
-
-        // load module
-        QFile fp("./metalize/jit_types.ll");
-        fp.open(QIODevice::ReadOnly);
-        QByteArray asm_data = fp.readAll();
-        fp.close();
-
-        char *asm_str = strdup(asm_data.data());
-        qDebug()<<"llstrlen:"<<strlen(asm_str);
-
-        llvm::SMDiagnostic smdiag;
-        llvm::Module *rmod = NULL;
-
-        rmod = llvm::ParseAssemblyString(asm_str, NULL, smdiag, *ctx);
-        qDebug()<<"rmod="<<rmod;
-        free(asm_str);
-
-        return rmod;
-    };
+    llvm::Module *jit_types_mod = NULL;
 
     QHash<QString, bool> efuns;
     if (jit_types_mod == NULL) {
-        jit_types_mod = load_jit_types_module();
+        jit_types_mod = mtmod;
         // jit_types_mod->dump();
 
         for (auto &f: jit_types_mod->getFunctionList()) {
@@ -377,9 +381,13 @@ llvm::Module* CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMeth
         return false;
     };
 
+    // TODO 无法生成正确的函数参数信息，所有参数类型全部成了i64了
+    // eg. declare void @_ZN7QObject7connectEPKS_PKcS1_S3_N2Qt14ConnectionTypeE
+    //     (%"class.QMetaObject::Connection"* sret, i64, i64, i64, i64, i32) #0
     auto genmth_decl = [](clang::CodeGen::CodeGenModule &cgm,
-                     clang::CodeGen::CodeGenFunction &cgf,
-                     clang::CXXMethodDecl *decl) -> bool {
+                          clang::CodeGen::CodeGenFunction &cgf,
+                          clang::CXXMethodDecl *decl,
+                          llvm::Module *mtmod) -> bool {
         clang::CodeGen::CodeGenTypes &cgtypes = cgm.getTypes();
 
         const clang::CodeGen::CGFunctionInfo &FI = 
@@ -389,12 +397,23 @@ llvm::Module* CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMeth
 
         clang::QualType retype = decl->getReturnType();
         llvm::Type *lvtype = cgtypes.ConvertType(retype);
+        cgm.EmitGlobal(decl);
         llvm::Constant * v = cgm.GetAddrOfFunction(decl, FTy,
                                                    false, false);
 
         llvm::Function *f = llvm::cast<llvm::Function>(v);
+        // FTy->dump();
         qDebug()<<"dbg func:"<<f<<f->arg_size()
-        << cgf.CapturedStmtInfo;
+        << cgf.CapturedStmtInfo<<decl->param_size();
+
+        int cnter = 0;
+        for (auto &arg: f->getArgumentList()) {
+            if (arg.hasStructRetAttr()) continue; // skip sret
+            if (!decl->isStatic()) continue;     // skip this
+            // qDebug()<<cnter<<cgtypes.ConvertType(decl->getParamDecl(cnter)->getType());
+            arg.mutateType(cgtypes.ConvertType(decl->getParamDecl(cnter++)->getType()));
+            // 该函数执行后，mod->dump()看不出来变化，但是在用程序检测的时候却改变了。
+        }
 
         return false;
     };
@@ -403,7 +422,7 @@ llvm::Module* CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMeth
     if (mth->isInlined()) {
         genmth(cgmod, *cgf, mth);
     } else {
-        genmth_decl(cgmod, *cgf, mth);
+        genmth_decl(cgmod, *cgf, mth, mtmod);
     }
     
     mod->dump();

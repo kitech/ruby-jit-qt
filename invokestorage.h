@@ -1,6 +1,10 @@
 #ifndef INVOKESTORAGE_H
 #define INVOKESTORAGE_H
 
+#include <iostream>
+
+constexpr int MAX_IS_COUNT = 10;
+
 typedef struct {
     int iretval;
     bool bretval;
@@ -15,7 +19,9 @@ typedef struct {
     bool bval[10];
     QString sval[10];
     QChar cval[10];
-    void *vval[10];
+    void *vval[10]; // for class ABC *
+    // std::string cxxsval[10]; // why this cause crash???
+    char csval[10][256];
 } InvokeStorage;
 // TODO 多线程支持
 // InvokeStorage gis;

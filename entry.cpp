@@ -238,7 +238,8 @@ static QVariant VALUE2Variant(VALUE v)
         ci = Qom::inst()->jdobjs[rb_hash(v)];
         // obj = dynamic_cast<QObject*>(ci);
         qDebug()<<"unimpl VALUE:"<<str<<ci<<obj;
-        rv = QVariant(QMetaType::VoidStar, ci);
+        // rv = QVariant(QMetaType::VoidStar, ci);
+        rv = QVariant::fromValue(ci);
         break;
     case T_CLASS:
     default:

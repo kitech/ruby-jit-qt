@@ -77,27 +77,42 @@ ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
     llvm::Constant *lc;
     llvm::Type *aty;
     QString sty;
+    QTimer *tmer = new QTimer();
+    void *vtmer = tmer;
     for (int i = 0; i < mrg_args.count(); i ++, fpit++) {
         QVariant v = mrg_args.at(i);
         aty = (*fpit).getType();
         std::string ostr; llvm::raw_string_ostream ostm(ostr); aty->print(ostm);
         sty = QString(ostm.str().c_str());
+        qDebug()<<"param real type:"<<sty<<aty<<builder.getInt8Ty()->getPointerTo();
 
         switch ((int)v.type()) {
         case QMetaType::QString:
-            qDebug()<<"string real type:"<<sty;
-            ctypes.push_back(tymod->getTypeByName("class.QString")->getPointerTo());
-            // 传这个值老是crash，是因为一直把is定义为局部变量了，从当前方法return后，这个is消失了。
-            // 所以会有内存问题。
-            gis2.sval[i] = QString(mrg_args.at(i).toString());
-            // qDebug()<<"p1str addr:"<<(&gis.sval[i])<<(int64_t)(&gis.sval[i]);
-            lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)&gis2.sval[i]);
-            // 这不会和C++的VTable有关系吧。
-            // 可能和返回值是值，而非引用或指针，没有相应的存储空间导致程序崩溃。
-            lv = llvm::ConstantExpr::getIntToPtr(lc, tymod->getTypeByName("class.QString")->getPointerTo());
+            // if (sty == "i8*") {
+            if (aty == builder.getInt8Ty()->getPointerTo()) {
+                ctypes.push_back(aty);
+                strcpy(gis2.csval[i], mrg_args.at(i).toString().toStdString().c_str());
+                lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)gis2.csval[i]);
+                lv = llvm::ConstantExpr::getIntToPtr(lc, aty);
+                // cargs.push_back(lv);
+                qDebug()<<(void*)gis2.csval[i]<<(int64_t)gis2.csval[i];
+            } else {
+                ctypes.push_back(tymod->getTypeByName("class.QString")->getPointerTo());
+                // 传这个值老是crash，是因为一直把is定义为局部变量了，从当前方法return后，这个is消失了。
+                // 所以会有内存问题。
+                gis2.sval[i] = QString(mrg_args.at(i).toString());
+                // qDebug()<<"p1str addr:"<<(&gis.sval[i])<<(int64_t)(&gis.sval[i]);
+                lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)&gis2.sval[i]);
+                // 这不会和C++的VTable有关系吧。
+                // 可能和返回值是值，而非引用或指针，没有相应的存储空间导致程序崩溃。
+                lv = llvm::ConstantExpr::getIntToPtr(lc, tymod->getTypeByName("class.QString")->getPointerTo());
+                // cargs.push_back(lv);
+                // mfunc->addAttribute(i+1, llvm::Attribute::Dereferenceable); // i+1, for first this*
+            }
+
             cargs.push_back(lv);
-            // mfunc->addAttribute(i+1, llvm::Attribute::Dereferenceable); // i+1, for first this*
             break;
+
         case QMetaType::Int:
         case QMetaType::UInt:
         case QMetaType::Short:
@@ -125,7 +140,8 @@ ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
             break;
         case QMetaType::VoidStar:
             ctypes.push_back(builder.getVoidTy()->getPointerTo());
-            gis2.vval[i] = mrg_args.at(i).value<void*>();
+            gis2.vval[i] = QVariant::fromValue(tmer).value<void*>(); // mrg_args.at(i).value<void*>();
+            gis2.vval[i] = mrg_args.at(i).value<void*>(); // mrg_args.at(i).value<void*>();
             lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)gis2.vval[i]);
             lv = llvm::ConstantExpr::getIntToPtr(lc, builder.getVoidTy()->getPointerTo());
             cargs.push_back(lv);
