@@ -39,21 +39,20 @@ end
 
 def test_qbytearray()
   ba = Qt5::QByteArray.new
-  ba.at(1) ## error
-
-  # ba.append("yuio");
-  # ba.count();
-  # ba.fill(6);  # crash, char type's process  # fixed now 
-  # ba.indexOf("uio");
-  # ba.indexOf('gggggg');
-  # ba.lastIndexOf("uio");
-  # ba.lastIndexOf('fffffff');
-  # ba.isEmpty();
-  # ba.isNull();
-  # ba.resize(100);
-  # ba.truncate(5);
-  # ba.toLong();  # shit _Bool  # fixed now
-  # ba.toLower();
+  ba.append("yuio");
+  ba.at(1) ## error, fixed nowwwwwww
+  ba.count();
+  ba.fill(6);  # crash, char type's process  # fixed now 
+  ba.indexOf("uio");
+  ba.indexOf('gggggg');
+  ba.lastIndexOf("uio");
+  ba.lastIndexOf('fffffff');
+  ba.isEmpty();
+  ba.isNull();
+  ba.resize(100);
+  ba.truncate(5);
+  ba.toLong();  # shit _Bool  # fixed now
+  ba.toLower();
 
 end
 
@@ -81,9 +80,9 @@ def test_signal_slots()
   t.start(123); #  QObject::startTimer: Timers can only be used with threads started with QThread
 end
 
-# test_qstring
-test_qbytearray # 处理这个类问题还比较多
-# test_qurl
-# test_signal_slots
+test_qstring
+test_qbytearray # 处理这个类问题还比较多, fixed nowwwwww
+test_qurl
+test_signal_slots
 
 

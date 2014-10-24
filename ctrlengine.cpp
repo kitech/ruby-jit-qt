@@ -37,7 +37,8 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     qDebug()<<ctor_decl;
     ctor_decl->dumpColor();
 
-    auto mod = mce->conv_ctor(mfe->getASTContext(), ctor_decl);
+    // auto mod = mce->conv_ctor(mfe->getASTContext(), ctor_decl);
+    auto mod = mce->conv_ctor2(mfe->getASTContext(), ctor_decl);
     qDebug()<<mod;// <<mod->getDataLayout();
     // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
     QString symname = mce->mangle_ctor(mfe->getASTContext(), ctor_decl);
@@ -74,7 +75,8 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     qDebug()<<mth_decl<<mth_decl->isStatic();
     mth_decl->dumpColor();
 
-    auto mod = mce->conv_method(mfe->getASTContext(), mth_decl);
+    // auto mod = mce->conv_method(mfe->getASTContext(), mth_decl);
+    auto mod = mce->conv_method2(mfe->getASTContext(), mth_decl);
     qDebug()<<mod;// <<mod->getDataLayout();
     // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
     QString symname = mce->mangle_method(mfe->getASTContext(), mth_decl);

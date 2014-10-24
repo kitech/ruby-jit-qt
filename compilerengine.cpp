@@ -151,7 +151,7 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
     int cnter = 0;
     for (auto expr: stmts->children()) {
         qDebug()<<"e:"<<cnter++<<expr->getStmtClassName();
-        expr->dumpColor();
+        // expr->dumpColor();
         fexpr.push(expr);
     }
 
@@ -173,7 +173,7 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
         qDebug()<<"==========";
         // expr->dumpColor();
         auto d = expr->getCalleeDecl();
-        d->dumpColor();
+        // d->dumpColor();
         std::string str; llvm::raw_string_ostream stm(str);
         mgctx->mangleName(clang::cast<clang::NamedDecl>(d), stm);
         qDebug()<<"mangle name:"<<stm.str().c_str();
@@ -638,33 +638,236 @@ QString CompilerEngine::mangle_method(clang::ASTContext &ctx, clang::CXXMethodDe
     return QString();
 }
 
-llvm::Module* CompilerEngine::conv_ctor2(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor)
+llvm::Module* 
+CompilerEngine::conv_ctor2(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor)
 {
-    
+    auto cu = this->createCompilerUnit(ctx, ctor);
+    this->gen_ctor(cu);
+
+    int cnter = 0;
+    while (cnter++ < 10) {
+        this->find_undef_symbols(cu);
+        qDebug()<<cu->mUndefSymbols.count();
+        if (cu->mUndefSymbols.count() == 0) break;
+
+        for (auto sym: cu->mUndefSymbols) {
+            auto callee_decl = this->find_callee_decl_by_symbol(cu->mbdecl, sym);
+            qDebug()<<"calee decl:"<<callee_decl;
+        }
+    }
+
+    return cu->mmod;
     return 0;
 }
 
-llvm::Module* CompilerEngine::conv_method2(clang::ASTContext &ctx, clang::CXXMethodDecl *mth)
+llvm::Module* 
+CompilerEngine::conv_method2(clang::ASTContext &ctx, clang::CXXMethodDecl *mth)
 {
+    auto cu = this->createCompilerUnit(ctx, mth);
 
+    if (llvm::cast<clang::CXXMethodDecl>(cu->mbdecl)->isInlined()) {
+        this->gen_method(cu);
+    } else {
+        this->gen_method_decl(cu);
+    }
+
+    qDebug()<<"base decl gen done.";
+    int cnter = 0;
+    while (cnter++ < 10) {
+        this->find_undef_symbols(cu);
+        qDebug()<<cu->mUndefSymbols.count();
+        if (cu->mUndefSymbols.count() == 0) break;
+
+        for (auto sym: cu->mUndefSymbols) {
+            auto callee_decl = this->find_callee_decl_by_symbol(cu->mbdecl, sym);
+            qDebug()<<"calee decl:"<<callee_decl
+                    <<"is method:"<<llvm::isa<clang::CXXMethodDecl>(callee_decl);
+            QString tsym = cu->mcgm->getMangledName(callee_decl).data();
+            if (tsym == "_Z7qt_noopv") {
+                callee_decl->dumpColor();
+                this->gen_free_function(cu, callee_decl);
+            }
+            if (tsym == "_ZNK10QByteArray4sizeEv") {
+                auto callee_decl_with_body = 
+                    this->get_decl_with_body(llvm::cast<clang::CXXMethodDecl>(callee_decl));
+                if (callee_decl_with_body->isInlined()) {
+                    this->gen_method(cu, callee_decl_with_body);
+                } else {
+                    this->gen_method_decl(cu, callee_decl_with_body);
+                }
+            }
+        }
+
+        continue;
+        // for test
+        // auto callee_decl = this->find_callee_decl_by_symbol(cu->mbdecl, "_ZNK10QByteArray4sizeEv");
+    }
+
+    cu->mmod->dump();
+    qDebug()<<"all gen done...";
+
+    return cu->mmod;
     return 0;
 }
 
 bool CompilerEngine::gen_ctor(CompilerUnit *cu)
 {
+    // 转换到需要的参数类型
+    auto ctor = clang::cast<clang::CXXConstructorDecl>(cu->mbdecl);
+    auto &cgmod = *(cu->mcgm);
+    auto cgf = cu->mcgf;
+
+    // 
+    auto &cgtypes = cgmod.getTypes();
+    // try ctor base , 能生成正确的Base代码了
+    const clang::CodeGen::CGFunctionInfo &FIB = 
+        cgtypes.arrangeCXXConstructorDeclaration(ctor, clang::Ctor_Base);
+    llvm::FunctionType *FTyB = cgtypes.GetFunctionType(FIB);
+    llvm::Constant *ctor_base_val = 
+        cgmod.GetAddrOfCXXConstructor(ctor, clang::Ctor_Base, &FIB, true);
+    llvm::Function *ctor_base_fn = clang::cast<llvm::Function>(ctor_base_val);
+    clang::CodeGen::FunctionArgList alist;
+
+    if (ctor->isInlined()) {
+        cgmod.setFunctionLinkage(clang::GlobalDecl(ctor, clang::Ctor_Base), ctor_base_fn);
+        cgf->GenerateCode(clang::GlobalDecl(ctor, clang::Ctor_Base), ctor_base_fn, FIB);
+    } else {
+        // QHash<QString, bool> noinlined; // 不需要生成define的symbol，在decl2def中使用。
+        // noinlined[ctor_base_fn->getName().data()] = true;
+        cu->mNoinlineSymbols[ctor_base_fn->getName().data()] = true;
+    }
+
     return false;
 }
 
-bool CompilerEngine::gen_method(CompilerUnit *cu)
+bool CompilerEngine::gen_method(CompilerUnit *cu, clang::CXXMethodDecl *yamth)
 {
-    return false;
-}
-bool CompilerEngine::gen_method_decl(CompilerUnit *cu)
-{
+
+    auto genmth = [](clang::CodeGen::CodeGenModule &cgm,
+                     clang::CodeGen::CodeGenFunction &cgf,
+                     clang::CXXMethodDecl *decl) -> bool {
+        clang::CodeGen::CodeGenTypes &cgtypes = cgm.getTypes();
+
+        const clang::CodeGen::CGFunctionInfo &FI = 
+        cgtypes.arrangeCXXMethodDeclaration(decl);
+                    
+        llvm::FunctionType *FTy = cgtypes.GetFunctionType(FI);
+
+        clang::QualType retype = decl->getReturnType();
+        llvm::Type *lvtype = cgtypes.ConvertType(retype);
+        llvm::Constant * v = cgm.GetAddrOfFunction(decl, FTy,
+                                                   false, false);
+
+        llvm::Function *f = llvm::cast<llvm::Function>(v);
+        qDebug()<<"dbg func:"<<f<<f->arg_size()
+        << cgf.CapturedStmtInfo;
+        // f->viewCFG();
+        // clang::Stmt *stmt = decl->getBody();
+        clang::CodeGen::FunctionArgList alist;
+        cgf.GenerateCode(clang::GlobalDecl(decl), f, FI);
+        f->addFnAttr(llvm::Attribute::AlwaysInline);
+        cgm.setFunctionLinkage(decl, f);
+
+        return false;
+    };
+    if (yamth) {
+        return genmth(*cu->mcgm, *cu->mcgf, yamth);
+    } else {
+        return genmth(*cu->mcgm, *cu->mcgf, clang::cast<clang::CXXMethodDecl>(cu->mbdecl));
+    }
+
     return false;
 }
 
-clang::CXXMethodDecl *CompilerEngine::get_decl_with_body(clang::CXXMethodDecl *decl)
+bool CompilerEngine::gen_method_decl(CompilerUnit *cu, clang::CXXMethodDecl *yamth)
+{
+
+    // TODO 无法生成正确的函数参数信息，所有参数类型全部成了i64了
+    // eg. declare void @_ZN7QObject7connectEPKS_PKcS1_S3_N2Qt14ConnectionTypeE
+    //     (%"class.QMetaObject::Connection"* sret, i64, i64, i64, i64, i32) #0
+    auto genmth_decl = [](clang::CodeGen::CodeGenModule &cgm,
+                          clang::CodeGen::CodeGenFunction &cgf,
+                          clang::CXXMethodDecl *decl,
+                          llvm::Module *mtmod) -> bool {
+        clang::CodeGen::CodeGenTypes &cgtypes = cgm.getTypes();
+
+        const clang::CodeGen::CGFunctionInfo &FI = 
+        cgtypes.arrangeCXXMethodDeclaration(decl);
+                    
+        llvm::FunctionType *FTy = cgtypes.GetFunctionType(FI);
+
+        clang::QualType retype = decl->getReturnType();
+        llvm::Type *lvtype = cgtypes.ConvertType(retype);
+        cgm.EmitGlobal(decl);
+        llvm::Constant * v = cgm.GetAddrOfFunction(decl, FTy,
+                                                   false, false);
+
+        llvm::Function *f = llvm::cast<llvm::Function>(v);
+        // FTy->dump();
+        qDebug()<<"dbg func:"<<f<<f->arg_size()
+        << cgf.CapturedStmtInfo<<decl->param_size();
+
+        int cnter = 0;
+        for (auto &arg: f->getArgumentList()) {
+            if (arg.hasStructRetAttr()) continue; // skip sret
+            if (!decl->isStatic()) continue;     // skip this
+            // qDebug()<<cnter<<cgtypes.ConvertType(decl->getParamDecl(cnter)->getType());
+            arg.mutateType(cgtypes.ConvertType(decl->getParamDecl(cnter++)->getType()));
+            // 该函数执行后，mod->dump()看不出来变化，但是在用程序检测的时候却改变了。
+        }
+
+        return false;
+    };
+
+    if (yamth) {
+        cu->mNoinlineSymbols[QString(cu->mcgm->
+                                     getMangledName(yamth)
+                                     .data())]
+            = true;
+        return genmth_decl(*cu->mcgm, *cu->mcgf, yamth, mtmod);
+    } else {
+        cu->mNoinlineSymbols[QString(cu->mcgm->
+                                     getMangledName(llvm::cast<clang::CXXMethodDecl>(cu->mbdecl))
+                                     .data())]
+            = true;
+        return genmth_decl(*cu->mcgm, *cu->mcgf, llvm::cast<clang::CXXMethodDecl>(cu->mbdecl), mtmod);
+    }
+
+    return false;
+}
+
+bool CompilerEngine::gen_free_function(CompilerUnit *cu, clang::FunctionDecl *yafun)
+{
+    // 转换到需要的参数类型
+    auto &cgmod = *(cu->mcgm);
+    auto cgf = cu->mcgf;
+
+    // 
+    auto &cgtypes = cgmod.getTypes();
+    // try ctor base , 能生成正确的Base代码了
+    const clang::CodeGen::CGFunctionInfo &FIB = 
+        cgtypes.arrangeFunctionDeclaration(yafun);
+    llvm::FunctionType *FTyB = cgtypes.GetFunctionType(FIB);
+    llvm::Constant *fun_val = 
+        cgmod.GetAddrOfFunction(yafun, FTyB, false, false);
+    llvm::Function *fun_fn = clang::cast<llvm::Function>(fun_val);
+    clang::CodeGen::FunctionArgList alist;
+
+    if (yafun->isInlined()) {
+        cgmod.setFunctionLinkage(clang::GlobalDecl(yafun), fun_fn);
+        cgf->GenerateCode(clang::GlobalDecl(yafun), fun_fn, FIB);
+    } else {
+        // QHash<QString, bool> noinlined; // 不需要生成define的symbol，在decl2def中使用。
+        // noinlined[ctor_base_fn->getName().data()] = true;
+        cu->mNoinlineSymbols[fun_fn->getName().data()] = true;
+    }
+    
+    return false;
+}
+
+
+clang::CXXMethodDecl *
+CompilerEngine::get_decl_with_body(clang::CXXMethodDecl *decl)
 {
     if (decl->hasInlineBody()) return decl;
     int cnt = 0;
@@ -679,13 +882,47 @@ clang::CXXMethodDecl *CompilerEngine::get_decl_with_body(clang::CXXMethodDecl *d
     return 0;
 }
 
-CompilerUnit *CompilerEngine::createCompilerUnit(clang::ASTContext &ctx, clang::Decl *decl)
+bool CompilerEngine::find_undef_symbols(CompilerUnit *cu)
+{
+    cu->mUndefSymbols.clear();
+    for (auto &f: cu->mmod->getFunctionList()) {
+        QString fname = f.getName().data();
+        qDebug()<<"name:"<<f.getName().data()<<f.size()<<"decl:"<<f.isDeclaration();
+        if (!f.isDeclaration()) {
+            continue;
+        }
+        if (cu->mNoinlineSymbols.contains(fname)) {
+            continue;
+        }
+
+        // 如何判断是不是inline的呢。
+        if (this->is_in_type_module(fname)) {
+            // copy function from prepared module
+            qDebug()<<"copying func:"<<fname;
+            continue;
+        }
+        cu->mUndefSymbols.append(fname);
+    }
+
+    qDebug()<<"need gen funs:"<<cu->mUndefSymbols.count();
+
+    return false;
+}
+
+bool CompilerEngine::is_in_type_module(QString symbol)
+{
+    return this->mtmod->getFunction(symbol.toLatin1().data()) != NULL;
+}
+
+CompilerUnit *
+CompilerEngine::createCompilerUnit(clang::ASTContext &ctx, clang::NamedDecl *decl)
 {
     CompilerUnit *cu = new CompilerUnit();
     cu->mdecl = decl;
     cu->mcis = new clang::CompilerInstance();
     cu->mcis->createDiagnostics();
     cu->mcis->createFileManager();
+    // cu->mcis->setASTContext(ctx);
 
     clang::DiagnosticsEngine &diag = cu->mcis->getDiagnostics();
     clang::CodeGenOptions &cgopt = cu->mcis->getCodeGenOpts();
@@ -693,10 +930,16 @@ CompilerUnit *CompilerEngine::createCompilerUnit(clang::ASTContext &ctx, clang::
     cu->mvmctx = new llvm::LLVMContext();
     cu->mmod = new llvm::Module("piecegen2", *cu->mvmctx);
 
-    llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
-    dlo = *mtmod->getDataLayout();
+    // crash了半天，原来是因为这地方需要一个&类型llvm::DataLayout&
+    // llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    // dlo = *mtmod->getDataLayout();
+    auto &dlo = *mtmod->getDataLayout();
     cu->mcgm = new clang::CodeGen::CodeGenModule(ctx, cgopt, *cu->mmod, dlo, diag);
     cu->mcgf = new clang::CodeGen::CodeGenFunction(*cu->mcgm);
+
+    // 
+    cu->mbdecl = this->get_decl_with_body(llvm::cast<clang::CXXMethodDecl>(decl));
+    qDebug()<<cu->mdecl<<cu->mbdecl<<(cu->mdecl == cu->mbdecl)<<cu->mcgm;
 
     return cu;
 }

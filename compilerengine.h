@@ -14,6 +14,7 @@ namespace llvm {
 
 namespace clang {
     class Decl;
+    class NamedDecl;
     class FunctionDecl;
     class CXXRecordDecl;
     class CXXMethodDecl;
@@ -52,17 +53,19 @@ public:
                   clang::CodeGen::CodeGenModule &cgmod, 
                   clang::Decl *decl, int level, QHash<QString, bool> noinlined);
     clang::FunctionDecl* find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_symbol);
-    CompilerUnit *createCompilerUnit(clang::ASTContext &ctx, clang::Decl *decl);
+    CompilerUnit *createCompilerUnit(clang::ASTContext &ctx, clang::NamedDecl *decl);
     bool destroyCompilerUnit(CompilerUnit *cu);
 
     llvm::Module* conv_ctor2(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor);
     llvm::Module* conv_method2(clang::ASTContext &ctx, clang::CXXMethodDecl *mth);
 
     bool gen_ctor(CompilerUnit *cu);
-    bool gen_method(CompilerUnit *cu);
-    bool gen_method_decl(CompilerUnit *cu);
-
+    bool gen_method(CompilerUnit *cu, clang::CXXMethodDecl *yamth = NULL);
+    bool gen_method_decl(CompilerUnit *cu, clang::CXXMethodDecl *yamth = NULL);
+    bool gen_free_function(CompilerUnit *cu, clang::FunctionDecl *yafun = NULL);
     clang::CXXMethodDecl *get_decl_with_body(clang::CXXMethodDecl *decl);
+    bool find_undef_symbols(CompilerUnit *cu);
+    bool is_in_type_module(QString symbol);
 
 public:
     bool initCompiler();
@@ -87,7 +90,10 @@ public:
     llvm::Module *mmod = NULL;
     clang::CodeGen::CodeGenModule *mcgm = NULL;
     clang::CodeGen::CodeGenFunction *mcgf = NULL;
-    clang::Decl *mdecl = NULL;
+    clang::NamedDecl *mdecl = NULL;
+    clang::NamedDecl *mbdecl = NULL; // bodyed
+    QVector<QString> mUndefSymbols;
+    QHash<QString, bool> mNoinlineSymbols;
 };
 
 #endif /* COMPILERENGINE_H */

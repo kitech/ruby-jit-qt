@@ -41,7 +41,7 @@ void OperatorEngine::init()
 }
 
 #include "invokestorage.h"
-InvokeStorage gis2;
+InvokeStorage2 gis2;
 
 // 把用户传递过来的值转换成ll调用的值
 std::vector<llvm::Value*>
