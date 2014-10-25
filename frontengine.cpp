@@ -1003,12 +1003,22 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
 {
     QVector<QVariant> &dps = dparams;
 
-    auto eval_ctor = [](clang::CXXConstructExpr* expr) -> QVariant {
+    auto eval_ctor = [](clang::CXXConstructExpr* expr, FrontEngine *tthis) -> QVariant {
         clang::CXXConstructorDecl *decl = expr->getConstructor();
-        QString klass_name = (decl->getName().data());
+        clang::CXXRecordDecl *rec_decl = decl->getParent();
+        QString klass_name = rec_decl->getName().data();
+        decl->dumpColor();
+        // qDebug()<<"param klass name:"<<klass_name<<decl;
         if (klass_name == "QChar") {
             return QVariant(QChar(' '));
+        } else if (klass_name == "QFlags") {
+            // qDebug()<<expr->isEvaluatable(tthis->mtrunit->getASTContext()); // false
+            // QFlags f(0);
+            QFlags<QUrl::ComponentFormattingOption> *f =
+                new QFlags<QUrl::ComponentFormattingOption>(0);
+            return QVariant::fromValue((void*)f);
         }
+        
         return QVariant(99813721);
     };
 
@@ -1026,7 +1036,7 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
         if (dae->isIntegerConstantExpr(ival, this->mtrunit->getASTContext())) {
             dps << QVariant((qlonglong)ival.getZExtValue());
         } else if (clang::isa<clang::CXXConstructExpr>(dae)) {
-            dps << eval_ctor(clang::cast<clang::CXXConstructExpr>(dae));
+            dps << eval_ctor(clang::cast<clang::CXXConstructExpr>(dae), this);
         } else if (dae->isCXX11ConstantExpr(mtrunit->getASTContext())) {
             bret = dae->EvaluateAsRValue(eres, mtrunit->getASTContext());
             qDebug()<<bret;

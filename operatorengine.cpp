@@ -105,7 +105,7 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
         aty = (*fpit).getType();
         std::string ostr; llvm::raw_string_ostream ostm(ostr); aty->print(ostm);
         sty = QString(ostm.str().c_str());
-        qDebug()<<"param real type:"<<sty<<aty<<builder.getInt8Ty()->getPointerTo();
+        qDebug()<<"param real type:"<<sty<<aty<<builder.getInt8Ty()->getPointerTo()<<v;
 
         switch ((int)v.type()) {
         case QMetaType::QString:
@@ -169,7 +169,8 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
             gis2.vval[i] = QVariant::fromValue(tmer).value<void*>(); // mrg_args.at(i).value<void*>();
             gis2.vval[i] = mrg_args.at(i).value<void*>(); // mrg_args.at(i).value<void*>();
             lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)gis2.vval[i]);
-            lv = llvm::ConstantExpr::getIntToPtr(lc, builder.getVoidTy()->getPointerTo());
+            // lv = llvm::ConstantExpr::getIntToPtr(lc, builder.getVoidTy()->getPointerTo());
+            lv = llvm::ConstantExpr::getIntToPtr(lc, aty); // for byval param, 这个正确，但是void*则不正确
             cargs.push_back(lv);
             break;
         default:
@@ -261,6 +262,12 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, void *kthis, QSt
         sets = sets.addAttributes(mod->getContext(), 2, llvm::AttributeSet::get(mod->getContext(), 2, ab));
         sets = sets.addAttributes(mod->getContext(), 0, llvm::AttributeSet::get(mod->getContext(), 0, ab));
         cval->setAttributes(sets);
+    }
+    // TODO byval call
+    // test for qflags byval
+    if (false && symbol.indexOf("path") != -1 && klass == "QUrl") {
+        cval->addAttribute(3, llvm::Attribute::ByVal);
+        // qDebug()<<"QUrl::path called";
     }
     
     if (dstfun->hasStructRetAttr()) {
