@@ -9,8 +9,13 @@
 
 #include <QtCore>
 
+#include <llvm/IR/IRBuilder.h>
+
 namespace llvm {
     class Module;
+    class Type;
+    class Value;
+    class Function;
 };
 
 class OperatorEngine
@@ -28,9 +33,24 @@ public:
                  QVector<QVariant> uargs, QVector<QVariant> dargs,
                  bool is_static);
     int getClassAllocSize(QString klass);
+
+private:
+    // 正确地从 mod 和 mtmod两者中选择合适的类型
+    llvm::Type *uniqTy(llvm::Module *mod, QString tystr);
+    std::vector<llvm::Value*>
+    ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
+                      QVector<QVariant> uargs, QVector<QVariant> dargs,
+                      llvm::Module *tymod, llvm::Function *dstfun, bool is_static);
 };
 
 #endif /* OPERATORENGINE_H */
+
+
+
+
+
+
+
 
 
 

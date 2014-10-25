@@ -43,11 +43,32 @@ void OperatorEngine::init()
 #include "invokestorage.h"
 InvokeStorage2 gis2;
 
+llvm::Type *OperatorEngine::uniqTy(llvm::Module *mod, QString tyname)
+{
+    // 现在生成的ll中有重复的类型定义，使用这个试试
+    // 如果当前模块中已经有这个类型，则不在使用tymod中的类型
+    // 这个应该有用，但目前看并不影响执行
+    auto getUniqTy = [](llvm::Module *cmod, llvm::Module *tymod, QString tyname) -> llvm::Type* {
+        llvm::Type *ty1 = cmod == NULL ? NULL
+            : cmod->getTypeByName(tyname.toLatin1().data());
+        llvm::Type *ty2 = tymod->getTypeByName(tyname.toLatin1().data());
+
+        if (ty1 == ty2) {
+            qDebug()<<"nice, two type equal";
+        }
+        if (ty1 != NULL && ty1 != ty2) {
+            qDebug()<<"two type not equal!!!";
+        }
+        return ty1 != NULL ? ty2 : ty2;
+    };
+    return getUniqTy(mod, mtmod, tyname);
+}
+
 // 把用户传递过来的值转换成ll调用的值
 std::vector<llvm::Value*>
-ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
-                  QVector<QVariant> uargs, QVector<QVariant> dargs,
-                  llvm::Module *tymod, llvm::Function *dstfun, bool is_static)
+OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
+                                  QVector<QVariant> uargs, QVector<QVariant> dargs,
+                                  llvm::Module *tymod, llvm::Function *dstfun, bool is_static)
 {
     std::vector<llvm::Value*> cargs;
     std::vector<llvm::Type*> ctypes;
@@ -97,7 +118,9 @@ ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
                 // cargs.push_back(lv);
                 qDebug()<<(void*)gis2.csval[i]<<(int64_t)gis2.csval[i];
             } else {
-                ctypes.push_back(tymod->getTypeByName("class.QString")->getPointerTo());
+                qDebug()<<"using QString param type";
+                // ctypes.push_back(tymod->getTypeByName("class.QString")->getPointerTo());
+                ctypes.push_back(uniqTy(module, "class.QString")->getPointerTo());
                 // 传这个值老是crash，是因为一直把is定义为局部变量了，从当前方法return后，这个is消失了。
                 // 所以会有内存问题。
                 gis2.sval[i] = QString(mrg_args.at(i).toString());
@@ -105,7 +128,8 @@ ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
                 lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)&gis2.sval[i]);
                 // 这不会和C++的VTable有关系吧。
                 // 可能和返回值是值，而非引用或指针，没有相应的存储空间导致程序崩溃。
-                lv = llvm::ConstantExpr::getIntToPtr(lc, tymod->getTypeByName("class.QString")->getPointerTo());
+                // lv = llvm::ConstantExpr::getIntToPtr(lc, tymod->getTypeByName("class.QString")->getPointerTo());
+                lv = llvm::ConstantExpr::getIntToPtr(lc, uniqTy(module, "class.QString")->getPointerTo());
                 // cargs.push_back(lv);
                 // mfunc->addAttribute(i+1, llvm::Attribute::Dereferenceable); // i+1, for first this*
             }
@@ -132,10 +156,12 @@ ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
             cargs.push_back(builder.getInt1(v.toBool()));
             break;
         case QMetaType::QChar:
-            ctypes.push_back(tymod->getTypeByName("class.QChar")->getPointerTo());
+            // ctypes.push_back(tymod->getTypeByName("class.QChar")->getPointerTo());
+            ctypes.push_back(uniqTy(module, "class.QChar")->getPointerTo());
             gis2.cval[i] = mrg_args.at(i).toChar();
             lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)&gis2.cval[i]);
-            lv = llvm::ConstantExpr::getIntToPtr(lc, tymod->getTypeByName("class.QChar")->getPointerTo());
+            // lv = llvm::ConstantExpr::getIntToPtr(lc, tymod->getTypeByName("class.QChar")->getPointerTo());
+            lv = llvm::ConstantExpr::getIntToPtr(lc, uniqTy(module, "class.QChar")->getPointerTo());
             cargs.push_back(lv);
             break;
         case QMetaType::VoidStar:
@@ -156,6 +182,7 @@ ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
     return cargs;
 }
 
+// TODO dereferenced return and dereferenced params
 QString OperatorEngine::bind(llvm::Module *mod, QString symbol, void *kthis, QString klass,
                              QVector<QVariant> uargs, QVector<QVariant> dargs,
                              bool is_static)
@@ -175,12 +202,19 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, void *kthis, QSt
     std::vector<llvm::Value*> callee_arg_values;
     if (is_static) {
     } else {
-        llvm::Type *thisTy = this->mtmod->getTypeByName(QString("class.%1").arg(klass).toStdString());
-        callee_arg_values.push_back(llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)kthis));
+        llvm::Type *thisTy = this->uniqTy(mod, QString("class.%1").arg(klass));
+        // 在32位系统上crash，可能是因为这里直接使用了64位整数。(已验证，果然是这个问题）
+        // 应该是在23位系统上不能直接使用int64_t表示指针，而64位系统可以。
+        // 一般显示为llvm::TargetLowering::LowerCallTo中crash
+        // callee_arg_values.push_back(llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)kthis));
+        llvm::Constant *lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)kthis);
+        llvm::Constant *lv = llvm::ConstantExpr::getIntToPtr(lc, thisTy->getPointerTo());
+        callee_arg_values.push_back(lv);
     }
 
-    // add uarg
-    std::vector<llvm::Value*> more_values = ConvertToCallArgs(mod, builder, uargs, dargs, mtmod, dstfun, is_static);
+    // Add uarg
+    std::vector<llvm::Value*> more_values = 
+        ConvertToCallArgs(mod, builder, uargs, dargs, mtmod, dstfun, is_static);
     // std::copy(more_values.begin(), more_values.end(), callee_arg_values.end());// why???
     for (auto v: more_values) callee_arg_values.push_back(v);
 
@@ -219,6 +253,16 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, void *kthis, QSt
     llvm::ArrayRef<llvm::Value*> callee_arg_values_ref(callee_arg_values);
     llvm::CallInst *cval = builder.CreateCall(dstfun, callee_arg_values_ref);
 
+    // dereferenced test, QString::append
+    // TODO 需要更通用一些，目前只针对特定的函数
+    if (false) {
+        llvm::AttrBuilder ab(llvm::Attribute::getWithDereferenceableBytes(mod->getContext(), 1*sizeof(void*)));
+        llvm::AttributeSet sets;
+        sets = sets.addAttributes(mod->getContext(), 2, llvm::AttributeSet::get(mod->getContext(), 2, ab));
+        sets = sets.addAttributes(mod->getContext(), 0, llvm::AttributeSet::get(mod->getContext(), 0, ab));
+        cval->setAttributes(sets);
+    }
+    
     if (dstfun->hasStructRetAttr()) {
         builder.CreateRet(callee_arg_values.at(0));
     } else if (dstfun->doesNotReturn() || dstfun->getReturnType() == builder.getVoidTy()) {
@@ -236,7 +280,8 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, void *kthis, QSt
 int OperatorEngine::getClassAllocSize(QString klass)
 {
     auto dlo = mtmod->getDataLayout();
-    auto kty = mtmod->getTypeByName(QString("class.%1").arg(klass).toStdString());
+    // auto kty = mtmod->getTypeByName(QString("class.%1").arg(klass).toStdString());
+    auto kty = this->uniqTy(NULL, QString("class.%1").arg(klass));
 
     if (0) {
         qDebug()<<dlo<<dlo->getTypeAllocSize(mtmod->getTypeByName("class.QString"));

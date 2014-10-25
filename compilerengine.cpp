@@ -473,6 +473,7 @@ llvm::Module* CompilerEngine::conv_ctor(clang::ASTContext &ctx, clang::CXXConstr
 
 // 这个方法支持普通方法，static也可以,非template
 // 已知问题，不支持模板类中的静态方法。
+// TODO 模板类中的静态方法支持
 llvm::Module* CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMethodDecl *mth)
 {
     clang::CompilerInstance ci;

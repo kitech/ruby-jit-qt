@@ -5,36 +5,21 @@ a = File.absolute_path(File.dirname(__FILE__))
 ret = require "#{a}/test_init.rb"
 
 def test_qstring()
-  
   a = Qt5::QString.new
-
   puts "==========";
-
   puts a.length()
   a.append("876")
-
   puts a.length()
-
   puts a.isEmpty();
-
   puts a.length();
-
   a.append("aa%1bb")
-
   a.arg("uio") ### 参数太多，很难运行时确定。已经修正，返回值处理问题。
-
   a.contains("876"); 
-
-   a.indexOf("876");  # ok
-
-   a.toUpper; # crash ==> ok
-   a.lastIndexOf("876")  # 是因为这个函数的默认参数，无法正常填入。已修正
-
-   a.startsWith("kkkk")
-
-
-   a.append("哈哈哈")
-
+  a.indexOf("876");  # ok
+  a.toUpper; # crash ==> ok
+  a.lastIndexOf("876")  # 是因为这个函数的默认参数，无法正常填入。已修正
+  a.startsWith("kkkk")
+  a.append("哈哈哈")
 end
 
 def test_qbytearray()

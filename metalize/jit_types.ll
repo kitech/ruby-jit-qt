@@ -1,8 +1,8 @@
 ; ModuleID = 'metalize/jit_types.cpp'
-target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
-target triple = "x86_64-unknown-linux-gnu"
+target datalayout = "e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128"
+target triple = "i386-pc-linux-gnu"
 
-%struct.QArrayData = type { %"class.QtPrivate::RefCount", i32, i32, i64 }
+%struct.QArrayData = type { %"class.QtPrivate::RefCount", i32, i32, i32 }
 %"class.QtPrivate::RefCount" = type { %class.QBasicAtomicInteger }
 %class.QBasicAtomicInteger = type { i32 }
 %class.YaQAccessible = type { i8 }
@@ -37,12 +37,11 @@ target triple = "x86_64-unknown-linux-gnu"
 %class.YaQBuffer = type { %class.QBuffer }
 %class.QBuffer = type { %class.QIODevice }
 %class.QIODevice = type { %class.QObject }
-%class.YaQBoxLayout = type { %class.QBoxLayout.base, [4 x i8] }
-%class.QBoxLayout.base = type { %class.QLayout.base }
-%class.QLayout.base = type <{ %class.QObject, %class.QLayoutItem.base }>
-%class.QLayoutItem.base = type <{ i32 (...)**, %class.QFlags }>
+%class.YaQBoxLayout = type { %class.QBoxLayout }
+%class.QBoxLayout = type { %class.QLayout }
+%class.QLayout = type { %class.QObject, %class.QLayoutItem }
+%class.QLayoutItem = type { i32 (...)**, %class.QFlags }
 %class.QFlags = type { i32 }
-%class.QBoxLayout = type { %class.QLayout.base, [4 x i8] }
 %class.YaQByteArray = type { %class.QByteArray }
 %class.YaQThread = type { %class.QThread }
 %class.QThread = type { %class.QObject }
@@ -119,7 +118,7 @@ target triple = "x86_64-unknown-linux-gnu"
 %class.QIconPrivate = type opaque
 %class.YaQWidget = type { %class.QWidget }
 %class.QWidget = type { %class.QObject, %class.QPaintDevice, %class.QWidgetData* }
-%class.QWidgetData = type { i64, i32, %class.QFlags.10, i32, %class.QRect, %class.QPalette, %class.QFont, %class.QRect }
+%class.QWidgetData = type { i32, i32, %class.QFlags.10, i32, %class.QRect, %class.QPalette, %class.QFont, %class.QRect }
 %class.QFlags.10 = type { i32 }
 %class.QPalette = type { %class.QPalettePrivate*, %union.anon.11 }
 %class.QPalettePrivate = type opaque
@@ -132,193 +131,196 @@ target triple = "x86_64-unknown-linux-gnu"
 %class.YaQMainWindow = type { %class.QMainWindow }
 %class.QMainWindow = type { %class.QWidget }
 %struct.QTypedArrayData.13 = type { %struct.QArrayData }
+%struct.QTypedArrayData.14 = type { %struct.QArrayData }
 
 @.str = private unnamed_addr constant [64 x i8] c"size == 0 || offset < 0 || size_t(offset) >= sizeof(QArrayData)\00", align 1
 @.str1 = private unnamed_addr constant [36 x i8] c"/usr/include/qt/QtCore/qarraydata.h\00", align 1
 @_ZN10QArrayData11shared_nullE = external global [2 x %struct.QArrayData]
 
-; Function Attrs: nounwind uwtable
+; Function Attrs: nounwind
 define void @_Z16__keep_jit_typesv() #0 {
-  %v0 = alloca i8*, align 8
-  store i8* null, i8** %v0, align 8
-  %1 = load i8** %v0, align 8
+  %v0 = alloca i8*, align 4
+  store i8* null, i8** %v0, align 4
+  %1 = load i8** %v0, align 4
   %2 = bitcast i8* %1 to %class.YaQAccessible*
-  %3 = load i8** %v0, align 8
+  %3 = load i8** %v0, align 4
   %4 = bitcast i8* %3 to %class.QAccessible*
-  %5 = load i8** %v0, align 8
+  %5 = load i8** %v0, align 4
   %6 = bitcast i8* %5 to %class.YaQAction*
-  %7 = load i8** %v0, align 8
+  %7 = load i8** %v0, align 4
   %8 = bitcast i8* %7 to %class.QAction*
-  %9 = load i8** %v0, align 8
+  %9 = load i8** %v0, align 4
   %10 = bitcast i8* %9 to %class.YaQActionGroup*
-  %11 = load i8** %v0, align 8
+  %11 = load i8** %v0, align 4
   %12 = bitcast i8* %11 to %class.QActionGroup*
-  %13 = load i8** %v0, align 8
+  %13 = load i8** %v0, align 4
   %14 = bitcast i8* %13 to %class.YaQObject*
-  %15 = load i8** %v0, align 8
+  %15 = load i8** %v0, align 4
   %16 = bitcast i8* %15 to %class.QObject*
-  %17 = load i8** %v0, align 8
+  %17 = load i8** %v0, align 4
   %18 = bitcast i8* %17 to %class.YaQString*
-  %19 = load i8** %v0, align 8
+  %19 = load i8** %v0, align 4
   %20 = bitcast i8* %19 to %class.QString*
-  %21 = load i8** %v0, align 8
+  %21 = load i8** %v0, align 4
   %22 = bitcast i8* %21 to %class.YaQBitArray*
-  %23 = load i8** %v0, align 8
+  %23 = load i8** %v0, align 4
   %24 = bitcast i8* %23 to %class.QBitArray*
-  %25 = load i8** %v0, align 8
+  %25 = load i8** %v0, align 4
   %26 = bitcast i8* %25 to %class.YaQBitmap*
-  %27 = load i8** %v0, align 8
+  %27 = load i8** %v0, align 4
   %28 = bitcast i8* %27 to %class.QBitmap*
-  %29 = load i8** %v0, align 8
+  %29 = load i8** %v0, align 4
   %30 = bitcast i8* %29 to %class.YaQBuffer*
-  %31 = load i8** %v0, align 8
+  %31 = load i8** %v0, align 4
   %32 = bitcast i8* %31 to %class.QBuffer*
-  %33 = load i8** %v0, align 8
+  %33 = load i8** %v0, align 4
   %34 = bitcast i8* %33 to %class.YaQBoxLayout*
-  %35 = load i8** %v0, align 8
+  %35 = load i8** %v0, align 4
   %36 = bitcast i8* %35 to %class.QBoxLayout*
-  %37 = load i8** %v0, align 8
+  %37 = load i8** %v0, align 4
   %38 = bitcast i8* %37 to %class.YaQByteArray*
-  %39 = load i8** %v0, align 8
+  %39 = load i8** %v0, align 4
   %40 = bitcast i8* %39 to %class.QByteArray*
-  %41 = load i8** %v0, align 8
+  %41 = load i8** %v0, align 4
   %42 = bitcast i8* %41 to %class.YaQThread*
-  %43 = load i8** %v0, align 8
+  %43 = load i8** %v0, align 4
   %44 = bitcast i8* %43 to %class.QThread*
-  %45 = load i8** %v0, align 8
+  %45 = load i8** %v0, align 4
   %46 = bitcast i8* %45 to %class.YaQCoreApplication*
-  %47 = load i8** %v0, align 8
+  %47 = load i8** %v0, align 4
   %48 = bitcast i8* %47 to %class.QCoreApplication*
-  %49 = load i8** %v0, align 8
+  %49 = load i8** %v0, align 4
   %50 = bitcast i8* %49 to %class.YaQChar*
-  %51 = load i8** %v0, align 8
+  %51 = load i8** %v0, align 4
   %52 = bitcast i8* %51 to %class.QChar*
-  %53 = load i8** %v0, align 8
+  %53 = load i8** %v0, align 4
   %54 = bitcast i8* %53 to %class.YaQStringList*
-  %55 = load i8** %v0, align 8
+  %55 = load i8** %v0, align 4
   %56 = bitcast i8* %55 to %class.QStringList*
-  %57 = load i8** %v0, align 8
+  %57 = load i8** %v0, align 4
   %58 = bitcast i8* %57 to %class.YaQTimer*
-  %59 = load i8** %v0, align 8
+  %59 = load i8** %v0, align 4
   %60 = bitcast i8* %59 to %class.QTimer*
-  %61 = load i8** %v0, align 8
+  %61 = load i8** %v0, align 4
   %62 = bitcast i8* %61 to %class.YaQDateTime*
-  %63 = load i8** %v0, align 8
+  %63 = load i8** %v0, align 4
   %64 = bitcast i8* %63 to %class.QDateTime*
-  %65 = load i8** %v0, align 8
+  %65 = load i8** %v0, align 4
   %66 = bitcast i8* %65 to %class.YaQUrl*
-  %67 = load i8** %v0, align 8
+  %67 = load i8** %v0, align 4
   %68 = bitcast i8* %67 to %class.QUrl*
-  %69 = load i8** %v0, align 8
+  %69 = load i8** %v0, align 4
   %70 = bitcast i8* %69 to %class.YaQFile*
-  %71 = load i8** %v0, align 8
+  %71 = load i8** %v0, align 4
   %72 = bitcast i8* %71 to %class.QFile*
-  %73 = load i8** %v0, align 8
+  %73 = load i8** %v0, align 4
   %74 = bitcast i8* %73 to %class.YaQRegExp*
-  %75 = load i8** %v0, align 8
+  %75 = load i8** %v0, align 4
   %76 = bitcast i8* %75 to %class.QRegExp*
-  %77 = load i8** %v0, align 8
+  %77 = load i8** %v0, align 4
   %78 = bitcast i8* %77 to %class.YaQHostAddress*
-  %79 = load i8** %v0, align 8
+  %79 = load i8** %v0, align 4
   %80 = bitcast i8* %79 to %class.QHostAddress*
-  %81 = load i8** %v0, align 8
+  %81 = load i8** %v0, align 4
   %82 = bitcast i8* %81 to %class.YaQAbstractSocket*
-  %83 = load i8** %v0, align 8
+  %83 = load i8** %v0, align 4
   %84 = bitcast i8* %83 to %class.QAbstractSocket*
-  %85 = load i8** %v0, align 8
+  %85 = load i8** %v0, align 4
   %86 = bitcast i8* %85 to %class.YaQTcpSocket*
-  %87 = load i8** %v0, align 8
+  %87 = load i8** %v0, align 4
   %88 = bitcast i8* %87 to %class.QTcpSocket*
-  %89 = load i8** %v0, align 8
+  %89 = load i8** %v0, align 4
   %90 = bitcast i8* %89 to %class.YaQTcpServer*
-  %91 = load i8** %v0, align 8
+  %91 = load i8** %v0, align 4
   %92 = bitcast i8* %91 to %class.QTcpServer*
-  %93 = load i8** %v0, align 8
+  %93 = load i8** %v0, align 4
   %94 = bitcast i8* %93 to %class.YaQSslSocket*
-  %95 = load i8** %v0, align 8
+  %95 = load i8** %v0, align 4
   %96 = bitcast i8* %95 to %class.QSslSocket*
-  %97 = load i8** %v0, align 8
+  %97 = load i8** %v0, align 4
   %98 = bitcast i8* %97 to %class.YaQSslCipher*
-  %99 = load i8** %v0, align 8
+  %99 = load i8** %v0, align 4
   %100 = bitcast i8* %99 to %class.QSslCipher*
-  %101 = load i8** %v0, align 8
+  %101 = load i8** %v0, align 4
   %102 = bitcast i8* %101 to %class.YaQSslConfiguration*
-  %103 = load i8** %v0, align 8
+  %103 = load i8** %v0, align 4
   %104 = bitcast i8* %103 to %class.QSslConfiguration*
-  %105 = load i8** %v0, align 8
+  %105 = load i8** %v0, align 4
   %106 = bitcast i8* %105 to %class.YaQSslError*
-  %107 = load i8** %v0, align 8
+  %107 = load i8** %v0, align 4
   %108 = bitcast i8* %107 to %class.QSslError*
-  %109 = load i8** %v0, align 8
+  %109 = load i8** %v0, align 4
   %110 = bitcast i8* %109 to %class.YaQSslKey*
-  %111 = load i8** %v0, align 8
+  %111 = load i8** %v0, align 4
   %112 = bitcast i8* %111 to %class.QSslKey*
-  %113 = load i8** %v0, align 8
+  %113 = load i8** %v0, align 4
   %114 = bitcast i8* %113 to %class.YaQNetworkCookie*
-  %115 = load i8** %v0, align 8
+  %115 = load i8** %v0, align 4
   %116 = bitcast i8* %115 to %class.QNetworkCookie*
-  %117 = load i8** %v0, align 8
+  %117 = load i8** %v0, align 4
   %118 = bitcast i8* %117 to %class.YaQNetworkCookieJar*
-  %119 = load i8** %v0, align 8
+  %119 = load i8** %v0, align 4
   %120 = bitcast i8* %119 to %class.QNetworkCookieJar*
-  %121 = load i8** %v0, align 8
+  %121 = load i8** %v0, align 4
   %122 = bitcast i8* %121 to %class.YaQNetworkAccessManager*
-  %123 = load i8** %v0, align 8
+  %123 = load i8** %v0, align 4
   %124 = bitcast i8* %123 to %class.QNetworkAccessManager*
-  %125 = load i8** %v0, align 8
+  %125 = load i8** %v0, align 4
   %126 = bitcast i8* %125 to %class.YaQNetworkRequest*
-  %127 = load i8** %v0, align 8
+  %127 = load i8** %v0, align 4
   %128 = bitcast i8* %127 to %class.QNetworkRequest*
-  %129 = load i8** %v0, align 8
+  %129 = load i8** %v0, align 4
   %130 = bitcast i8* %129 to %class.YaQNetworkReply*
-  %131 = load i8** %v0, align 8
+  %131 = load i8** %v0, align 4
   %132 = bitcast i8* %131 to %class.QNetworkReply*
-  %133 = load i8** %v0, align 8
+  %133 = load i8** %v0, align 4
   %134 = bitcast i8* %133 to %class.YaQGuiApplication*
-  %135 = load i8** %v0, align 8
+  %135 = load i8** %v0, align 4
   %136 = bitcast i8* %135 to %class.QGuiApplication*
-  %137 = load i8** %v0, align 8
+  %137 = load i8** %v0, align 4
   %138 = bitcast i8* %137 to %class.YaQIcon*
-  %139 = load i8** %v0, align 8
+  %139 = load i8** %v0, align 4
   %140 = bitcast i8* %139 to %class.QIcon*
-  %141 = load i8** %v0, align 8
+  %141 = load i8** %v0, align 4
   %142 = bitcast i8* %141 to %class.YaQWidget*
-  %143 = load i8** %v0, align 8
+  %143 = load i8** %v0, align 4
   %144 = bitcast i8* %143 to %class.QWidget*
-  %145 = load i8** %v0, align 8
+  %145 = load i8** %v0, align 4
   %146 = bitcast i8* %145 to %class.YaQMainWindow*
-  %147 = load i8** %v0, align 8
+  %147 = load i8** %v0, align 4
   %148 = bitcast i8* %147 to %class.QMainWindow*
   ret void
 }
 
-; Function Attrs: uwtable
 define void @_Z31__keep_jit_cannot_gen_functionsv() #1 {
-  %1 = alloca %struct.QTypedArrayData.0, align 8
-  %2 = alloca %struct.QTypedArrayData, align 8
-  %3 = alloca %struct.QTypedArrayData.13, align 8
-  %4 = call %struct.QTypedArrayData* @_ZN15QTypedArrayDataItE10sharedNullEv()
-  %5 = call %struct.QTypedArrayData.0* @_ZN15QTypedArrayDataIcE10sharedNullEv()
-  %6 = bitcast %struct.QTypedArrayData.0* %1 to i8*
-  call void @llvm.memset.p0i8.i64(i8* %6, i8 0, i64 24, i32 8, i1 false)
-  %7 = call i8* @_ZN15QTypedArrayDataIcE4dataEv(%struct.QTypedArrayData.0* %1)
-  %8 = bitcast %struct.QTypedArrayData* %2 to i8*
-  call void @llvm.memset.p0i8.i64(i8* %8, i8 0, i64 24, i32 8, i1 false)
-  %9 = call i16* @_ZN15QTypedArrayDataItE4dataEv(%struct.QTypedArrayData* %2)
-  %10 = bitcast %struct.QTypedArrayData.13* %3 to i8*
-  call void @llvm.memset.p0i8.i64(i8* %10, i8 0, i64 24, i32 8, i1 false)
-  %11 = call i32* @_ZN15QTypedArrayDataIiE4dataEv(%struct.QTypedArrayData.13* %3)
+  %1 = alloca %struct.QTypedArrayData.0, align 4
+  %2 = alloca %struct.QTypedArrayData, align 4
+  %3 = alloca %struct.QTypedArrayData.13, align 4
+  %4 = alloca %struct.QTypedArrayData.14, align 4
+  %5 = call %struct.QTypedArrayData* @_ZN15QTypedArrayDataItE10sharedNullEv()
+  %6 = call %struct.QTypedArrayData.0* @_ZN15QTypedArrayDataIcE10sharedNullEv()
+  %7 = bitcast %struct.QTypedArrayData.0* %1 to i8*
+  call void @llvm.memset.p0i8.i32(i8* %7, i8 0, i32 16, i32 4, i1 false)
+  %8 = call i8* @_ZN15QTypedArrayDataIcE4dataEv(%struct.QTypedArrayData.0* %1)
+  %9 = bitcast %struct.QTypedArrayData* %2 to i8*
+  call void @llvm.memset.p0i8.i32(i8* %9, i8 0, i32 16, i32 4, i1 false)
+  %10 = call i16* @_ZN15QTypedArrayDataItE4dataEv(%struct.QTypedArrayData* %2)
+  %11 = bitcast %struct.QTypedArrayData.13* %3 to i8*
+  call void @llvm.memset.p0i8.i32(i8* %11, i8 0, i32 16, i32 4, i1 false)
+  %12 = call i16* @_ZN15QTypedArrayDataIsE4dataEv(%struct.QTypedArrayData.13* %3)
+  %13 = bitcast %struct.QTypedArrayData.14* %4 to i8*
+  call void @llvm.memset.p0i8.i32(i8* %13, i8 0, i32 16, i32 4, i1 false)
+  %14 = call i32* @_ZN15QTypedArrayDataIiE4dataEv(%struct.QTypedArrayData.14* %4)
   ret void
 }
 
-; Function Attrs: uwtable
 define linkonce_odr %struct.QTypedArrayData* @_ZN15QTypedArrayDataItE10sharedNullEv() #1 align 2 {
   %1 = call %struct.QArrayData* @_ZN10QArrayData10sharedNullEv()
   %2 = bitcast %struct.QArrayData* %1 to %struct.QTypedArrayData*
   ret %struct.QTypedArrayData* %2
 }
 
-; Function Attrs: nounwind uwtable
+; Function Attrs: nounwind
 define linkonce_odr %struct.QTypedArrayData.0* @_ZN15QTypedArrayDataIcE10sharedNullEv() #0 align 2 {
   %1 = call %struct.QArrayData* @_ZN10QArrayData10sharedNullEv()
   %2 = bitcast %struct.QArrayData* %1 to %struct.QTypedArrayData.0*
@@ -326,22 +328,20 @@ define linkonce_odr %struct.QTypedArrayData.0* @_ZN15QTypedArrayDataIcE10sharedN
 }
 
 ; Function Attrs: nounwind
-declare void @llvm.memset.p0i8.i64(i8* nocapture, i8, i64, i32, i1) #2
+declare void @llvm.memset.p0i8.i32(i8* nocapture, i8, i32, i32, i1) #2
 
-; Function Attrs: uwtable
 define linkonce_odr i8* @_ZN15QTypedArrayDataIcE4dataEv(%struct.QTypedArrayData.0* %this) #1 align 2 {
-  %1 = alloca %struct.QTypedArrayData.0*, align 8
-  store %struct.QTypedArrayData.0* %this, %struct.QTypedArrayData.0** %1, align 8
+  %1 = alloca %struct.QTypedArrayData.0*, align 4
+  store %struct.QTypedArrayData.0* %this, %struct.QTypedArrayData.0** %1, align 4
   %2 = load %struct.QTypedArrayData.0** %1
   %3 = bitcast %struct.QTypedArrayData.0* %2 to %struct.QArrayData*
   %4 = call i8* @_ZN10QArrayData4dataEv(%struct.QArrayData* %3)
   ret i8* %4
 }
 
-; Function Attrs: uwtable
 define linkonce_odr i16* @_ZN15QTypedArrayDataItE4dataEv(%struct.QTypedArrayData* %this) #1 align 2 {
-  %1 = alloca %struct.QTypedArrayData*, align 8
-  store %struct.QTypedArrayData* %this, %struct.QTypedArrayData** %1, align 8
+  %1 = alloca %struct.QTypedArrayData*, align 4
+  store %struct.QTypedArrayData* %this, %struct.QTypedArrayData** %1, align 4
   %2 = load %struct.QTypedArrayData** %1
   %3 = bitcast %struct.QTypedArrayData* %2 to %struct.QArrayData*
   %4 = call i8* @_ZN10QArrayData4dataEv(%struct.QArrayData* %3)
@@ -349,21 +349,29 @@ define linkonce_odr i16* @_ZN15QTypedArrayDataItE4dataEv(%struct.QTypedArrayData
   ret i16* %5
 }
 
-; Function Attrs: uwtable
-define linkonce_odr i32* @_ZN15QTypedArrayDataIiE4dataEv(%struct.QTypedArrayData.13* %this) #1 align 2 {
-  %1 = alloca %struct.QTypedArrayData.13*, align 8
-  store %struct.QTypedArrayData.13* %this, %struct.QTypedArrayData.13** %1, align 8
+define linkonce_odr i16* @_ZN15QTypedArrayDataIsE4dataEv(%struct.QTypedArrayData.13* %this) #1 align 2 {
+  %1 = alloca %struct.QTypedArrayData.13*, align 4
+  store %struct.QTypedArrayData.13* %this, %struct.QTypedArrayData.13** %1, align 4
   %2 = load %struct.QTypedArrayData.13** %1
   %3 = bitcast %struct.QTypedArrayData.13* %2 to %struct.QArrayData*
+  %4 = call i8* @_ZN10QArrayData4dataEv(%struct.QArrayData* %3)
+  %5 = bitcast i8* %4 to i16*
+  ret i16* %5
+}
+
+define linkonce_odr i32* @_ZN15QTypedArrayDataIiE4dataEv(%struct.QTypedArrayData.14* %this) #1 align 2 {
+  %1 = alloca %struct.QTypedArrayData.14*, align 4
+  store %struct.QTypedArrayData.14* %this, %struct.QTypedArrayData.14** %1, align 4
+  %2 = load %struct.QTypedArrayData.14** %1
+  %3 = bitcast %struct.QTypedArrayData.14* %2 to %struct.QArrayData*
   %4 = call i8* @_ZN10QArrayData4dataEv(%struct.QArrayData* %3)
   %5 = bitcast i8* %4 to i32*
   ret i32* %5
 }
 
-; Function Attrs: uwtable
 define linkonce_odr i8* @_ZN10QArrayData4dataEv(%struct.QArrayData* %this) #1 align 2 {
-  %1 = alloca %struct.QArrayData*, align 8
-  store %struct.QArrayData* %this, %struct.QArrayData** %1, align 8
+  %1 = alloca %struct.QArrayData*, align 4
+  store %struct.QArrayData* %this, %struct.QArrayData** %1, align 4
   %2 = load %struct.QArrayData** %1
   %3 = getelementptr inbounds %struct.QArrayData* %2, i32 0, i32 1
   %4 = load i32* %3, align 4
@@ -372,14 +380,14 @@ define linkonce_odr i8* @_ZN10QArrayData4dataEv(%struct.QArrayData* %this) #1 al
 
 ; <label>:6                                       ; preds = %0
   %7 = getelementptr inbounds %struct.QArrayData* %2, i32 0, i32 3
-  %8 = load i64* %7, align 8
-  %9 = icmp slt i64 %8, 0
+  %8 = load i32* %7, align 4
+  %9 = icmp slt i32 %8, 0
   br i1 %9, label %16, label %10
 
 ; <label>:10                                      ; preds = %6
   %11 = getelementptr inbounds %struct.QArrayData* %2, i32 0, i32 3
-  %12 = load i64* %11, align 8
-  %13 = icmp uge i64 %12, 24
+  %12 = load i32* %11, align 4
+  %13 = icmp uge i32 %12, 16
   br i1 %13, label %16, label %14
 
 ; <label>:14                                      ; preds = %10
@@ -395,29 +403,29 @@ define linkonce_odr i8* @_ZN10QArrayData4dataEv(%struct.QArrayData* %this) #1 al
 ; <label>:17                                      ; preds = %16, %15
   %18 = bitcast %struct.QArrayData* %2 to i8*
   %19 = getelementptr inbounds %struct.QArrayData* %2, i32 0, i32 3
-  %20 = load i64* %19, align 8
-  %21 = getelementptr inbounds i8* %18, i64 %20
+  %20 = load i32* %19, align 4
+  %21 = getelementptr inbounds i8* %18, i32 %20
   ret i8* %21
 }
 
 ; Function Attrs: noreturn nounwind
 declare void @_Z9qt_assertPKcS0_i(i8*, i8*, i32) #3
 
-; Function Attrs: inlinehint nounwind uwtable
+; Function Attrs: inlinehint nounwind
 define linkonce_odr void @_Z7qt_noopv() #4 {
   ret void
 }
 
-; Function Attrs: nounwind uwtable
+; Function Attrs: nounwind
 define linkonce_odr %struct.QArrayData* @_ZN10QArrayData10sharedNullEv() #0 align 2 {
   ret %struct.QArrayData* getelementptr inbounds ([2 x %struct.QArrayData]* @_ZN10QArrayData11shared_nullE, i32 0, i32 0)
 }
 
-attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #1 = { uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #1 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #2 = { nounwind }
 attributes #3 = { noreturn nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #4 = { inlinehint nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #4 = { inlinehint nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #5 = { noreturn nounwind }
 
 !llvm.ident = !{!0}
