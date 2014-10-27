@@ -8,6 +8,9 @@
 #include <clang/Driver/Driver.h>
 #include <clang/Driver/Tool.h>
 #include <clang/Parse/ParseAST.h>
+#include <clang/Sema/Sema.h>
+#include <clang/Sema/Template.h>
+#include <clang/AST/ASTLambda.h>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/DeclTemplate.h>
@@ -1495,8 +1498,285 @@ void testGenerateCode(clang::CodeGen::CodeGenModule &CGM, clang::GlobalDecl GD, 
     }
 }
 
+using namespace clang;
+
+/// canRedefineFunction - checks if a function can be redefined. Currently,
+/// only extern inline functions can be redefined, and even then only in
+/// GNU89 mode.
+static bool canRedefineFunction1(const FunctionDecl *FD,
+                                const LangOptions& LangOpts) {
+  return ((FD->hasAttr<GNUInlineAttr>() || LangOpts.GNUInline) &&
+          !LangOpts.CPlusPlus &&
+          FD->isInlineSpecified() &&
+          FD->getStorageClass() == SC_Extern);
+}
+
+
+
+static void RebuildLambdaScopeInfo1(CXXMethodDecl *CallOperator, 
+                                   Sema &S) {
+  CXXRecordDecl *const LambdaClass = CallOperator->getParent();
+
+  using namespace clang::sema;
+  LambdaScopeInfo *LSI = S.PushLambdaScope();
+  LSI->CallOperator = CallOperator;
+  LSI->Lambda = LambdaClass;
+  LSI->ReturnType = CallOperator->getReturnType();
+  const LambdaCaptureDefault LCD = LambdaClass->getLambdaCaptureDefault();
+
+  if (LCD == LCD_None)
+    LSI->ImpCaptureStyle = CapturingScopeInfo::ImpCap_None;
+  else if (LCD == LCD_ByCopy)
+    LSI->ImpCaptureStyle = CapturingScopeInfo::ImpCap_LambdaByval;
+  else if (LCD == LCD_ByRef)
+    LSI->ImpCaptureStyle = CapturingScopeInfo::ImpCap_LambdaByref;
+  DeclarationNameInfo DNI = CallOperator->getNameInfo();
+    
+  LSI->IntroducerRange = DNI.getCXXOperatorNameRange(); 
+  LSI->Mutable = !CallOperator->isConst();
+
+  // Add the captures to the LSI so they can be noted as already
+  // captured within tryCaptureVar. 
+  for (const auto &C : LambdaClass->captures()) {
+    if (C.capturesVariable()) {
+      VarDecl *VD = C.getCapturedVar();
+      if (VD->isInitCapture())
+        S.CurrentInstantiationScope->InstantiatedLocal(VD, VD);
+      QualType CaptureType = VD->getType();
+      const bool ByRef = C.getCaptureKind() == LCK_ByRef;
+      LSI->addCapture(VD, /*IsBlock*/false, ByRef, 
+          /*RefersToEnclosingLocal*/true, C.getLocation(),
+          /*EllipsisLoc*/C.isPackExpansion() 
+                         ? C.getEllipsisLoc() : SourceLocation(),
+          CaptureType, /*Expr*/ nullptr);
+
+    } else if (C.capturesThis()) {
+      LSI->addThisCapture(/*Nested*/ false, C.getLocation(), 
+                              S.getCurrentThisType(), /*Expr*/ nullptr);
+    }
+  }
+}
+
+Decl *ActOnStartOfFunctionDef(Scope *FnBodyScope, Decl *D, Sema *sema, ASTContext &Context) {
+  // Clear the last template instantiation error context.
+  // LastTemplateInstantiationErrorContext = ActiveTemplateInstantiation();
+
+  
+  if (!D)
+    return D;
+  FunctionDecl *FD = nullptr;
+
+  if (FunctionTemplateDecl *FunTmpl = dyn_cast<FunctionTemplateDecl>(D))
+    FD = FunTmpl->getTemplatedDecl();
+  else
+    FD = cast<FunctionDecl>(D);
+  // If we are instantiating a generic lambda call operator, push
+  // a LambdaScopeInfo onto the function stack.  But use the information
+  // that's already been calculated (ActOnLambdaExpr) to prime the current 
+  // LambdaScopeInfo.  
+  // When the template operator is being specialized, the LambdaScopeInfo,
+  // has to be properly restored so that tryCaptureVariable doesn't try
+  // and capture any new variables. In addition when calculating potential
+  // captures during transformation of nested lambdas, it is necessary to 
+  // have the LSI properly restored. 
+  if (isGenericLambdaCallOperatorSpecialization(FD)) {
+    assert(ActiveTemplateInstantiations.size() &&
+      "There should be an active template instantiation on the stack " 
+      "when instantiating a generic lambda!");
+    RebuildLambdaScopeInfo1(cast<CXXMethodDecl>(D), *sema);
+  }
+  else
+    // Enter a new function scope
+      sema->PushFunctionScope();
+
+  const char *aname = (FD->getIdentifier() ?
+                       FD->getIdentifier()->getName().data() : "fffffffff");
+  if (std::string(aname) == std::string("sharedNull")) {
+      std::cout<<"aaaaaaaaa"<<__LINE__<<","<<__FILE__
+               <<","<<FnBodyScope
+               <<","<<D
+               <<std::endl;
+      FD->dumpColor();
+  }
+  
+
+  // See if this is a redefinition.
+  if (!FD->isLateTemplateParsed())
+      sema->CheckForFunctionRedefinition(FD);
+
+  // Builtin functions cannot be defined.
+  if (unsigned BuiltinID = FD->getBuiltinID()) {
+    // if (!Context.BuiltinInfo.isPredefinedLibFunction(BuiltinID) &&
+    //     !Context.BuiltinInfo.isPredefinedRuntimeFunction(BuiltinID)) {
+    //   Diag(FD->getLocation(), diag::err_builtin_definition) << FD;
+    //   FD->setInvalidDecl();
+    // }
+  }
+
+  // The return type of a function definition must be complete
+  // (C99 6.9.1p3, C++ [dcl.fct]p6).
+  QualType ResultType = FD->getReturnType();
+  // if (!ResultType->isDependentType() && !ResultType->isVoidType() &&
+  //     !FD->isInvalidDecl() &&
+  //     RequireCompleteType(FD->getLocation(), ResultType,
+  //                         diag::err_func_def_incomplete_result))
+  //   FD->setInvalidDecl();
+
+  // // GNU warning -Wmissing-prototypes:
+  // //   Warn if a global function is defined without a previous
+  // //   prototype declaration. This warning is issued even if the
+  // //   definition itself provides a prototype. The aim is to detect
+  // //   global functions that fail to be declared in header files.
+  const FunctionDecl *PossibleZeroParamPrototype = nullptr;
+  // if (sema->ShouldWarnAboutMissingPrototype(FD, PossibleZeroParamPrototype)) {
+  //     // Diag(FD->getLocation(), diag::warn_missing_prototype) << FD;
+
+  //   if (PossibleZeroParamPrototype) {
+  //     // We found a declaration that is not a prototype,
+  //     // but that could be a zero-parameter prototype
+  //     if (TypeSourceInfo *TI =
+  //             PossibleZeroParamPrototype->getTypeSourceInfo()) {
+  //       TypeLoc TL = TI->getTypeLoc();
+  //       if (FunctionNoProtoTypeLoc FTL = TL.getAs<FunctionNoProtoTypeLoc>()) {
+  //         // Diag(PossibleZeroParamPrototype->getLocation(),
+  //         //      diag::note_declaration_not_a_prototype)
+  //         //   << PossibleZeroParamPrototype
+  //         //   << FixItHint::CreateInsertion(FTL.getRParenLoc(), "void");
+  //       }
+  //     }
+  //   }
+  // }
+
+  if (FnBodyScope)
+      sema->PushDeclContext(FnBodyScope, FD);
+
+  // Check the validity of our function parameters
+  sema->CheckParmsForFunctionDef(FD->param_begin(), FD->param_end(),
+                           /*CheckParameterNames=*/true);
+
+  // Introduce our parameters into the function scope
+  for (auto Param : FD->params()) {
+    Param->setOwningFunction(FD);
+
+    // If this has an identifier, add it to the scope stack.
+    if (Param->getIdentifier() && FnBodyScope) {
+        sema->CheckShadow(FnBodyScope, Param);
+
+      sema->PushOnScopeChains(Param, FnBodyScope);
+    }
+  }
+
+  // // If we had any tags defined in the function prototype,
+  // // introduce them into the function scope.
+  // if (FnBodyScope) {
+  //   for (ArrayRef<NamedDecl *>::iterator
+  //            I = FD->getDeclsInPrototypeScope().begin(),
+  //            E = FD->getDeclsInPrototypeScope().end();
+  //        I != E; ++I) {
+  //     NamedDecl *D = *I;
+
+  //     // Some of these decls (like enums) may have been pinned to the translation unit
+  //     // for lack of a real context earlier. If so, remove from the translation unit
+  //     // and reattach to the current context.
+  //     if (D->getLexicalDeclContext() == Context.getTranslationUnitDecl()) {
+  //       // Is the decl actually in the context?
+  //       for (const auto *DI : Context.getTranslationUnitDecl()->decls()) {
+  //         if (DI == D) {  
+  //           Context.getTranslationUnitDecl()->removeDecl(D);
+  //           break;
+  //         }
+  //       }
+  //       // Either way, reassign the lexical decl context to our FunctionDecl.
+  //       D->setLexicalDeclContext(CurContext);
+  //     }
+
+  //     // If the decl has a non-null name, make accessible in the current scope.
+  //     if (!D->getName().empty())
+  //       PushOnScopeChains(D, FnBodyScope, /*AddToContext=*/false);
+
+  //     // Similarly, dive into enums and fish their constants out, making them
+  //     // accessible in this scope.
+  //     if (auto *ED = dyn_cast<EnumDecl>(D)) {
+  //       for (auto *EI : ED->enumerators())
+  //         PushOnScopeChains(EI, FnBodyScope, /*AddToContext=*/false);
+  //     }
+  //   }
+  // }
+
+  // Ensure that the function's exception specification is instantiated.
+  if (const FunctionProtoType *FPT = FD->getType()->getAs<FunctionProtoType>())
+      sema->ResolveExceptionSpec(D->getLocation(), FPT);
+
+  // dllimport cannot be applied to non-inline function definitions.
+  if (FD->hasAttr<DLLImportAttr>() && !FD->isInlined() &&
+      !FD->isTemplateInstantiation()) {
+    assert(!FD->hasAttr<DLLExportAttr>());
+    // Diag(FD->getLocation(), diag::err_attribute_dllimport_function_definition);
+    FD->setInvalidDecl();
+    return D;
+  }
+  // // We want to attach documentation to original Decl (which might be
+  // // a function template).
+  // ActOnDocumentableDecl(D);
+  // if (getCurLexicalContext()->isObjCContainer() &&
+  //     getCurLexicalContext()->getDeclKind() != Decl::ObjCCategoryImpl &&
+  //     getCurLexicalContext()->getDeclKind() != Decl::ObjCImplementation)
+  //   Diag(FD->getLocation(), diag::warn_function_def_in_objc_container);
+    
+  return D;
+}
+
+/// Introduce the instantiated function parameters into the local
+/// instantiation scope, and set the parameter names to those used
+/// in the template.
+static void addInstantiatedParametersToScope1(Sema &S, FunctionDecl *Function,
+                                             const FunctionDecl *PatternDecl,
+                                             LocalInstantiationScope &Scope,
+                           const MultiLevelTemplateArgumentList &TemplateArgs) {
+  unsigned FParamIdx = 0;
+  for (unsigned I = 0, N = PatternDecl->getNumParams(); I != N; ++I) {
+    const ParmVarDecl *PatternParam = PatternDecl->getParamDecl(I);
+    if (!PatternParam->isParameterPack()) {
+      // Simple case: not a parameter pack.
+      assert(FParamIdx < Function->getNumParams());
+      ParmVarDecl *FunctionParam = Function->getParamDecl(FParamIdx);
+      // If the parameter's type is not dependent, update it to match the type
+      // in the pattern. They can differ in top-level cv-qualifiers, and we want
+      // the pattern's type here. If the type is dependent, they can't differ,
+      // per core issue 1668.
+      // FIXME: Updating the type to work around this is at best fragile.
+      if (!PatternDecl->getType()->isDependentType())
+        FunctionParam->setType(PatternParam->getType());
+
+      FunctionParam->setDeclName(PatternParam->getDeclName());
+      Scope.InstantiatedLocal(PatternParam, FunctionParam);
+      ++FParamIdx;
+      continue;
+    }
+
+    // Expand the parameter pack.
+    Scope.MakeInstantiatedLocalArgPack(PatternParam);
+    Optional<unsigned> NumArgumentsInExpansion
+      = S.getNumArgumentsInExpansion(PatternParam->getType(), TemplateArgs);
+    assert(NumArgumentsInExpansion &&
+           "should only be called when all template arguments are known");
+    for (unsigned Arg = 0; Arg < *NumArgumentsInExpansion; ++Arg) {
+      ParmVarDecl *FunctionParam = Function->getParamDecl(FParamIdx);
+      if (!PatternDecl->getType()->isDependentType())
+        FunctionParam->setType(PatternParam->getType());
+
+      FunctionParam->setDeclName(PatternParam->getDeclName());
+      Scope.InstantiatedLocalPackArg(PatternParam, FunctionParam);
+      ++FParamIdx;
+    }
+  }
+}
+
+#include "tptr.cpp"
+
 // 不能正确生成ll代码
-bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit)
+bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTContext &ctx,
+                                    clang::ASTUnit *unit)
 {
     qDebug()<<"kind name:"<<decl->getDeclKindName();
 
@@ -1504,7 +1784,7 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
     qDebug()<<"QTypedArrayData:"<<rec_decl2;
     clang::Decl *td = NULL;
 
-    // for test;
+    // for test;先查找到方法
     for (auto d: rec_decl2->methods()) {
         qDebug()<<d->getName().data();
         QString mthname = QString(d->getName().data());
@@ -1515,7 +1795,16 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
     }
     auto mthdecl = clang::cast<clang::CXXMethodDecl>(td);
     td->dumpColor();
-    qDebug()<<mthdecl->getName().data();
+    mthdecl->getBody()->dumpColor();
+    
+    qDebug()<<mthdecl->getName().data()<<mthdecl->clang::Decl::getDeclKindName()
+            <<llvm::isa<clang::FunctionTemplateDecl>(mthdecl); // not FunctionTemplateDecl
+    qDebug()<<mthdecl->hasBody()<<mthdecl->hasInlineBody()<<mthdecl->isInlined()
+            <<mthdecl->isFunctionTemplateSpecialization()
+            <<mthdecl->isTemplateDecl()
+            <<mthdecl->isFunctionOrFunctionTemplate()
+            <<mthdecl->getTemplatedKind();
+
 
     auto genmth = [](clang::CodeGen::CodeGenModule &cgm,
                      clang::CodeGen::CodeGenFunction &cgf,
@@ -1597,6 +1886,88 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
         }
     }
 
+    if (true) {
+        qDebug()<<"==============";        
+        mthdecl2->dumpColor();
+        qDebug()<<unit->hasSema();
+        auto &sema = unit->getSema();
+        sema.Initialize();
+        qDebug()<<&sema.getASTContext()<<&ctx; // (==)
+        
+        std::string locstr = mthdecl2->getLocation().printToString(ctx.getSourceManager());
+        qDebug()<<locstr.c_str();
+        // ActOnStartOfFunctionDef(nullptr, mthdecl2, &sema, ctx);
+        // sema.ActOnStartOfFunctionDef(nullptr, mthdecl2);
+        // sema.InstantiateFunctionDefinition(mthdecl2->getLocation(), mthdecl2, true, true);
+
+        // Find the function body that we'll be substituting.
+        const FunctionDecl *PatternDecl = mthdecl2->getTemplateInstantiationPattern();
+        Stmt *Pattern = PatternDecl->getBody(PatternDecl);
+
+        bool MergeWithParentScope = false;
+        if (CXXRecordDecl *Rec = dyn_cast<CXXRecordDecl>(mthdecl2->getDeclContext()))
+            MergeWithParentScope = Rec->isLocalClass();
+
+        LocalInstantiationScope Scope(sema, MergeWithParentScope);
+
+        
+        MultiLevelTemplateArgumentList TemplateArgs =
+            sema.getTemplateInstantiationArgs(mthdecl2, nullptr, false, PatternDecl);
+
+        addInstantiatedParametersToScope1(sema, mthdecl2, PatternDecl, Scope,
+                                         TemplateArgs);
+
+        // If this is a constructor, instantiate the member initializers.
+        // if (const CXXConstructorDecl *Ctor =
+        //     dyn_cast<CXXConstructorDecl>(PatternDecl)) {
+        //     InstantiateMemInitializers(cast<CXXConstructorDecl>(Function), Ctor,
+        //                                TemplateArgs);
+        // }
+
+        // Instantiate the function body.
+        // StmtResult Body = sema.SubstStmt(Pattern, TemplateArgs);
+
+        qDebug()<<mthdecl2->getTranslationUnitDecl();
+        qDebug()<<mthdecl->getTranslationUnitDecl();
+        
+        qDebug()<<"==============";
+        mthdecl2->dumpColor();
+        qDebug()<<"==============";
+        qDebug()<<ctx.getTranslationUnitDecl()->isTranslationUnit(); // true
+        qDebug()<<sema.getCurFunction();
+        sema.PushFunctionScope();
+        auto scope = sema.getScopeForContext(llvm::cast<clang::DeclContext>(decl));
+        qDebug()<<scope<<llvm::cast<clang::DeclContext>(decl);
+        // sema.ActOnEndOfTranslationUnit();
+        sema.PrintStats();
+
+        qDebug()<<TemplateArgs.getNumLevels();
+        auto arglist = TemplateArgs.getInnermost();
+        for (auto a: arglist) {
+            qDebug()<<a.getAsType().getAsString().data();
+        }
+        clvm::TemplateInstantiator instor(sema, TemplateArgs, mthdecl->getLocation(), DeclarationName());
+        auto cd = instor.TransformDecl(mthdecl->getLocation(), mthdecl2);
+        qDebug()<<cd;
+        cd->dumpColor();
+        sema.PushFunctionScope();
+        qDebug()<<sema.CurrentInstantiationScope;
+        qDebug()<<"curscope:"<<scope;
+        // sema.ActOnStartOfFunctionDef(scope, mthdecl2);
+        mthdecl2->setBody(mthdecl->getBody());
+        qDebug()<<mthdecl2->getDeclContext();
+        
+        clang::TemplateDeclInstantiator instord(sema, mthdecl->getDeclContext(), TemplateArgs);
+        instord.InitMethodInstantiation(mthdecl2, mthdecl);        
+        auto nd = instord.VisitCXXMethodDecl(mthdecl, nullptr, true);
+        qDebug()<<"okkkkkkkkk>???"<<nd;
+        nd->dumpColor();
+        mthdecl2->dumpColor();
+        // auto cd2 = instor.TransformDefinition(mthdecl->getLocation(), mthdecl2);
+        // qDebug()<<cd2;
+        // cd2->dumpColor();
+    }
+    
     if (0) {
         decltype(mthdecl) md = mthdecl;
         qDebug()<<md->hasBody()<<md->hasInlineBody()
@@ -1606,6 +1977,7 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
             d->dumpColor();
         }
         auto s = md->getBody();
+        qDebug()<<"===========";
         s->dumpColor();
         auto a = md->getInstantiatedFromMemberFunction();
         // a->dumpColor();
@@ -1613,6 +1985,63 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
         // md->getTemplateInstantiationPattern()->dumpColor();
     }
 
+    // 测试，先特化，后查找method
+    if (false) {
+        clang::ClassTemplateSpecializationDecl *ctsd;
+        int cnter = 0;
+        for (auto sd: decl->specializations()) {
+            qDebug()<<cnter++<<sd;
+            int jcnter = 0;
+            auto &al = sd->getTemplateArgs();
+            for (int j = 0; j < al.size(); j++) {
+                qDebug()<<jcnter++<<al.get(j).getAsType().getAsString().data();
+                QString tplat = al.get(j).getAsType().getAsString().data();
+                if (tplat == "char") {
+                    ctsd = sd;
+                    clang::TemplateArgument a(al.get(j).getAsType());
+                    void *inspos = nullptr;
+                }
+            }
+        }
+        qDebug()<<"==============";
+        ctsd->dumpColor();
+        std::vector<clang::TemplateArgument> targs;
+        clang::CXXMethodDecl *mth3 = NULL;
+        for (auto md: ctsd->methods()) {
+            QString mthname = md->getName().data();
+            if (mthname == "sharedNull") {
+                mth3 = md;
+                // 也不管用啊
+                mthdecl->setInstantiationOfMemberFunction(mth3,
+                                                       clang::TemplateSpecializationKind
+                                                       ::TSK_ExplicitInstantiationDefinition);
+            }
+        }
+        qDebug()<<mth3;
+        mth3->dumpColor();
+        mthdecl2 = mth3;
+        int kcnter = 0;
+        for (auto rd: mth3->redecls()) {
+            qDebug()<<kcnter++<<rd;
+        }
+
+        qDebug()<<mth3->hasBody()<<mth3->hasInlineBody()<<mth3->isInlined()
+                <<mth3->isFunctionTemplateSpecialization()
+                <<mth3->isTemplateDecl()
+                <<mth3->isFunctionOrFunctionTemplate()
+                <<mth3->getTemplatedKind();
+
+
+        // mth3->setBody(mthdecl->getBody()); // 强制设计body，但body中也有模板参数，没有特化的。
+        // mth3->dumpColor();
+        
+    }
+
+    // 测试，先查找method,再特化
+    if (true) {
+
+    }
+    
     QDateTime btime = QDateTime::currentDateTime();
     // genmth(cgmod, cgf, mthdecl);
 
@@ -1635,7 +2064,8 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
         //     Ty = getTypes().ConvertType(cast<ValueDecl>(GD.getDecl())->getType());
         // cgtypes.ConvertType(clang::cast<clang::ValueDecl>(td)->getType());
         qDebug()<<cgm.getMangledName(clang::GlobalDecl(td)).data();
-        qDebug()<<td<<td->getCorrespondingUnsizedGlobalDeallocationFunction();
+        qDebug()<<td<<td->getCorrespondingUnsizedGlobalDeallocationFunction()
+                <<td->isLambdaStaticInvoker()<<td->isInstance(); // 0x12345, 0x0, false
         cgf.GenerateCode(td, f, FI);
         // testGenerateCode(cgm, clang::GlobalDecl(td), f, FI);
     }

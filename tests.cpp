@@ -151,6 +151,6 @@ void test_one()
     // test_fe();
     // test_piece_compiler();
     // test_dumpast();
-    // test_tpl_piece_compiler();
-    test_ctrl();
+    test_tpl_piece_compiler();
+    // test_ctrl();
 }
