@@ -74,6 +74,10 @@ public:
     bool tryCompile3(clang::CXXRecordDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit);
     bool tryCompile4(clang::CXXRecordDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit);
     bool tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit);
+    bool tryTransform(clang::ClassTemplateDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit,
+                      clang::CXXMethodDecl *mth, clang::CXXMethodDecl *mth2);
+    bool tryTransform2(clang::ClassTemplateDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit,
+                       clang::CXXMethodDecl *mth, clang::CXXMethodDecl *mth2);
 
 public:
     clang::CompilerInstance *mcis = NULL;

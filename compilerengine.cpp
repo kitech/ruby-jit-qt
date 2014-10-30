@@ -1886,7 +1886,127 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
         }
     }
 
+    
+    if (0) {
+        decltype(mthdecl) md = mthdecl;
+        qDebug()<<md->hasBody()<<md->hasInlineBody()
+                <<md->hasTrivialBody();
+        for (auto d: md->redecls()) {
+            qDebug()<<d;
+            d->dumpColor();
+        }
+        auto s = md->getBody();
+        qDebug()<<"===========";
+        s->dumpColor();
+        auto a = md->getInstantiatedFromMemberFunction();
+        // a->dumpColor();
+        // qDebug()<<"aaaaaaaaaaaaa";
+        // md->getTemplateInstantiationPattern()->dumpColor();
+    }
+
+    // 测试，先特化，后查找method
+    if (false) {
+        clang::ClassTemplateSpecializationDecl *ctsd;
+        int cnter = 0;
+        for (auto sd: decl->specializations()) {
+            qDebug()<<cnter++<<sd;
+            int jcnter = 0;
+            auto &al = sd->getTemplateArgs();
+            for (int j = 0; j < al.size(); j++) {
+                qDebug()<<jcnter++<<al.get(j).getAsType().getAsString().data();
+                QString tplat = al.get(j).getAsType().getAsString().data();
+                if (tplat == "char") {
+                    ctsd = sd;
+                    clang::TemplateArgument a(al.get(j).getAsType());
+                    void *inspos = nullptr;
+                }
+            }
+        }
+        qDebug()<<"==============";
+        ctsd->dumpColor();
+        std::vector<clang::TemplateArgument> targs;
+        clang::CXXMethodDecl *mth3 = NULL;
+        for (auto md: ctsd->methods()) {
+            QString mthname = md->getName().data();
+            if (mthname == "sharedNull") {
+                mth3 = md;
+                // 也不管用啊
+                mthdecl->setInstantiationOfMemberFunction(mth3,
+                                                       clang::TemplateSpecializationKind
+                                                       ::TSK_ExplicitInstantiationDefinition);
+            }
+        }
+        qDebug()<<mth3;
+        mth3->dumpColor();
+        mthdecl2 = mth3;
+        int kcnter = 0;
+        for (auto rd: mth3->redecls()) {
+            qDebug()<<kcnter++<<rd;
+        }
+
+        qDebug()<<mth3->hasBody()<<mth3->hasInlineBody()<<mth3->isInlined()
+                <<mth3->isFunctionTemplateSpecialization()
+                <<mth3->isTemplateDecl()
+                <<mth3->isFunctionOrFunctionTemplate()
+                <<mth3->getTemplatedKind();
+
+
+        // mth3->setBody(mthdecl->getBody()); // 强制设计body，但body中也有模板参数，没有特化的。
+        // mth3->dumpColor();
+        
+    }
+
     if (true) {
+        tryTransform2(decl, ctx, unit, mthdecl, mthdecl2);
+    }
+    
+    QDateTime btime = QDateTime::currentDateTime();
+    // genmth(cgmod, cgf, mthdecl);
+
+    {
+        decltype(mthdecl) td = mthdecl2;
+        decltype(cgmod) &cgm = cgmod;
+        auto &cgtypes = cgmod.getTypes();
+        llvm::Constant *v = cgm.GetAddrOfFunction(td, NULL, false, true);
+        qDebug()<<v->getName().data();
+        llvm::Function *f = clang::cast<llvm::Function>(v);
+        const clang::CodeGen::CGFunctionInfo &FI = 
+            cgtypes.arrangeGlobalDeclaration(td);
+        // const clang::Type *Ty = td->getType().getTypePtr();
+        // const clang::FunctionType *FT = clang::cast<clang::FunctionType>(Ty);
+        // const clang::FunctionProtoType *FPT = clang::dyn_cast<clang::FunctionProtoType>(FT);
+        // qDebug()<<Ty<<FT<<FPT;
+        // auto canq =
+        //     clang::CanQual<clang::FunctionProtoType>::CreateUnsafe(td->getType());
+        // auto &FI2 = cgtypes.arrangeFreeFunctionType(canq);
+        //     Ty = getTypes().ConvertType(cast<ValueDecl>(GD.getDecl())->getType());
+        // cgtypes.ConvertType(clang::cast<clang::ValueDecl>(td)->getType());
+        qDebug()<<cgm.getMangledName(clang::GlobalDecl(td)).data();
+        qDebug()<<td<<td->getCorrespondingUnsizedGlobalDeallocationFunction()
+                <<td->isLambdaStaticInvoker()<<td->isInstance(); // 0x12345, 0x0, false
+        cgf.GenerateCode(td, f, FI);
+        // testGenerateCode(cgm, clang::GlobalDecl(td), f, FI);
+    }
+
+    QDateTime etime = QDateTime::currentDateTime();
+    qDebug()<<"gen func time:"<<btime.msecsTo(etime);
+
+    mod.dump();
+    
+    return false;
+}
+
+/*
+  使用sema自带的模板transform实现模板推导
+ */
+bool CompilerEngine::tryTransform(clang::ClassTemplateDecl *decl,
+                                  clang::ASTContext &ctx, clang::ASTUnit *unit,
+                                  clang::CXXMethodDecl *mth, clang::CXXMethodDecl *mth2)
+{
+    clang::CXXMethodDecl *mthdecl = mth;
+    clang::CXXMethodDecl *mthdecl2 = mth2;
+    
+    if (false) {
         qDebug()<<"==============";        
         mthdecl2->dumpColor();
         qDebug()<<unit->hasSema();
@@ -1968,112 +2088,87 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
         // cd2->dumpColor();
     }
     
-    if (0) {
-        decltype(mthdecl) md = mthdecl;
-        qDebug()<<md->hasBody()<<md->hasInlineBody()
-                <<md->hasTrivialBody();
-        for (auto d: md->redecls()) {
-            qDebug()<<d;
-            d->dumpColor();
-        }
-        auto s = md->getBody();
-        qDebug()<<"===========";
-        s->dumpColor();
-        auto a = md->getInstantiatedFromMemberFunction();
-        // a->dumpColor();
-        // qDebug()<<"aaaaaaaaaaaaa";
-        // md->getTemplateInstantiationPattern()->dumpColor();
-    }
+    return false;
+}
 
-    // 测试，先特化，后查找method
-    if (false) {
-        clang::ClassTemplateSpecializationDecl *ctsd;
+/*
+  自己实现的简单的模板类型替换
+  已经能够转换cast<模板类型>的表达式了
+ */
+bool CompilerEngine::tryTransform2(clang::ClassTemplateDecl *decl,
+                                   clang::ASTContext &ctx, clang::ASTUnit *unit,
+                                   clang::CXXMethodDecl *mth, clang::CXXMethodDecl *mth2)
+{
+    // 难度还是比较大的。
+    auto simple_transform = [](clang::CompoundStmt *tmpl, clang::CXXMethodDecl *mth2) -> bool {
         int cnter = 0;
-        for (auto sd: decl->specializations()) {
-            qDebug()<<cnter++<<sd;
-            int jcnter = 0;
-            auto &al = sd->getTemplateArgs();
-            for (int j = 0; j < al.size(); j++) {
-                qDebug()<<jcnter++<<al.get(j).getAsType().getAsString().data();
-                QString tplat = al.get(j).getAsType().getAsString().data();
-                if (tplat == "char") {
-                    ctsd = sd;
-                    clang::TemplateArgument a(al.get(j).getAsType());
-                    void *inspos = nullptr;
-                }
+        for (auto cs: tmpl->children()) {
+            if (cnter == 0) {
+            } else {
+                mth2->setBody(cs);
             }
-        }
-        qDebug()<<"==============";
-        ctsd->dumpColor();
-        std::vector<clang::TemplateArgument> targs;
-        clang::CXXMethodDecl *mth3 = NULL;
-        for (auto md: ctsd->methods()) {
-            QString mthname = md->getName().data();
-            if (mthname == "sharedNull") {
-                mth3 = md;
-                // 也不管用啊
-                mthdecl->setInstantiationOfMemberFunction(mth3,
-                                                       clang::TemplateSpecializationKind
-                                                       ::TSK_ExplicitInstantiationDefinition);
-            }
-        }
-        qDebug()<<mth3;
-        mth3->dumpColor();
-        mthdecl2 = mth3;
-        int kcnter = 0;
-        for (auto rd: mth3->redecls()) {
-            qDebug()<<kcnter++<<rd;
+            qDebug()<<cnter++<<cs<<cs->getStmtClassName();
         }
 
-        qDebug()<<mth3->hasBody()<<mth3->hasInlineBody()<<mth3->isInlined()
-                <<mth3->isFunctionTemplateSpecialization()
-                <<mth3->isTemplateDecl()
-                <<mth3->isFunctionOrFunctionTemplate()
-                <<mth3->getTemplatedKind();
-
-
-        // mth3->setBody(mthdecl->getBody()); // 强制设计body，但body中也有模板参数，没有特化的。
-        // mth3->dumpColor();
+        auto tmpl2 = mth2->getBody();
+        tmpl2->dumpColor();
         
-    }
-
+        QStack<clang::Stmt*> ss;
+        ss.push(tmpl2);
+        while (!ss.isEmpty()) {
+            auto s = ss.pop();
+            if (llvm::isa<Expr>(s)) {
+                auto e = llvm::cast<Expr>(s);
+                clang::QualType t = e->getType();
+                qDebug()<<t.getAsString().data()
+                        <<t->getTypeClassName()
+                        <<t->isIncompleteType()
+                        <<t->isDependentType();
+            }
+            qDebug()<<s->getStmtClassName();
+            for (auto cs: s->children()) {
+                ss.push(cs);
+            }
+        }
+        qDebug()<<ss.count();
+       
+        for (auto cs: tmpl2->children()) {
+            qDebug()<<cs<<cs->getStmtClassName();
+            if (llvm::isa<ExplicitCastExpr>(cs)) {
+                auto e = llvm::cast<Expr>(cs);
+                auto ce = llvm::cast<ExplicitCastExpr>(cs);
+                clang::QualType ctot = llvm::cast<ExplicitCastExpr>(cs)->getTypeAsWritten();
+                qDebug()<<ctot.getAsString().data()
+                        <<ctot->getTypeClassName()
+                        <<ctot->isIncompleteType()
+                        <<ctot->isDependentType();
+                clang::QualType ctot2 = ctot->getPointeeType();
+                qDebug()<<ctot2.getAsString().data()
+                        <<ctot2->getTypeClassName();
+                e->setType(mth2->getReturnType()); // 这个管用，但对不对呢
+                qDebug()<<"transformed expr:";
+                e->dumpColor();
+                continue;
+                const clang::InjectedClassNameType *injty = ctot2->getAs<clang::InjectedClassNameType>();
+                clang::QualType injty2 = injty->getInjectedSpecializationType();
+                qDebug()<<injty2.getAsString().data()
+                        <<injty2->getTypeClassName();
+                auto we =ce->getSubExprAsWritten(); // subexpr即要cast的表达式部分，()内的部分
+                we->dumpColor();
+                qDebug()<<ce->path_size();
+            }
+        }
+        
+        return false;
+    };
+    
     // 测试，先查找method,再特化
     if (true) {
-
-    }
-    
-    QDateTime btime = QDateTime::currentDateTime();
-    // genmth(cgmod, cgf, mthdecl);
-
-    {
-        decltype(mthdecl) td = mthdecl2;
-        decltype(cgmod) &cgm = cgmod;
-        auto &cgtypes = cgmod.getTypes();
-        llvm::Constant *v = cgm.GetAddrOfFunction(td, NULL, false, true);
-        qDebug()<<v->getName().data();
-        llvm::Function *f = clang::cast<llvm::Function>(v);
-        const clang::CodeGen::CGFunctionInfo &FI = 
-            cgtypes.arrangeGlobalDeclaration(td);
-        // const clang::Type *Ty = td->getType().getTypePtr();
-        // const clang::FunctionType *FT = clang::cast<clang::FunctionType>(Ty);
-        // const clang::FunctionProtoType *FPT = clang::dyn_cast<clang::FunctionProtoType>(FT);
-        // qDebug()<<Ty<<FT<<FPT;
-        // auto canq =
-        //     clang::CanQual<clang::FunctionProtoType>::CreateUnsafe(td->getType());
-        // auto &FI2 = cgtypes.arrangeFreeFunctionType(canq);
-        //     Ty = getTypes().ConvertType(cast<ValueDecl>(GD.getDecl())->getType());
-        // cgtypes.ConvertType(clang::cast<clang::ValueDecl>(td)->getType());
-        qDebug()<<cgm.getMangledName(clang::GlobalDecl(td)).data();
-        qDebug()<<td<<td->getCorrespondingUnsizedGlobalDeallocationFunction()
-                <<td->isLambdaStaticInvoker()<<td->isInstance(); // 0x12345, 0x0, false
-        cgf.GenerateCode(td, f, FI);
-        // testGenerateCode(cgm, clang::GlobalDecl(td), f, FI);
+        clang::CXXMethodDecl *mthdecl = mth;
+        clang::CXXMethodDecl *mthdecl2 = mth2;
+        auto btmpl = llvm::cast<clang::CompoundStmt>(mthdecl->getBody());
+        simple_transform(btmpl, mthdecl2);
     }
 
-    QDateTime etime = QDateTime::currentDateTime();
-    qDebug()<<"gen func time:"<<btime.msecsTo(etime);
-
-    mod.dump();
-    
     return false;
 }
