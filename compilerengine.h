@@ -53,11 +53,11 @@ public:
                   clang::CodeGen::CodeGenModule &cgmod, 
                   clang::Decl *decl, int level, QHash<QString, bool> noinlined);
     clang::FunctionDecl* find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_symbol);
-    CompilerUnit *createCompilerUnit(clang::ASTContext &ctx, clang::NamedDecl *decl);
+    CompilerUnit *createCompilerUnit(clang::ASTUnit *unit, clang::NamedDecl *decl);
     bool destroyCompilerUnit(CompilerUnit *cu);
 
-    llvm::Module* conv_ctor2(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor);
-    llvm::Module* conv_method2(clang::ASTContext &ctx, clang::CXXMethodDecl *mth);
+    llvm::Module* conv_ctor2(clang::ASTUnit *unit, clang::CXXConstructorDecl *ctor);
+    llvm::Module* conv_method2(clang::ASTUnit *unit, clang::CXXMethodDecl *mth);
 
     bool gen_ctor(CompilerUnit *cu);
     bool gen_method(CompilerUnit *cu, clang::CXXMethodDecl *yamth = NULL);

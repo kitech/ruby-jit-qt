@@ -643,9 +643,9 @@ QString CompilerEngine::mangle_method(clang::ASTContext &ctx, clang::CXXMethodDe
 }
 
 llvm::Module* 
-CompilerEngine::conv_ctor2(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor)
+CompilerEngine::conv_ctor2(clang::ASTUnit *unit, clang::CXXConstructorDecl *ctor)
 {
-    auto cu = this->createCompilerUnit(ctx, ctor);
+    auto cu = this->createCompilerUnit(unit, ctor);
     this->gen_ctor(cu);
 
     int cnter = 0;
@@ -665,9 +665,9 @@ CompilerEngine::conv_ctor2(clang::ASTContext &ctx, clang::CXXConstructorDecl *ct
 }
 
 llvm::Module* 
-CompilerEngine::conv_method2(clang::ASTContext &ctx, clang::CXXMethodDecl *mth)
+CompilerEngine::conv_method2(clang::ASTUnit *unit, clang::CXXMethodDecl *mth)
 {
-    auto cu = this->createCompilerUnit(ctx, mth);
+    auto cu = this->createCompilerUnit(unit, mth);
 
     if (llvm::cast<clang::CXXMethodDecl>(cu->mbdecl)->isInlined()) {
         this->gen_method(cu);
@@ -919,8 +919,9 @@ bool CompilerEngine::is_in_type_module(QString symbol)
 }
 
 CompilerUnit *
-CompilerEngine::createCompilerUnit(clang::ASTContext &ctx, clang::NamedDecl *decl)
+CompilerEngine::createCompilerUnit(clang::ASTUnit *unit, clang::NamedDecl *decl)
 {
+    clang::ASTContext &ctx = unit->getASTContext();
     CompilerUnit *cu = new CompilerUnit();
     cu->mdecl = decl;
     cu->mcis = new clang::CompilerInstance();
@@ -2226,16 +2227,5 @@ bool CompilerEngine::tryTransform2(clang::ClassTemplateDecl *decl,
     return false;
 }
 
-#include "mytransform.h"
-bool CompilerEngine::tryTransform3(clang::ClassTemplateDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit,
-                   clang::CXXMethodDecl *mth, clang::CXXMethodDecl *mth2)
-{
-    MyTransform tf(unit->getSema());
-    QualType ttp = mth->getReturnType();
-    QualType tdtp = tf.TransformType(ttp);
-    qDebug()<<ttp.getAsString().data()<<tdtp.getAsString().data();
-    
-    return false;
-}
 
 
