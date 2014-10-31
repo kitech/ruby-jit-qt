@@ -1160,8 +1160,8 @@ extern "C" {
         qInstallMessageHandler(myMessageOutput);
 
         ///// test code
-        test_one();
-        exit(0);
+        // test_one();
+        // exit(0);
 
         init_class_metas();
 

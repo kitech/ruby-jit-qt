@@ -24,15 +24,15 @@ void __keep_jit_types()
  */
 void __keep_jit_cannot_gen_functions()
 {
-    QTypedArrayData<unsigned short>::sharedNull();
-    QTypedArrayData<char>::sharedNull();
+    // QTypedArrayData<unsigned short>::sharedNull();
+    // QTypedArrayData<char>::sharedNull();
 
     // LLVM ERROR: Program used external function '_ZN15QTypedArrayDataIcE4dataEv' which could not be resolved!
     {
-        QTypedArrayData<char>().data();
-        QTypedArrayData<unsigned short>().data();
-        QTypedArrayData<short>().data();
-        QTypedArrayData<int>().data();
+        // QTypedArrayData<char>().data();
+        // QTypedArrayData<unsigned short>().data();
+        // QTypedArrayData<short>().data();
+        // QTypedArrayData<int>().data();
     }
 }
 

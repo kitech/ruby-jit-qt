@@ -2,9 +2,6 @@
 target datalayout = "e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128"
 target triple = "i386-pc-linux-gnu"
 
-%struct.QArrayData = type { %"class.QtPrivate::RefCount", i32, i32, i32 }
-%"class.QtPrivate::RefCount" = type { %class.QBasicAtomicInteger }
-%class.QBasicAtomicInteger = type { i32 }
 %class.YaQAccessible = type { i8 }
 %class.QAccessible = type { i8 }
 %class.YaQAction = type { %class.QAction }
@@ -16,6 +13,8 @@ target triple = "i386-pc-linux-gnu"
 %union.anon = type { %struct.QListData }
 %struct.QListData = type { %"struct.QListData::Data"* }
 %"struct.QListData::Data" = type { %"class.QtPrivate::RefCount", i32, i32, i32, [1 x i8*] }
+%"class.QtPrivate::RefCount" = type { %class.QBasicAtomicInteger }
+%class.QBasicAtomicInteger = type { i32 }
 %struct.QDynamicMetaObjectData = type opaque
 %class.YaQActionGroup = type { %class.QActionGroup }
 %class.QActionGroup = type { %class.QObject }
@@ -23,6 +22,7 @@ target triple = "i386-pc-linux-gnu"
 %class.YaQString = type { %class.QString }
 %class.QString = type { %struct.QTypedArrayData* }
 %struct.QTypedArrayData = type { %struct.QArrayData }
+%struct.QArrayData = type { %"class.QtPrivate::RefCount", i32, i32, i32 }
 %class.YaQBitArray = type { %class.QBitArray }
 %class.QBitArray = type { %class.QByteArray }
 %class.QByteArray = type { %struct.QTypedArrayData.0* }
@@ -130,12 +130,6 @@ target triple = "i386-pc-linux-gnu"
 %class.QRect = type { i32, i32, i32, i32 }
 %class.YaQMainWindow = type { %class.QMainWindow }
 %class.QMainWindow = type { %class.QWidget }
-%struct.QTypedArrayData.13 = type { %struct.QArrayData }
-%struct.QTypedArrayData.14 = type { %struct.QArrayData }
-
-@.str = private unnamed_addr constant [64 x i8] c"size == 0 || offset < 0 || size_t(offset) >= sizeof(QArrayData)\00", align 1
-@.str1 = private unnamed_addr constant [36 x i8] c"/usr/include/qt/QtCore/qarraydata.h\00", align 1
-@_ZN10QArrayData11shared_nullE = external global [2 x %struct.QArrayData]
 
 ; Function Attrs: nounwind
 define void @_Z16__keep_jit_typesv() #0 {
@@ -292,141 +286,12 @@ define void @_Z16__keep_jit_typesv() #0 {
   ret void
 }
 
-define void @_Z31__keep_jit_cannot_gen_functionsv() #1 {
-  %1 = alloca %struct.QTypedArrayData.0, align 4
-  %2 = alloca %struct.QTypedArrayData, align 4
-  %3 = alloca %struct.QTypedArrayData.13, align 4
-  %4 = alloca %struct.QTypedArrayData.14, align 4
-  %5 = call %struct.QTypedArrayData* @_ZN15QTypedArrayDataItE10sharedNullEv()
-  %6 = call %struct.QTypedArrayData.0* @_ZN15QTypedArrayDataIcE10sharedNullEv()
-  %7 = bitcast %struct.QTypedArrayData.0* %1 to i8*
-  call void @llvm.memset.p0i8.i32(i8* %7, i8 0, i32 16, i32 4, i1 false)
-  %8 = call i8* @_ZN15QTypedArrayDataIcE4dataEv(%struct.QTypedArrayData.0* %1)
-  %9 = bitcast %struct.QTypedArrayData* %2 to i8*
-  call void @llvm.memset.p0i8.i32(i8* %9, i8 0, i32 16, i32 4, i1 false)
-  %10 = call i16* @_ZN15QTypedArrayDataItE4dataEv(%struct.QTypedArrayData* %2)
-  %11 = bitcast %struct.QTypedArrayData.13* %3 to i8*
-  call void @llvm.memset.p0i8.i32(i8* %11, i8 0, i32 16, i32 4, i1 false)
-  %12 = call i16* @_ZN15QTypedArrayDataIsE4dataEv(%struct.QTypedArrayData.13* %3)
-  %13 = bitcast %struct.QTypedArrayData.14* %4 to i8*
-  call void @llvm.memset.p0i8.i32(i8* %13, i8 0, i32 16, i32 4, i1 false)
-  %14 = call i32* @_ZN15QTypedArrayDataIiE4dataEv(%struct.QTypedArrayData.14* %4)
+; Function Attrs: nounwind
+define void @_Z31__keep_jit_cannot_gen_functionsv() #0 {
   ret void
-}
-
-define linkonce_odr %struct.QTypedArrayData* @_ZN15QTypedArrayDataItE10sharedNullEv() #1 align 2 {
-  %1 = call %struct.QArrayData* @_ZN10QArrayData10sharedNullEv()
-  %2 = bitcast %struct.QArrayData* %1 to %struct.QTypedArrayData*
-  ret %struct.QTypedArrayData* %2
-}
-
-; Function Attrs: nounwind
-define linkonce_odr %struct.QTypedArrayData.0* @_ZN15QTypedArrayDataIcE10sharedNullEv() #0 align 2 {
-  %1 = call %struct.QArrayData* @_ZN10QArrayData10sharedNullEv()
-  %2 = bitcast %struct.QArrayData* %1 to %struct.QTypedArrayData.0*
-  ret %struct.QTypedArrayData.0* %2
-}
-
-; Function Attrs: nounwind
-declare void @llvm.memset.p0i8.i32(i8* nocapture, i8, i32, i32, i1) #2
-
-define linkonce_odr i8* @_ZN15QTypedArrayDataIcE4dataEv(%struct.QTypedArrayData.0* %this) #1 align 2 {
-  %1 = alloca %struct.QTypedArrayData.0*, align 4
-  store %struct.QTypedArrayData.0* %this, %struct.QTypedArrayData.0** %1, align 4
-  %2 = load %struct.QTypedArrayData.0** %1
-  %3 = bitcast %struct.QTypedArrayData.0* %2 to %struct.QArrayData*
-  %4 = call i8* @_ZN10QArrayData4dataEv(%struct.QArrayData* %3)
-  ret i8* %4
-}
-
-define linkonce_odr i16* @_ZN15QTypedArrayDataItE4dataEv(%struct.QTypedArrayData* %this) #1 align 2 {
-  %1 = alloca %struct.QTypedArrayData*, align 4
-  store %struct.QTypedArrayData* %this, %struct.QTypedArrayData** %1, align 4
-  %2 = load %struct.QTypedArrayData** %1
-  %3 = bitcast %struct.QTypedArrayData* %2 to %struct.QArrayData*
-  %4 = call i8* @_ZN10QArrayData4dataEv(%struct.QArrayData* %3)
-  %5 = bitcast i8* %4 to i16*
-  ret i16* %5
-}
-
-define linkonce_odr i16* @_ZN15QTypedArrayDataIsE4dataEv(%struct.QTypedArrayData.13* %this) #1 align 2 {
-  %1 = alloca %struct.QTypedArrayData.13*, align 4
-  store %struct.QTypedArrayData.13* %this, %struct.QTypedArrayData.13** %1, align 4
-  %2 = load %struct.QTypedArrayData.13** %1
-  %3 = bitcast %struct.QTypedArrayData.13* %2 to %struct.QArrayData*
-  %4 = call i8* @_ZN10QArrayData4dataEv(%struct.QArrayData* %3)
-  %5 = bitcast i8* %4 to i16*
-  ret i16* %5
-}
-
-define linkonce_odr i32* @_ZN15QTypedArrayDataIiE4dataEv(%struct.QTypedArrayData.14* %this) #1 align 2 {
-  %1 = alloca %struct.QTypedArrayData.14*, align 4
-  store %struct.QTypedArrayData.14* %this, %struct.QTypedArrayData.14** %1, align 4
-  %2 = load %struct.QTypedArrayData.14** %1
-  %3 = bitcast %struct.QTypedArrayData.14* %2 to %struct.QArrayData*
-  %4 = call i8* @_ZN10QArrayData4dataEv(%struct.QArrayData* %3)
-  %5 = bitcast i8* %4 to i32*
-  ret i32* %5
-}
-
-define linkonce_odr i8* @_ZN10QArrayData4dataEv(%struct.QArrayData* %this) #1 align 2 {
-  %1 = alloca %struct.QArrayData*, align 4
-  store %struct.QArrayData* %this, %struct.QArrayData** %1, align 4
-  %2 = load %struct.QArrayData** %1
-  %3 = getelementptr inbounds %struct.QArrayData* %2, i32 0, i32 1
-  %4 = load i32* %3, align 4
-  %5 = icmp eq i32 %4, 0
-  br i1 %5, label %16, label %6
-
-; <label>:6                                       ; preds = %0
-  %7 = getelementptr inbounds %struct.QArrayData* %2, i32 0, i32 3
-  %8 = load i32* %7, align 4
-  %9 = icmp slt i32 %8, 0
-  br i1 %9, label %16, label %10
-
-; <label>:10                                      ; preds = %6
-  %11 = getelementptr inbounds %struct.QArrayData* %2, i32 0, i32 3
-  %12 = load i32* %11, align 4
-  %13 = icmp uge i32 %12, 16
-  br i1 %13, label %16, label %14
-
-; <label>:14                                      ; preds = %10
-  call void @_Z9qt_assertPKcS0_i(i8* getelementptr inbounds ([64 x i8]* @.str, i32 0, i32 0), i8* getelementptr inbounds ([36 x i8]* @.str1, i32 0, i32 0), i32 62) #5
-  unreachable
-                                                  ; No predecessors!
-  br label %17
-
-; <label>:16                                      ; preds = %10, %6, %0
-  call void @_Z7qt_noopv()
-  br label %17
-
-; <label>:17                                      ; preds = %16, %15
-  %18 = bitcast %struct.QArrayData* %2 to i8*
-  %19 = getelementptr inbounds %struct.QArrayData* %2, i32 0, i32 3
-  %20 = load i32* %19, align 4
-  %21 = getelementptr inbounds i8* %18, i32 %20
-  ret i8* %21
-}
-
-; Function Attrs: noreturn nounwind
-declare void @_Z9qt_assertPKcS0_i(i8*, i8*, i32) #3
-
-; Function Attrs: inlinehint nounwind
-define linkonce_odr void @_Z7qt_noopv() #4 {
-  ret void
-}
-
-; Function Attrs: nounwind
-define linkonce_odr %struct.QArrayData* @_ZN10QArrayData10sharedNullEv() #0 align 2 {
-  ret %struct.QArrayData* getelementptr inbounds ([2 x %struct.QArrayData]* @_ZN10QArrayData11shared_nullE, i32 0, i32 0)
 }
 
 attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #1 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #2 = { nounwind }
-attributes #3 = { noreturn nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #4 = { inlinehint nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #5 = { noreturn nounwind }
 
 !llvm.ident = !{!0}
 

@@ -14,6 +14,8 @@ namespace llvm {
 
 namespace clang {
     class Decl;
+    class Stmt;
+    class Expr;
     class NamedDecl;
     class FunctionDecl;
     class CXXRecordDecl;
@@ -53,6 +55,8 @@ public:
                   clang::CodeGen::CodeGenModule &cgmod, 
                   clang::Decl *decl, int level, QHash<QString, bool> noinlined);
     clang::FunctionDecl* find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_symbol);
+    clang::FunctionDecl* find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_symbol,
+                                                    clang::Stmt *bstmt);
     CompilerUnit *createCompilerUnit(clang::ASTUnit *unit, clang::NamedDecl *decl);
     bool destroyCompilerUnit(CompilerUnit *cu);
 
@@ -63,6 +67,7 @@ public:
     bool gen_method(CompilerUnit *cu, clang::CXXMethodDecl *yamth = NULL);
     bool gen_method_decl(CompilerUnit *cu, clang::CXXMethodDecl *yamth = NULL);
     bool gen_free_function(CompilerUnit *cu, clang::FunctionDecl *yafun = NULL);
+    bool gen_undefs(CompilerUnit *cu);
     clang::CXXMethodDecl *get_decl_with_body(clang::CXXMethodDecl *decl);
     bool find_undef_symbols(CompilerUnit *cu);
     bool is_in_type_module(QString symbol);
