@@ -58,6 +58,8 @@ public:
     bool initCompiler();
 
     clang::ASTContext &getASTContext();
+    clang::ASTUnit *getASTUnit() { return mrgunit; }
+    
     // 单独的加载ast文件方法，
     bool loadPreparedASTFile();
     // 通过预先生成的AST文件，加载AST工作。

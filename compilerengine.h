@@ -66,8 +66,9 @@ public:
     clang::CXXMethodDecl *get_decl_with_body(clang::CXXMethodDecl *decl);
     bool find_undef_symbols(CompilerUnit *cu);
     bool is_in_type_module(QString symbol);
+    bool instantiate_method(CompilerUnit *cu, clang::CXXMethodDecl *tmpl_mthdecl);
 
-public:
+public: // test use
     bool initCompiler();
     bool tryCompile(clang::CXXRecordDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit);
     bool tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &ctx);
@@ -77,6 +78,8 @@ public:
     bool tryTransform(clang::ClassTemplateDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit,
                       clang::CXXMethodDecl *mth, clang::CXXMethodDecl *mth2);
     bool tryTransform2(clang::ClassTemplateDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit,
+                       clang::CXXMethodDecl *mth, clang::CXXMethodDecl *mth2);
+    bool tryTransform3(clang::ClassTemplateDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit,
                        clang::CXXMethodDecl *mth, clang::CXXMethodDecl *mth2);
 
 public:
@@ -90,6 +93,7 @@ class CompilerUnit
 {
 public:
     clang::CompilerInstance *mcis = NULL;
+    clang::ASTUnit *munit = NULL;
     llvm::LLVMContext *mvmctx = NULL;
     llvm::Module *mmod = NULL;
     clang::CodeGen::CodeGenModule *mcgm = NULL;

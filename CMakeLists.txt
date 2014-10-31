@@ -51,6 +51,7 @@ set(handby_lib_SRCS
   clvmengine.cpp
   operatorengine.cpp
   compilerengine.cpp
+  mytransform.cpp
   frontengine.cpp
   clvm_operator.cpp
   clvm.cpp

@@ -953,6 +953,40 @@ bool CompilerEngine::destroyCompilerUnit(CompilerUnit *cu)
     return true;
 }
 
+bool CompilerEngine::instantiate_method(CompilerUnit *cu, clang::CXXMethodDecl *tmpl_mthdecl)
+{
+    clang::CXXMethodDecl *mthdecl2 = tmpl_mthdecl;
+    clang::ASTUnit *unit = cu->munit;
+    clang::ASTContext &ctx = unit->getASTContext();
+
+    auto &sema = unit->getSema();
+    sema.Initialize();
+    
+    // Find the function body that we'll be substituting.
+    const clang::FunctionDecl *PatternDecl = mthdecl2->getTemplateInstantiationPattern();
+    clang::Stmt *Pattern = PatternDecl->getBody(PatternDecl);
+
+    clang::MultiLevelTemplateArgumentList TemplateArgs =
+        sema.getTemplateInstantiationArgs(mthdecl2, nullptr, false, PatternDecl);
+
+    auto ascope = new clang::Scope(nullptr, 0, ctx.getDiagnostics());
+
+    // 使用其中之一
+    if (true) {
+        sema.ActOnStartOfFunctionDef(ascope, mthdecl2); // because of next call has nullptr scope
+        sema.InstantiateFunctionDefinition(mthdecl2->getLocation(), mthdecl2, true, true);        
+    } else {
+        auto rs = sema.SubstStmt(Pattern, TemplateArgs);
+        qDebug()<<rs.isInvalid()<<rs.get();
+        rs.get()->dumpColor();
+        // sema.ActOnFinishFunctionBody(mthdecl2, Pattern);
+        mthdecl2->setBody(rs.get());
+    }
+    sema.PrintStats();
+    
+    return false;
+}
+
 bool CompilerEngine::tryCompile(clang::CXXRecordDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit)
 {
     clang::DiagnosticsEngine &diag = this->mcis->getDiagnostics();
@@ -1957,7 +1991,9 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
     }
 
     if (true) {
-        tryTransform2(decl, ctx, unit, mthdecl, mthdecl2);
+        tryTransform(decl, ctx, unit, mthdecl, mthdecl2);        
+        // tryTransform2(decl, ctx, unit, mthdecl, mthdecl2);
+        // tryTransform3(decl, ctx, unit, mthdecl, mthdecl2);
     }
     
     QDateTime btime = QDateTime::currentDateTime();
@@ -2005,32 +2041,37 @@ bool CompilerEngine::tryTransform(clang::ClassTemplateDecl *decl,
 {
     clang::CXXMethodDecl *mthdecl = mth;
     clang::CXXMethodDecl *mthdecl2 = mth2;
+
     
-    if (false) {
+    if (true) {
         qDebug()<<"==============";        
         mthdecl2->dumpColor();
         qDebug()<<unit->hasSema();
         auto &sema = unit->getSema();
         sema.Initialize();
         qDebug()<<&sema.getASTContext()<<&ctx; // (==)
-        
+
         std::string locstr = mthdecl2->getLocation().printToString(ctx.getSourceManager());
         qDebug()<<locstr.c_str();
         // ActOnStartOfFunctionDef(nullptr, mthdecl2, &sema, ctx);
         // sema.ActOnStartOfFunctionDef(nullptr, mthdecl2);
         // sema.InstantiateFunctionDefinition(mthdecl2->getLocation(), mthdecl2, true, true);
 
+               
         // Find the function body that we'll be substituting.
         const FunctionDecl *PatternDecl = mthdecl2->getTemplateInstantiationPattern();
         Stmt *Pattern = PatternDecl->getBody(PatternDecl);
-
+        qDebug()<<"hhhhhhhhh"<<Pattern;
+        // Pattern->dumpColor();
+        
         bool MergeWithParentScope = false;
-        if (CXXRecordDecl *Rec = dyn_cast<CXXRecordDecl>(mthdecl2->getDeclContext()))
+        if (CXXRecordDecl *Rec = dyn_cast<CXXRecordDecl>(mthdecl2->getDeclContext())) {
             MergeWithParentScope = Rec->isLocalClass();
-
+        }
+        qDebug()<<MergeWithParentScope;
+        
         LocalInstantiationScope Scope(sema, MergeWithParentScope);
 
-        
         MultiLevelTemplateArgumentList TemplateArgs =
             sema.getTemplateInstantiationArgs(mthdecl2, nullptr, false, PatternDecl);
 
@@ -2056,8 +2097,10 @@ bool CompilerEngine::tryTransform(clang::ClassTemplateDecl *decl,
         qDebug()<<ctx.getTranslationUnitDecl()->isTranslationUnit(); // true
         qDebug()<<sema.getCurFunction();
         sema.PushFunctionScope();
-        auto scope = sema.getScopeForContext(llvm::cast<clang::DeclContext>(decl));
-        qDebug()<<scope<<llvm::cast<clang::DeclContext>(decl);
+        auto scope = sema.getScopeForContext(decl->getDeclContext());
+        auto ascope = new clang::Scope(nullptr, 0, ctx.getDiagnostics());
+        // sema.ActOnTranslationUnitScope(ascope);
+        qDebug()<<scope<<decl->getDeclContext()<<decl->getDeclContext()->getPrimaryContext();
         // sema.ActOnEndOfTranslationUnit();
         sema.PrintStats();
 
@@ -2067,18 +2110,28 @@ bool CompilerEngine::tryTransform(clang::ClassTemplateDecl *decl,
             qDebug()<<a.getAsType().getAsString().data();
         }
         clvm::TemplateInstantiator instor(sema, TemplateArgs, mthdecl->getLocation(), DeclarationName());
-        auto cd = instor.TransformDecl(mthdecl->getLocation(), mthdecl2);
-        qDebug()<<cd;
-        cd->dumpColor();
-        sema.PushFunctionScope();
+        // auto cd = instor.TransformDecl(mthdecl->getLocation(), mthdecl2);
+        // qDebug()<<cd;
+        // cd->dumpColor();
+        // sema.PushFunctionScope();
         qDebug()<<sema.CurrentInstantiationScope;
-        qDebug()<<"curscope:"<<scope;
-        // sema.ActOnStartOfFunctionDef(scope, mthdecl2);
-        mthdecl2->setBody(mthdecl->getBody());
-        qDebug()<<mthdecl2->getDeclContext();
+        qDebug()<<"curscope:"<<scope<<sema.getCurScope();
+        sema.ActOnStartOfFunctionDef(ascope, mthdecl2); // because of next call has nullptr scope
+        qDebug()<<"curscope:"<<scope<<sema.getCurScope();        
+        sema.InstantiateFunctionDefinition(mthdecl2->getLocation(), mthdecl2, true, true);        
+        // auto rs = sema.SubstStmt(Pattern, TemplateArgs);
+        // qDebug()<<rs.isInvalid()<<rs.get();
+        // rs.get()->dumpColor();
+        // // sema.ActOnFinishFunctionBody(mthdecl2, Pattern);
+        // mthdecl2->setBody(rs.get());
+        // qDebug()<<mthdecl2->getDeclContext();
+        sema.PrintStats();
         
+        qDebug()<<"hhhhhhhhhhhhhhh";
         clang::TemplateDeclInstantiator instord(sema, mthdecl->getDeclContext(), TemplateArgs);
-        instord.InitMethodInstantiation(mthdecl2, mthdecl);        
+        qDebug()<<"hhhhhhhhhhhhhhh";        
+        instord.InitMethodInstantiation(mthdecl2, mthdecl);
+        qDebug()<<"hhhhhhhhhhhhhhh";
         auto nd = instord.VisitCXXMethodDecl(mthdecl, nullptr, true);
         qDebug()<<"okkkkkkkkk>???"<<nd;
         nd->dumpColor();
@@ -2087,7 +2140,7 @@ bool CompilerEngine::tryTransform(clang::ClassTemplateDecl *decl,
         // qDebug()<<cd2;
         // cd2->dumpColor();
     }
-    
+    // exit(-1);
     return false;
 }
 
@@ -2172,3 +2225,17 @@ bool CompilerEngine::tryTransform2(clang::ClassTemplateDecl *decl,
 
     return false;
 }
+
+#include "mytransform.h"
+bool CompilerEngine::tryTransform3(clang::ClassTemplateDecl *decl, clang::ASTContext &ctx, clang::ASTUnit *unit,
+                   clang::CXXMethodDecl *mth, clang::CXXMethodDecl *mth2)
+{
+    MyTransform tf(unit->getSema());
+    QualType ttp = mth->getReturnType();
+    QualType tdtp = tf.TransformType(ttp);
+    qDebug()<<ttp.getAsString().data()<<tdtp.getAsString().data();
+    
+    return false;
+}
+
+

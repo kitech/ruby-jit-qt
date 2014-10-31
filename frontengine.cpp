@@ -115,7 +115,8 @@ bool FrontEngine::parseClass(QString klass)
 
 clang::ASTContext &FrontEngine::getASTContext()
 {
-    return mtrunit->getASTContext();
+    return mrgunit->getASTContext();
+    // return mtrunit->getASTContext();
 }
 
 bool FrontEngine::loadPreparedASTFile()
