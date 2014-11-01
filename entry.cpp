@@ -218,6 +218,12 @@ static QGenericArgument Variant2Arg(int type, QVariant &v, int idx, InvokeStorag
     return valx;
 }
 
+/*
+  数字类型
+  字符串类型
+  对象类型
+  数组类型(元素为数字，字符串，对象）
+ */
 static QVariant VALUE2Variant(VALUE v)
 {
     QVariant rv;
@@ -241,6 +247,15 @@ static QVariant VALUE2Variant(VALUE v)
         // rv = QVariant(QMetaType::VoidStar, ci);
         rv = QVariant::fromValue(ci);
         break;
+    case T_ARRAY: {
+        QStringList ary;
+        // ary << "a123" << "b3456";
+        qDebug()<<RARRAY_LEN(v)<<QT_VERSION;
+        for (int i = 0; i < RARRAY_LEN(v); i++) {
+            ary << VALUE2Variant(rb_ary_entry(v, i)).toString();
+        }
+        rv = QVariant(ary);
+    }; break;
     case T_CLASS:
     default:
         qDebug()<<"unknown VALUE type:"<<TYPE(v);
@@ -434,6 +449,14 @@ VALUE x_Qt_class_init_jit(int argc, VALUE *argv, VALUE self)
 
     
     QVector<QVariant> args;
+    for (int i = 0; i < argc; i ++) {
+        // if (i == 0) continue; // for ctor 0 is arg0
+        if (i >= argc) break;
+        qDebug()<<"i == "<< i << (i<argc) << (i>argc);
+        args << VALUE2Variant(argv[i]);
+        qDebug()<<"i == "<< i << (i<argc) << (i>argc)<<VALUE2Variant(argv[i]);
+    }
+    
     void *jo = gce->vm_new(klass_name, args);
     qDebug()<<jo;    
 

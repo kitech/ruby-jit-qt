@@ -96,7 +96,7 @@ jit虚拟机的优化。
 动态读取symbol符号表。
 动态reflict实现方法原型读取。
 全局qt函数代码生成。
-
+在Qt中调用ruby函数、Proc、lambda。
 
 * C++11在语言绑定中的应用
 

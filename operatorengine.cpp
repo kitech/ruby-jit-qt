@@ -102,6 +102,7 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
     void *vtmer = tmer;
     for (int i = 0; i < mrg_args.count(); i ++, fpit++) {
         QVariant v = mrg_args.at(i);
+        llvm::Argument &farg = *fpit;
         aty = (*fpit).getType();
         std::string ostr; llvm::raw_string_ostream ostm(ostr); aty->print(ostm);
         sty = QString(ostm.str().c_str());
@@ -140,15 +141,29 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
         case QMetaType::Int:
         case QMetaType::UInt:
         case QMetaType::Short:
-        case QMetaType::UShort:
-            ctypes.push_back(builder.getInt32Ty());
-            lv = builder.getInt32(v.toInt());
+        case QMetaType::UShort: {
+            if (farg.getDereferenceableBytes() == 0) {
+                ctypes.push_back(builder.getInt32Ty());
+                lv = builder.getInt32(v.toInt());
+            } else {
+                ctypes.push_back(aty);
+                gis2.ival[i] = v.toInt();
+                lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)&gis2.ival[i]);
+                lv = llvm::ConstantExpr::getIntToPtr(lc, aty);
+            }
             cargs.push_back(lv);
-            break;
+        }; break;
         case QMetaType::LongLong:
         case QMetaType::ULongLong:
-            ctypes.push_back(builder.getInt64Ty());
-            lv = builder.getInt64(v.toLongLong());
+            if (farg.getDereferenceableBytes() == 0) {
+                ctypes.push_back(builder.getInt64Ty());
+                lv = builder.getInt64(v.toLongLong());
+            } else {
+                ctypes.push_back(aty);
+                gis2.lval[i] = v.toLongLong();
+                lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)&gis2.lval[i]);
+                lv = llvm::ConstantExpr::getIntToPtr(lc, aty);
+            }
             cargs.push_back(lv);
             break;
         case QMetaType::Bool:
@@ -173,6 +188,15 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
             lv = llvm::ConstantExpr::getIntToPtr(lc, aty); // for byval param, 这个正确，但是void*则不正确
             cargs.push_back(lv);
             break;
+        case QMetaType::QStringList: {
+            int cnter = 0;
+            for (auto s: mrg_args.at(i).toStringList()) {
+                strcpy(gis2.csval[cnter++], s.toLatin1().data());
+            }
+            lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)gis2.csval);
+            lv = llvm::ConstantExpr::getIntToPtr(lc, aty); // for byval param, 这个正确，但是void*则不正确
+            cargs.push_back(lv);
+        }; break;
         default:
             qDebug()<<"not known type:"<<v<<v.type();
             break;

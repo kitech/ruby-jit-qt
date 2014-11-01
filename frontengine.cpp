@@ -844,16 +844,33 @@ QVector<clang::CXXMethodDecl*> FrontEngine::find_tpl_method_decls(clang::ClassTe
 clang::CXXConstructorDecl* FrontEngine::find_ctor_decl(clang::CXXRecordDecl *decl, 
                                           QString klass, QVector<QVariant> uargs)
 {
-    
+    bool match = false;
+    QVector<clang::CXXConstructorDecl*> ctors;
     for (auto d: decl->methods()) {
         if (!clang::isa<clang::CXXConstructorDecl>(d)) continue;
         auto cd = clang::cast<clang::CXXConstructorDecl>(d);
-        if (!cd->isDefaultConstructor()) continue; // 目前先使用默认构造函数
-        
-        return cd;
+        // if (!cd->isDefaultConstructor()) continue; // 目前先使用默认构造函数
+        // return cd;
+        match = this->method_match_by_uargs(cd, klass, klass, uargs);
+        if (match) {
+            ctors.append(cd);
+        }
     }
+    qDebug()<<"matcc:"<<ctors.count()<<"mats:"<<ctors;
 
-    return 0;
+    if (ctors.count() <= 0) {
+        qDebug()<<"method not found:";
+        // return this->find_method_decl_from_base(decl, klass, method, uargs);
+        return NULL;
+    }
+    else if (ctors.count() > 1) {
+        qDebug()<<"find more matched method, try first now.";
+    }
+    // else ctors.count() == 1
+
+    clang::CXXConstructorDecl *ctor = ctors.at(0);
+    Q_ASSERT(md);
+    return ctor;
 }
 
 // 查找一个类的符合条件的方法定义。
@@ -880,10 +897,10 @@ clang::CXXMethodDecl* FrontEngine::find_method_decl(clang::CXXRecordDecl *decl,
         return this->find_method_decl_from_base(decl, klass, method, uargs);
         return NULL;
     }
-
-    if (mats.count() > 1) {
+    else if (mats.count() > 1) {
         qDebug()<<"find more matched method, try first now.";
     }
+    // else mats.count() == 1
 
     clang::CXXMethodDecl *md = mats.at(0);
     Q_ASSERT(md);
@@ -929,9 +946,15 @@ bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl,
     for (auto it = decl->param_begin(); it != decl->param_end(); it++, idx++) {
         clang::ParmVarDecl *pd = *it;
         clang::QualType ptype = pd->getType();
+        clang::QualType nrptype = ptype.getNonReferenceType();
         QString tstr = ptype.getAsString().c_str(); // type str 
 
-        if (uargs.count() > idx) {
+        // qDebug()<<uargs.count()<<idx<<pd->hasDefaultArg()
+        //         <<ptype->isIntegralOrEnumerationType()<<tstr
+        //         <<ptype->isIntegerType()<<ptype->isIntegralType(mrgunit->getASTContext())
+        //         <<nrptype->isIntegralOrEnumerationType()<<tstr
+        //         <<nrptype->isIntegerType()<<nrptype->isIntegralType(mrgunit->getASTContext());
+        if (idx < uargs.count()) {
             bool ok = false;
             switch ((int)uargs.at(idx).type()) {
             case QMetaType::Int: case QMetaType::UInt:
@@ -939,6 +962,7 @@ bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl,
             case QMetaType::LongLong: case QMetaType::ULongLong:
             case QMetaType::Short: case QMetaType::UShort:
                 if (ptype->isIntegralOrEnumerationType()) ok = true;
+                if (nrptype->isIntegralOrEnumerationType()) ok = true;
                 break;
             case QMetaType::Bool:
                 if (ptype->isBooleanType()) ok = true;
@@ -952,6 +976,9 @@ bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl,
                 break;
             case QMetaType::VoidStar:
                 if (ptype->isObjectType() && ptype->isPointerType()) ok = true;
+                break;
+            case QMetaType::QStringList:
+                if (tstr.indexOf("char **") != -1) ok = true;
                 break;
             default: qDebug()<<"unknown type:"<<uargs.at(idx).type()<<uargs.at(idx)
                              <<ptype.getAsString().data()
