@@ -414,7 +414,7 @@ static VALUE x_Qt_class_dtor(VALUE id)
 
     // void* now, can not delete, need dtor and free
     void *qo = Qom::inst()->jdobjs[rb_hash(self)];
-    qDebug()<<qo;
+    qDebug()<<qo<<rb_class2name(RBASIC_CLASS(self));
 
     return Qnil;
 }
@@ -1181,8 +1181,18 @@ void ConnectProxy::proxycall()
     qDebug()<<this->osender<<this->osignal<<this->oreceiver<<this->oslot;
     qDebug()<<this->argc<<this->argv<<this->self;
     // ID slot = rb_intern("slot_ruby_space");
-    ID slot = rb_intern(this->oslot.toLatin1().data());
-    rb_funcall(rb_cObject, slot, 0);
+    if (this->argc == 4) {
+        ID slot = rb_intern(this->oslot.toLatin1().data());
+        rb_funcall(rb_cObject, slot, 0);
+    }
+    else if (this->argc == 5) {
+        qDebug()<<"called....";
+        ID slot = rb_intern(this->oslot.toLatin1().data());
+        rb_funcall(this->oreceiver, slot, 0);
+    }
+    else {
+        qDebug()<<"unimpled.....";
+    }
 }
 
 void ConnectProxy::proxycall(int arg0)
@@ -1209,39 +1219,76 @@ void ConnectProxy::proxycall(void * arg0)
 static ConnectProxy gcp;
 static VALUE x_Qt_connectrb(int argc, VALUE* argv, VALUE self)
 {
-    QVariant vqobj = VALUE2Variant(argv[1]);
-    QVariant vsignal = VALUE2Variant(argv[2]);
-    QString signal = vsignal.toString();
-    QString rsignal = QString("2%1").arg(signal); // real signal
-    auto qobj = (QObject*)(vqobj.value<void*>());
-    auto spec_qobj = (QTimer*)(vqobj.value<void*>()); // 物化对象
+    if (argc == 4) {
+        QVariant vqobj = VALUE2Variant(argv[1]);
+        QVariant vsignal = VALUE2Variant(argv[2]);
+        QString signal = vsignal.toString();
+        QString rsignal = QString("2%1").arg(signal); // real signal
+        auto qobj = (QObject*)(vqobj.value<void*>());
+        auto spec_qobj = (QTimer*)(vqobj.value<void*>()); // 物化对象
     
-    // QObject::connect(qobj, SIGNAL(timeout()), qobj, SLOT(stop())); // ok
-    // QObject::connect(qobj, SIGNAL(timeout()), [](){}); // error
-    // auto conn = QObject::connect(qobj, &QTimer::timeout, // vsignal.toString().toLatin1().data(),
-    //                              [=]() {
-    //                                  qDebug()<<argc<<argv<<self;
-    //                                  ID slot = rb_intern("slot_ruby_space");
-    //                                  rb_funcall(rb_cObject, slot, 0);
-    //                              });
+        // QObject::connect(qobj, SIGNAL(timeout()), qobj, SLOT(stop())); // ok
+        // QObject::connect(qobj, SIGNAL(timeout()), [](){}); // error
+        // auto conn = QObject::connect(qobj, &QTimer::timeout, // vsignal.toString().toLatin1().data(),
+        //                              [=]() {
+        //                                  qDebug()<<argc<<argv<<self;
+        //                                  ID slot = rb_intern("slot_ruby_space");
+        //                                  rb_funcall(rb_cObject, slot, 0);
+        //                              });
 
-    // TODO 什么时候free掉这个对象？？？
-    ConnectProxy *connpxy = new ConnectProxy();
-    connpxy->argc = argc;
-    connpxy->argv = (RB_VALUE*)argv;
-    connpxy->self = self;
+        // TODO 什么时候free掉这个对象？？？
+        ConnectProxy *connpxy = new ConnectProxy();
+        connpxy->argc = argc;
+        connpxy->argv = (RB_VALUE*)argv;
+        connpxy->self = self;
 
-    connpxy->osender = qobj;
-    connpxy->osignal = rsignal;
-    connpxy->oreceiver = NULL;
-    connpxy->oslot = rb_id2name(SYM2ID(argv[3]));
+        connpxy->osender = qobj;
+        connpxy->osignal = rsignal;
+        connpxy->oreceiver = NULL;
+        connpxy->oslot = rb_id2name(SYM2ID(argv[3]));
 
-    QString slot = QString("1proxycall%1")
-        .arg(signal.right(signal.length() - signal.indexOf('(')));
-    qDebug()<<"connecting singal/slot........"<<signal.indexOf('(')<<slot;
-    auto conn = QObject::connect(qobj, rsignal.toLatin1().data(), connpxy, slot.toLatin1().data()); // ok
-    auto cid = connpxy->addConnection(conn);
+        QString slot = QString("1proxycall%1")
+            .arg(signal.right(signal.length() - signal.indexOf('(')));
+        qDebug()<<"connecting singal/slot........"<<signal.indexOf('(')<<slot;
+        auto conn = QObject::connect(qobj, rsignal.toLatin1().data(), connpxy, slot.toLatin1().data()); // ok
+        auto cid = connpxy->addConnection(conn);
+    }
+    else if (argc == 5) {
+        QVariant vqobj = VALUE2Variant(argv[1]);
+        QVariant vsignal = VALUE2Variant(argv[2]);
+        QString signal = vsignal.toString();
+        QString rsignal = QString("2%1").arg(signal); // real signal
+        auto qobj = (QObject*)(vqobj.value<void*>());
+        auto spec_qobj = (QTimer*)(vqobj.value<void*>()); // 物化对象
+    
+        // QObject::connect(qobj, SIGNAL(timeout()), qobj, SLOT(stop())); // ok
+        // QObject::connect(qobj, SIGNAL(timeout()), [](){}); // error
+        // auto conn = QObject::connect(qobj, &QTimer::timeout, // vsignal.toString().toLatin1().data(),
+        //                              [=]() {
+        //                                  qDebug()<<argc<<argv<<self;
+        //                                  ID slot = rb_intern("slot_ruby_space");
+        //                                  rb_funcall(rb_cObject, slot, 0);
+        //                              });
 
+        // TODO 什么时候free掉这个对象？？？
+        ConnectProxy *connpxy = new ConnectProxy();
+        connpxy->argc = argc;
+        connpxy->argv = (RB_VALUE*)argv;
+        connpxy->self = self;
+
+        connpxy->osender = qobj;
+        connpxy->osignal = rsignal;
+        connpxy->oreceiver = argv[3];
+        connpxy->oslot = rb_id2name(SYM2ID(argv[4]));
+
+        QString slot = QString("1proxycall%1")
+            .arg(signal.right(signal.length() - signal.indexOf('(')));
+        qDebug()<<"connecting singal/slot........"<<signal.indexOf('(')<<slot;
+        auto conn = QObject::connect(qobj, rsignal.toLatin1().data(), connpxy, slot.toLatin1().data()); // ok
+        auto cid = connpxy->addConnection(conn);
+    } else {
+        qDebug()<<"unimpled...!!!";
+    }
     
     return Qnil;
 }
@@ -1261,8 +1308,11 @@ static VALUE x_Qt_Method_missing(int argc, VALUE* argv, VALUE self)
     QString method_name = rb_id2name(SYM2ID(argv[0]));
     qDebug()<<method_name;
     if (method_name == "connectrb") {
+        qDebug()<<"got ittttttt."<<method_name;
         return x_Qt_connectrb(argc, argv, self);
     }
+
+    qDebug()<<"unimpled!!!";
     
     return Qnil;
 }

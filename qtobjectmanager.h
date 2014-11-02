@@ -76,7 +76,8 @@ public:
     //
     QObject *osender;
     QString osignal;
-    QObject *oreceiver;
+    // QObject *oreceiver;
+    RB_VALUE oreceiver;
     QString oslot;
 };
 

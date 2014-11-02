@@ -34,7 +34,9 @@ QSslSocket QSslCipher QSslConfiguration QSslError QSslKey \
 QNetworkCookie QNetworkCookieJar  \
 QNetworkAccessManager QNetworkRequest QNetworkReply \
 QGuiApplication  QIcon \
-QWidget QMainWindow";
+QWidget QMainWindow
+QApplication
+";
 
 # 32 位系统有问题
 broken_classes="QNetworkReply"
