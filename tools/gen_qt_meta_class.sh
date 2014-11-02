@@ -24,17 +24,18 @@ SSL error
 
 QSslKey
 
-care_classes="QAccessible QAction QActionGroup QObject QString QBitArray \
-QBitmap QBuffer QBoxLayout \
-QByteArray QThread QCoreApplication \
-QChar QStringList \
-QTimer QDateTime QUrl QFile QRegExp \
-QHostAddress QAbstractSocket QTcpSocket QTcpServer \
-QSslSocket QSslCipher QSslConfiguration QSslError QSslKey \
-QNetworkCookie QNetworkCookieJar  \
-QNetworkAccessManager QNetworkRequest QNetworkReply \
-QGuiApplication  QIcon \
+care_classes="QAccessible QAction QActionGroup QObject QString QBitArray
+QBitmap QBuffer QBoxLayout
+QByteArray QThread QCoreApplication
+QChar QStringList
+QTimer QDateTime QUrl QFile QRegExp
+QHostAddress QAbstractSocket QTcpSocket QTcpServer
+QSslSocket QSslCipher QSslConfiguration QSslError QSslKey
+QNetworkCookie QNetworkCookieJar
+QNetworkAccessManager QNetworkRequest QNetworkReply
+QGuiApplication  QIcon
 QWidget QMainWindow
+QPushButton 
 QApplication
 ";
 

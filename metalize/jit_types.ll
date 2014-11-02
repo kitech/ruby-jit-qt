@@ -130,6 +130,9 @@ target triple = "i386-pc-linux-gnu"
 %class.QRect = type { i32, i32, i32, i32 }
 %class.YaQMainWindow = type { %class.QMainWindow }
 %class.QMainWindow = type { %class.QWidget }
+%class.YaQPushButton = type { %class.QPushButton }
+%class.QPushButton = type { %class.QAbstractButton }
+%class.QAbstractButton = type { %class.QWidget }
 %class.YaQApplication = type { %class.QApplication }
 %class.QApplication = type { %class.QGuiApplication }
 
@@ -286,9 +289,13 @@ define void @_Z16__keep_jit_typesv() #0 {
   %147 = load i8** %v0, align 4
   %148 = bitcast i8* %147 to %class.QMainWindow*
   %149 = load i8** %v0, align 4
-  %150 = bitcast i8* %149 to %class.YaQApplication*
+  %150 = bitcast i8* %149 to %class.YaQPushButton*
   %151 = load i8** %v0, align 4
-  %152 = bitcast i8* %151 to %class.QApplication*
+  %152 = bitcast i8* %151 to %class.QPushButton*
+  %153 = load i8** %v0, align 4
+  %154 = bitcast i8* %153 to %class.YaQApplication*
+  %155 = load i8** %v0, align 4
+  %156 = bitcast i8* %155 to %class.QApplication*
   ret void
 }
 
