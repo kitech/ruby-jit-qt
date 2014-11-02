@@ -31,6 +31,7 @@ extern "C" {
 
     int register_qtruby_classes(VALUE module)
     {
+        // 所有Qt类的注释
         #include "metalize/qtruby_auto_body.cpp"
         // format: RQCLASS_REGISTER(QXxxxx);
 

@@ -3,7 +3,7 @@
 
 #include <ruby.h>
 
-#include "qom.h"
+#include "qtobjectmanager.h"
 
 #define SAVE_CI0(value) Qom::inst()->objs[rb_hash(self)] = (QObject*)value
 #define SAVE_CI2(type, value) Qom::inst()->objs[rb_hash(self)] = (QObject*)value

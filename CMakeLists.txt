@@ -45,7 +45,7 @@ set(handby_lib_SRCS
 #  llvm-3.5.0.src/tools/clang/lib/CodeGen/CodeGenModule.cpp
 #  llvm-3.5.0.src/tools/clang/lib/CodeGen/CodeGenFunction.cpp
   qtruby.cpp
-  qom.cpp
+  qtobjectmanager.cpp
   entry.cpp
   ctrlengine.cpp
   clvmengine.cpp

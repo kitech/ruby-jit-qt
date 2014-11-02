@@ -9,11 +9,17 @@ qtbindings中如何实现的Qt GUI主线程与ruby主线的融合？
 它也是直接执行的Qt Application exec方法，但它做了个补丁，是RubyThreadFix，
 这个类使用了QTimer，执行ruby主进程中的sleep()，让ruby主进程有一个获取并处理事件的机会。
 实际上，ruby主线程的控制权已经转移到了QApplication::exec()的事件循环中了。
+实现是在Qt::RubyThreadFix::callback_timer这个变量的事件实现的，
+如果没有这个定时器回调，则qtbindings调用Q*Application::exec()时也无法用Ctrl+C中断。
 
 也许本项目也需要使用这种类似的机制。
 还有没有其它的方式呢，这就需要研究下ruby的事件机制和QApplication::exec()的事件机制了，
 看怎么能整合在一起。
 可以考虑完全让ruby不接收任何信号，全部透明传递给Qt，像Ctrl+C这种信号。
+
+关于Qt的signal/slot机制，
+目前能够比较完善地使用Qt自身的signal和slot，需要添加调用ruby程序空间的slot功能。
+
 
 执行流程：
 qtruby4.rb -> Qt.cpp:method_missing() -> QtRuby::MethodCall:next()

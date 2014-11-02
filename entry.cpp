@@ -15,7 +15,7 @@
 #include "debugoutput.h"
 
 #include "ruby.hpp"
-#include "qom.h"
+#include "qtobjectmanager.h"
 
 #include "utils.h"
 #include "entry.h"
@@ -465,6 +465,14 @@ VALUE x_Qt_class_init_jit(int argc, VALUE *argv, VALUE self)
     VALUE free_proc = rb_proc_new(FUNVAL x_Qt_class_dtor, 0);
     rb_define_finalizer(self, free_proc);
 
+    // test slot_ruby_space
+    /*
+    ID rbsym = rb_intern("slot_ruby_space");
+    qDebug()<<"rb func:"<<(rbsym == Qnil);
+    rb_funcall(rb_cObject, rbsym, 0);
+    exit(0);
+    */
+    
     return self;
 }
 
@@ -1166,10 +1174,97 @@ static VALUE x_Qt_Constant_missing(int argc, VALUE* argv, VALUE self)
     return 0;
 }
 
+// from qtobjectmanager.h
+void ConnectProxy::proxycall()
+{
+    qDebug()<<"aaaaaaaa"<<sender()<<senderSignalIndex();
+    qDebug()<<this->osender<<this->osignal<<this->oreceiver<<this->oslot;
+    qDebug()<<this->argc<<this->argv<<this->self;
+    // ID slot = rb_intern("slot_ruby_space");
+    ID slot = rb_intern(this->oslot.toLatin1().data());
+    rb_funcall(rb_cObject, slot, 0);
+}
+
+void ConnectProxy::proxycall(int arg0)
+{
+    qDebug()<<"aaaaaaaa"<<sender();
+    ID slot = rb_intern("slot_ruby_space");
+    rb_funcall(rb_cObject, slot, 0);
+}
+
+void ConnectProxy::proxycall(char arg0)
+{
+    qDebug()<<"aaaaaaaa"<<sender();
+    ID slot = rb_intern("slot_ruby_space");
+    rb_funcall(rb_cObject, slot, 0);
+}
+
+void ConnectProxy::proxycall(void * arg0)
+{
+    qDebug()<<"aaaaaaaa"<<sender();
+    ID slot = rb_intern("slot_ruby_space");
+    rb_funcall(rb_cObject, slot, 0);
+}
+
+static ConnectProxy gcp;
+static VALUE x_Qt_connectrb(int argc, VALUE* argv, VALUE self)
+{
+    QVariant vqobj = VALUE2Variant(argv[1]);
+    QVariant vsignal = VALUE2Variant(argv[2]);
+    QString signal = vsignal.toString();
+    QString rsignal = QString("2%1").arg(signal); // real signal
+    auto qobj = (QObject*)(vqobj.value<void*>());
+    auto spec_qobj = (QTimer*)(vqobj.value<void*>()); // 物化对象
+    
+    // QObject::connect(qobj, SIGNAL(timeout()), qobj, SLOT(stop())); // ok
+    // QObject::connect(qobj, SIGNAL(timeout()), [](){}); // error
+    // auto conn = QObject::connect(qobj, &QTimer::timeout, // vsignal.toString().toLatin1().data(),
+    //                              [=]() {
+    //                                  qDebug()<<argc<<argv<<self;
+    //                                  ID slot = rb_intern("slot_ruby_space");
+    //                                  rb_funcall(rb_cObject, slot, 0);
+    //                              });
+
+    // TODO 什么时候free掉这个对象？？？
+    ConnectProxy *connpxy = new ConnectProxy();
+    connpxy->argc = argc;
+    connpxy->argv = (RB_VALUE*)argv;
+    connpxy->self = self;
+
+    connpxy->osender = qobj;
+    connpxy->osignal = rsignal;
+    connpxy->oreceiver = NULL;
+    connpxy->oslot = rb_id2name(SYM2ID(argv[3]));
+
+    QString slot = QString("1proxycall%1")
+        .arg(signal.right(signal.length() - signal.indexOf('(')));
+    qDebug()<<"connecting singal/slot........"<<signal.indexOf('(')<<slot;
+    auto conn = QObject::connect(qobj, rsignal.toLatin1().data(), connpxy, slot.toLatin1().data()); // ok
+    auto cid = connpxy->addConnection(conn);
+
+    
+    return Qnil;
+}
+
 static VALUE x_Qt_Method_missing(int argc, VALUE* argv, VALUE self)
 {
-    qDebug()<<"hehhe method missing."<< RSTRING_PTR(argv[0]);
-    return 0;
+    qDebug()<<"hehhe method missing."<< argc << argv << self;
+    qDebug()<<TYPE(self); // == 3(T_MODULE)
+    // RSTRING_PTR(argv[0]);
+    for (int i = 0; i < argc; i ++) {
+        qDebug()<<i<<TYPE(argv[i])<<VALUE2Variant(argv[i]);
+    }
+    // argv[0] is method symbol
+    // argv[1] is method arg0
+    // argv[2] is method arg1
+    // ...
+    QString method_name = rb_id2name(SYM2ID(argv[0]));
+    qDebug()<<method_name;
+    if (method_name == "connectrb") {
+        return x_Qt_connectrb(argc, argv, self);
+    }
+    
+    return Qnil;
 }
 
 
@@ -1189,9 +1284,12 @@ extern "C" {
         init_class_metas();
 
         cModuleQt = rb_define_module("Qt5");
+        // 对所有的Qt5::someconst常量的调用注册
         rb_define_module_function(cModuleQt, "const_missing", FUNVAL x_Qt_Constant_missing, -1);
-        // rb_define_module_function(cModuleQt, "method_missing", FUNVAL x_Qt_Method_missing, -1);
+        // 对所有的Qt5::somefunc()函数的调用注册
+        rb_define_module_function(cModuleQt, "method_missing", FUNVAL x_Qt_Method_missing, -1);
 
+        // 所有Qt类的initialize, method_missing, const_missing函数注册
         register_qtruby_classes(cModuleQt);
 
         // register_QCoreApplication_methods(cModuleQt);
