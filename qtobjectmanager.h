@@ -1,6 +1,8 @@
 #ifndef QTOBJECTMANAGER_H
 #define QTOBJECTMANAGER_H
 
+#include <functional>
+
 #include <QtCore>
 
 typedef quint64 RB_VALUE;
@@ -79,6 +81,7 @@ public:
     // QObject *oreceiver;
     RB_VALUE oreceiver;
     QString oslot;
+    std::function<void()> funtor;
 };
 
 #endif /* QTOBJECTMANAGER_H */
