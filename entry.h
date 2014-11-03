@@ -8,6 +8,19 @@
   带meta的函数，是使用Qt moc方式实现的
   带jit后缀的，是使用半jit方式的。
   带jit后缀，不带meta的，是使用更接近jit的动态生成Qt库代码的方式，不需要预先生成YaQxxx类了。
+  x_Qt_const_missing
+  x_Qt_method_missing
+
+  x_Qt_class_singleton_const_missing  # 类常量，不需要实例访问的常量
+  x_Qt_class_const_missing            # 实例常量
+  x_Qt_class_method_missing
+
+
+  x_Qt_class_const_missing_jit
+  x_Qt_class_method_missing_jit
+
+  x_Qt_class_const_missing_meta
+  x_Qt_class_method_missing_meta
  */
 
 enum {
@@ -33,6 +46,6 @@ VALUE x_Qt_meta_class_method_missing_jit(int argc, VALUE *argv, VALUE self);
 // 使用即时编译方式
 VALUE x_Qt_class_init_jit(int argc, VALUE *argv, VALUE self);
 VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self);
-
+VALUE x_Qt_class_const_missing_jit(int argc, VALUE *argv, VALUE obj);
 
 #endif /* ENTRY_H */

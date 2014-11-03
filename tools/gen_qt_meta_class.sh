@@ -33,9 +33,9 @@ QHostAddress QAbstractSocket QTcpSocket QTcpServer
 QSslSocket QSslCipher QSslConfiguration QSslError QSslKey
 QNetworkCookie QNetworkCookieJar
 QNetworkAccessManager QNetworkRequest QNetworkReply
-QGuiApplication  QIcon
+QGuiApplication  QIcon QFont QPaintDevice
 QWidget QMainWindow
-QPushButton 
+QPushButton QLCDNumber QSlider QLayout QGridLayout
 QApplication
 ";
 

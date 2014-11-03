@@ -110,6 +110,9 @@ public:
     bool get_method_default_params(clang::CXXMethodDecl *decl, QVector<QVariant> &dparams);
     // 获取一个方法的返回值类型，现在以字符串格式表示，后续可以考虑使用类型标识。
     QVariant get_method_return_type(clang::CXXMethodDecl *decl);
+
+    // 查找类的enum定义
+    int get_class_enum(clang::CXXRecordDecl *decl, QString enum_name);
 };
 
 #endif /* FRONTENGINE_H */

@@ -65,9 +65,16 @@ def test_signal_slots()
   t.start(123); #  QObject::startTimer: Timers can only be used with threads started with QThread
 end
 
+def test_enum()
+  puts Qt5::QFont::Bold  # 这种格式会谁接收呢？module不会接收，类也不会接收。（还是应该类会接受）
+  puts Qt5::QFont::ForceIntegerMetrics
+  puts Qt5::QString::SectionIncludeLeadingSep
+end
+
 test_qstring
 test_qbytearray # 处理这个类问题还比较多, fixed nowwwwww
 test_qurl
 test_signal_slots
+test_enum
 
 

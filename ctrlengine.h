@@ -34,6 +34,8 @@ public:
     bool vm_delete();
     QVariant vm_call(void *kthis, QString klass, QString method, QVector<QVariant> uargs);
     bool vm_static_call();
+    // 查找这个类中的enum的值。
+    int vm_enum(QString klass, QString enum_name);
 
 public:
     // 调度组件可能不需要这些组件，只管理调度问题。

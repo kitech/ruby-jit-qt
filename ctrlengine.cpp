@@ -96,7 +96,18 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     return QVariant();
 }
 
+int CtrlEngine::vm_enum(QString klass, QString enum_name)
+{
+    mfe->loadPreparedASTFile();
+    clang::CXXRecordDecl *rec_decl = mfe->find_class_decl(klass);
+    qDebug()<<klass<<rec_decl;
+    // rec_decl->dumpColor();
+    
+    int ev = mfe->get_class_enum(rec_decl, enum_name);
 
+    return ev;
+    return -1;
+}
 
 
 

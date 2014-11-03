@@ -1107,4 +1107,41 @@ QVariant FrontEngine::get_method_return_type(clang::CXXMethodDecl *decl)
     return retype;
 }
 
+int FrontEngine::get_class_enum(clang::CXXRecordDecl *decl, QString enum_name)
+{
+    clang::DeclContext *dctx = decl->getDeclContext();
+    // qDebug()<<"dctx:"<<dctx<<decl->hasDefinition();
+    // CXXRecordDecl本身就是DeclContext
 
+    clang::EnumConstantDecl *ecd = NULL;
+    int cnter = 0;
+    for (auto it = decl->decls_begin(); it != decl->decls_end(); it++, cnter++) {
+        clang::Decl *d = *it;
+        // qDebug()<<d->getDeclKindName();
+        if (!llvm::isa<clang::EnumDecl>(d)) continue;
+
+        bool found = false;
+        auto ed = llvm::cast<clang::EnumDecl>(d);
+        // qDebug()<<d->getDeclKindName()<<ed->getName().data();
+        for (auto e: ed->enumerators()) {
+            // qDebug()<<d->getDeclKindName()<<ed->getName().data()<<e->getName().data();
+            if (enum_name == e->getName().data()) {
+                qDebug()<<"found it:"<<enum_name;
+                qDebug()<<d->getDeclKindName()<<ed->getName().data()<<e->getName().data();
+                found = true;
+                ecd = e;
+                break;
+            }
+        }
+        if (found) break;
+    }
+    // qDebug()<<"dctx:"<<dctx<<cnter;
+    // qDebug()<<ecd;
+
+    // 计算这个enum的值
+    llvm::APSInt ev = ecd->getInitVal();
+    // qDebug()<<ev.getLimitedValue();
+
+    return ev.getLimitedValue();
+    return -2;
+}

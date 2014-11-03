@@ -291,6 +291,33 @@ VALUE x_Qt_meta_class_to_s(int argc, VALUE *argv, VALUE obj)
     return rv;
 }
 
+#include "ctrlengine.h"
+#include "frontengine.h"
+#include "tests.cpp"
+
+static CtrlEngine *gce = new CtrlEngine();
+
+/*
+  解决类中的enum的处理
+  TODO:
+  使用FrontEngine查找
+ */
+VALUE x_Qt_class_const_missing_jit(int argc, VALUE *argv, VALUE obj)
+{
+    qDebug()<<argc<<TYPE(obj)<<TYPE(argv[0]);
+    qDebug()<<QString(rb_id2name(SYM2ID(argv[0])))<<rb_class2name(obj);
+    QString klass_name = QString(rb_class2name(obj));
+    klass_name = klass_name.split("::").at(1);
+    QString const_name = QString(rb_id2name(SYM2ID(argv[0])));
+    QString yconst_name = "y" + const_name;
+    qDebug()<<klass_name<<const_name;
+
+    int enum_val = gce->vm_enum(klass_name, const_name);
+    qDebug()<<enum_val;
+
+    return INT2NUM(enum_val);
+    return Qnil;
+}
 
 /*
   解决类中的enum的处理
@@ -398,7 +425,7 @@ static VALUE x_Qt_meta_class_dtor(VALUE id)
     return Qnil;
 }
 
-
+/////////////////////////////////////// jitttttt
 /*
   类实例的析构函数  
   TODO:
@@ -418,13 +445,6 @@ static VALUE x_Qt_class_dtor(VALUE id)
 
     return Qnil;
 }
-
-
-#include "ctrlengine.h"
-#include "frontengine.h"
-#include "tests.cpp"
-
-static CtrlEngine *gce = new CtrlEngine();
 
 /*
   通过Qt类的初始化函数
@@ -446,7 +466,7 @@ VALUE x_Qt_class_init_jit(int argc, VALUE *argv, VALUE self)
     // test_piece_compiler();
     // test_tpl_piece_compiler();
     // exit(-1);
-
+    // assert(1==2);
     
     QVector<QVariant> args;
     for (int i = 0; i < argc; i ++) {
