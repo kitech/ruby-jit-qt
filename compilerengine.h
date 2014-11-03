@@ -63,7 +63,7 @@ public:
     llvm::Module* conv_ctor2(clang::ASTUnit *unit, clang::CXXConstructorDecl *ctor);
     llvm::Module* conv_method2(clang::ASTUnit *unit, clang::CXXMethodDecl *mth);
 
-    bool gen_ctor(CompilerUnit *cu);
+    bool gen_ctor(CompilerUnit *cu, clang::CXXConstructorDecl *yactor = NULL);
     bool gen_method(CompilerUnit *cu, clang::CXXMethodDecl *yamth = NULL);
     bool gen_method_decl(CompilerUnit *cu, clang::CXXMethodDecl *yamth = NULL);
     bool gen_free_function(CompilerUnit *cu, clang::FunctionDecl *yafun = NULL);

@@ -27,7 +27,7 @@ QSslKey
 care_classes="QAccessible QAction QActionGroup QObject QString QBitArray
 QBitmap QBuffer QBoxLayout
 QByteArray QThread QCoreApplication
-QChar QStringList
+QChar QStringList QSize
 QTimer QDateTime QUrl QFile QRegExp
 QHostAddress QAbstractSocket QTcpSocket QTcpServer
 QSslSocket QSslCipher QSslConfiguration QSslError QSslKey

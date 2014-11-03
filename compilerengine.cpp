@@ -11,6 +11,8 @@
 #include <clang/Sema/Sema.h>
 #include <clang/Sema/Template.h>
 #include <clang/AST/ASTLambda.h>
+#include <clang/AST/Expr.h>
+#include <clang/AST/ExprCXX.h>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/DeclTemplate.h>
@@ -151,6 +153,7 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
     clang::Stmt *stmts = bdecl->getBody();
     QStack<clang::Stmt*> fexpr; // flat expr
     QVector<clang::CallExpr*> cexpr; // call expr
+    QVector<clang::CXXTemporaryObjectExpr*> toexpr; // 临时对象生成语句，和call类似，这里会有一个symbol
 
     if (stmts != NULL) {
         qDebug()<<"Wooooo...."<<stmts;
@@ -174,6 +177,9 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
         
         if (clang::isa<clang::CallExpr>(s)) {
             cexpr.append(clang::cast<clang::CallExpr>(s));
+        }
+        else if (llvm::isa<clang::CXXTemporaryObjectExpr>(s)) {
+            toexpr.append(llvm::cast<clang::CXXTemporaryObjectExpr>(s));
         }
         else if (llvm::isa<clang::ReturnStmt>(s)) {
             // qDebug()<<"do smth."<<s;
@@ -202,6 +208,13 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
             auto d1 = clang::cast<clang::CXXMethodDecl>(d);
             this->conv_method(bdecl->getASTContext(), d1);
         }
+    }
+
+    // qDebug()<<"toexpr count:"<<toexpr.count();
+    for (auto expr: toexpr) {
+        // qDebug()<<"see toexpr's decl:"<<expr;
+        expr->getConstructor()->dumpColor();
+        return expr->getConstructor();
     }
 
     // for ctor's CtorInit
@@ -786,31 +799,54 @@ CompilerEngine::conv_method2(clang::ASTUnit *unit, clang::CXXMethodDecl *mth)
     return 0;
 }
 
-bool CompilerEngine::gen_ctor(CompilerUnit *cu)
+bool CompilerEngine::gen_ctor(CompilerUnit *cu, clang::CXXConstructorDecl *yactor)
 {
     // 转换到需要的参数类型
-    auto ctor = clang::cast<clang::CXXConstructorDecl>(cu->mbdecl);
+    auto ctor = yactor != NULL ? yactor : clang::cast<clang::CXXConstructorDecl>(cu->mbdecl);
     auto &cgmod = *(cu->mcgm);
     auto cgf = cu->mcgf;
 
     // 
     auto &cgtypes = cgmod.getTypes();
     // try ctor base , 能生成正确的Base代码了
-    const clang::CodeGen::CGFunctionInfo &FIB = 
-        cgtypes.arrangeCXXConstructorDeclaration(ctor, clang::Ctor_Base);
-    llvm::FunctionType *FTyB = cgtypes.GetFunctionType(FIB);
-    llvm::Constant *ctor_base_val = 
-        cgmod.GetAddrOfCXXConstructor(ctor, clang::Ctor_Base, &FIB, true);
-    llvm::Function *ctor_base_fn = clang::cast<llvm::Function>(ctor_base_val);
-    clang::CodeGen::FunctionArgList alist;
 
-    if (ctor->isInlined()) {
-        cgmod.setFunctionLinkage(clang::GlobalDecl(ctor, clang::Ctor_Base), ctor_base_fn);
-        cgf->GenerateCode(clang::GlobalDecl(ctor, clang::Ctor_Base), ctor_base_fn, FIB);
-    } else {
-        // QHash<QString, bool> noinlined; // 不需要生成define的symbol，在decl2def中使用。
-        // noinlined[ctor_base_fn->getName().data()] = true;
-        cu->mNoinlineSymbols[ctor_base_fn->getName().data()] = true;
+    // 生成complete ctor, xxC1Exx
+    {
+        const clang::CodeGen::CGFunctionInfo &FIB = 
+            cgtypes.arrangeCXXConstructorDeclaration(ctor, clang::Ctor_Complete);
+        llvm::FunctionType *FTyB = cgtypes.GetFunctionType(FIB);
+        llvm::Constant *ctor_base_val = 
+            cgmod.GetAddrOfCXXConstructor(ctor, clang::Ctor_Complete, &FIB, true);
+        llvm::Function *ctor_base_fn = clang::cast<llvm::Function>(ctor_base_val);
+        clang::CodeGen::FunctionArgList alist;
+        
+        if (ctor->isInlined()) {
+            cgmod.setFunctionLinkage(clang::GlobalDecl(ctor, clang::Ctor_Complete), ctor_base_fn);
+            cgf->GenerateCode(clang::GlobalDecl(ctor, clang::Ctor_Complete), ctor_base_fn, FIB);
+        } else {
+            // QHash<QString, bool> noinlined; // 不需要生成define的symbol，在decl2def中使用。
+            // noinlined[ctor_base_fn->getName().data()] = true;
+            cu->mNoinlineSymbols[ctor_base_fn->getName().data()] = true;
+        }
+    }
+        
+    // 生成base ctor, xxC2Exx
+    {
+        const clang::CodeGen::CGFunctionInfo &FIB = 
+            cgtypes.arrangeCXXConstructorDeclaration(ctor, clang::Ctor_Base);
+        llvm::FunctionType *FTyB = cgtypes.GetFunctionType(FIB);
+        llvm::Constant *ctor_base_val = 
+            cgmod.GetAddrOfCXXConstructor(ctor, clang::Ctor_Base, &FIB, true);
+        llvm::Function *ctor_base_fn = clang::cast<llvm::Function>(ctor_base_val);
+        clang::CodeGen::FunctionArgList alist;
+        if (ctor->isInlined()) {
+            cgmod.setFunctionLinkage(clang::GlobalDecl(ctor, clang::Ctor_Base), ctor_base_fn);
+            cgf->GenerateCode(clang::GlobalDecl(ctor, clang::Ctor_Base), ctor_base_fn, FIB);
+        } else {
+            // QHash<QString, bool> noinlined; // 不需要生成define的symbol，在decl2def中使用。
+            // noinlined[ctor_base_fn->getName().data()] = true;
+            cu->mNoinlineSymbols[ctor_base_fn->getName().data()] = true;
+        }
     }
 
     return false;
@@ -956,13 +992,102 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu)
             clang::FunctionDecl *callee_decl = NULL;
             qDebug()<<"froms:"<<froms;
             for (auto d: froms) {
+                // 有可能d是没有body的Decl，所以查找不到。
                 callee_decl = this->find_callee_decl_by_symbol(d, sym);
                 if (callee_decl) break;
             }
-            qDebug()<<"callee decl:"<<callee_decl;
-            qDebug()<<"is method:"<<llvm::isa<clang::CXXMethodDecl>(callee_decl);
-
+            qDebug()<<"callee decl:"<<callee_decl<<sym<<froms.count();
+            if (callee_decl == NULL) {
+                // 如果没有找到，则一定是查找方法还有问题
+                cu->mmod->dump();
+                for (auto d: froms) {
+                    qDebug()<<"decl dump:"<<d;
+                    d->dumpColor();
+                }
+                assert(1==2);
+            }
+            qDebug()<<"is method:"<<llvm::isa<clang::CXXMethodDecl>(callee_decl)
+                    <<", is tmpl inst:"<<callee_decl->isTemplateInstantiation()
+                    <<", is func tmpl spec:"<<callee_decl->isFunctionTemplateSpecialization()
+                    <<", is global:"<<callee_decl->isGlobal()
+                    <<", end";
+            /*
+              可以分为四种情况，
+              第一种是函数的Qt函数，第二种是普通类方法，第三种是模板类的方法，第四种是模板函数（少）,
+              也许还要加一种构造方法，ctor
+             */
             QString tsym = cu->mcgm->getMangledName(callee_decl).data();
+            Q_ASSERT(tsym == sym);
+            if (callee_decl->isTemplateInstantiation()) {
+                // maybe controll
+                QStringList known_syms = {
+                    "_ZN15QTypedArrayDataIcE10sharedNullEv",
+                    "_ZN15QTypedArrayDataItE10sharedNullEv",
+                    "_ZN15QTypedArrayDataIcE4dataEv",
+                };
+                if (known_syms.contains(tsym)) {
+                    this->instantiate_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
+                    this->gen_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
+                } else {
+                    qDebug()<<"unsupported tmpl inst..."<<tsym;
+                }
+            }
+            else if (llvm::isa<clang::CXXConstructorDecl>(callee_decl)) {
+                // maybe controll
+                QStringList known_syms = {
+                    "_ZN5QSizeC1Eii",
+                };
+                if (known_syms.contains(tsym)) {
+                    auto callee_decl_with_body = 
+                        this->get_decl_with_body(llvm::cast<clang::CXXMethodDecl>(callee_decl));
+                    callee_decl_with_body = callee_decl_with_body->isInlined() ?
+                        callee_decl_with_body : llvm::cast<clang::CXXMethodDecl>(callee_decl);
+                    if (callee_decl_with_body->isInlined()) {
+                        this->gen_ctor(cu, llvm::cast<clang::CXXConstructorDecl>
+                                       (callee_decl_with_body));
+                    } else {
+                        // this->gen_method_decl(cu, callee_decl_with_body);
+                        qDebug()<<"leave it there:"<<tsym;
+                        assert(1==2);
+                    }
+                } else {
+                    qDebug()<<"unsupported ctor..."<<tsym;
+                }
+            }
+            else if (llvm::isa<clang::CXXMethodDecl>(callee_decl)) {
+                // maybe controll
+                QStringList known_syms = {
+                    "_ZNK10QByteArray4sizeEv", "_ZN10QArrayData10sharedNullEv",
+                    "_ZN10QArrayData4dataEv", "_ZN7QWidget6resizeERK5QSize",
+                };
+                if (known_syms.contains(tsym)) {
+                    auto callee_decl_with_body = 
+                        this->get_decl_with_body(llvm::cast<clang::CXXMethodDecl>(callee_decl));
+                    if (callee_decl_with_body->isInlined()) {
+                        this->gen_method(cu, callee_decl_with_body);
+                    } else {
+                        this->gen_method_decl(cu, callee_decl_with_body);
+                    }
+                } else {
+                    qDebug()<<"unsupported method..."<<tsym;
+                }
+            }
+            else if (callee_decl->isGlobal()) {
+                // maybe controll
+                QStringList known_syms = {
+                    "_Z7qt_noopv", "_Z9qt_assertPKcS0_i",
+                };
+                if (known_syms.contains(tsym)) {
+                    this->gen_free_function(cu, callee_decl);
+                } else {
+                    qDebug()<<"unsupported global..."<<tsym;                    
+                }
+            }
+            else {
+                qDebug()<<"unsupported symbol..."<<tsym;
+            }
+
+            if (0) {
             if (tsym == "_Z7qt_noopv") {
                 callee_decl->dumpColor();
                 this->gen_free_function(cu, callee_decl);
@@ -1018,6 +1143,9 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu)
                 this->instantiate_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
                 this->gen_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
                 // cu->mmod->dump();
+            } else {
+                qDebug()<<"unsupported..."<<tsym;
+            }
             }
             // TODO 可能会有多个last_decl被覆盖，需要更好的处理
             if (callee_decl) froms.append(callee_decl);

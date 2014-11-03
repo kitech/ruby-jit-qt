@@ -1244,7 +1244,7 @@ static VALUE x_Qt_connectrb(int argc, VALUE* argv, VALUE self)
 
         connpxy->osender = qobj;
         connpxy->osignal = rsignal;
-        connpxy->oreceiver = NULL;
+        connpxy->oreceiver = (RB_VALUE)NULL;
         connpxy->oslot = rb_id2name(SYM2ID(argv[3]));
 
         QString slot = QString("1proxycall%1")
