@@ -2,7 +2,7 @@
 #define QTOBJECTMANAGER_H
 
 #include <functional>
-
+#include <atomic>
 #include <QtCore>
 
 typedef quint64 RB_VALUE;
@@ -48,8 +48,6 @@ public:
 
 private:
     QtObjectManager();
-    static QtObjectManager *_inst;
-    static qint64 _objid;
 };
 typedef QtObjectManager Qom; // for simple
 
@@ -70,7 +68,7 @@ public:
     qint64 addConnection(QMetaObject::Connection conn);
 public:
     QHash<qint64, QMetaObject::Connection> conns;
-    static qint64 connid;
+    // static qint64 connid;
     //
     int argc;
     RB_VALUE *argv;

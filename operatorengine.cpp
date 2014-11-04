@@ -185,7 +185,11 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
             gis2.vval[i] = mrg_args.at(i).value<void*>(); // mrg_args.at(i).value<void*>();
             lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)gis2.vval[i]);
             // lv = llvm::ConstantExpr::getIntToPtr(lc, builder.getVoidTy()->getPointerTo());
-            lv = llvm::ConstantExpr::getIntToPtr(lc, aty); // for byval param, 这个正确，但是void*则不正确
+            if (gis2.vval[i] == NULL) {
+            lv = llvm::ConstantExpr::getIntToPtr(lc, builder.getVoidTy()->getPointerTo()); // for byval param, 这个正确，但是void*则不正确
+            } else {
+                lv = builder.getInt32((int64_t)(0));
+            }
             cargs.push_back(lv);
             break;
         case QMetaType::QStringList: {

@@ -4,6 +4,19 @@
 #include <iostream>
 #include <QString>
 #include <QChar>
+#include <QMetaType>
+#include <QStringList>
+
+// for QFlag in QVariant
+struct xQFlag
+{
+    union {
+        char m[sizeof(QFlag)];
+        int i;
+    } v;
+};
+
+Q_DECLARE_METATYPE(xQFlag);
 
 constexpr int MAX_IS_COUNT = 10;
 
@@ -11,6 +24,11 @@ class InvokeStorage2 {
 public:
     InvokeStorage2(){
         pcsval = (char**)calloc(sizeof(char*), MAX_IS_COUNT);
+        fval = (QFlag*)calloc(sizeof(QFlag), MAX_IS_COUNT);
+        for (auto i = 0; i < MAX_IS_COUNT; i++) {
+            fval[i] = QFlag(0);
+            fval[i] = QFlag(1);
+        }
     }
     ~InvokeStorage2(){}
 
@@ -36,6 +54,7 @@ public:
     char csval[10][256];
     char **pcsval;
     QStringList slval[10];
+    QFlag *fval;  // flag value
 } ;
 // TODO 多线程支持
 // TODO 更节省内存的存储方式

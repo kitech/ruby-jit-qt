@@ -2,8 +2,12 @@
 
 #include "qtobjectmanager.h"
 
-QtObjectManager *QtObjectManager::_inst = NULL;
-qint64 QtObjectManager::_objid = -1;
+// atomic singleton member
+namespace _Qom {
+    static std::atomic<QtObjectManager*> _inst2(NULL);
+    static std::atomic<qint64> _objid2(-1);
+    static std::atomic<qint64> _connid(0);
+};
 
 QtObjectManager::QtObjectManager()
 {
@@ -11,11 +15,11 @@ QtObjectManager::QtObjectManager()
 
 QtObjectManager *QtObjectManager::inst()
 {
-    if (QtObjectManager::_inst == NULL) {
-        QtObjectManager::_inst = new QtObjectManager;
+    if (_Qom::_inst2 == NULL) {
+        _Qom::_inst2 = new QtObjectManager;
         // init_fmap();
     }
-    return QtObjectManager::_inst;
+    return _Qom::_inst2;
 }
 
 void QtObjectManager::testParser()
@@ -31,7 +35,7 @@ void QtObjectManager::testIR()
 /////////////////////
 ////
 /////////////////////
-qint64 ConnectProxy::connid = 1;
+// qint64 ConnectProxy::connid = 1;
 ConnectProxy::ConnectProxy()
     : QObject()
 {
@@ -39,7 +43,7 @@ ConnectProxy::ConnectProxy()
 
 qint64 ConnectProxy::addConnection(QMetaObject::Connection conn)
 {
-    qint64 nid = connid++;
+    qint64 nid = _Qom::_connid++;
     conns[nid] = conn;
     
     return nid;

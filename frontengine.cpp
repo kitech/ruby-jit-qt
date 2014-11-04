@@ -13,6 +13,7 @@
 #include "clang/Driver/Tool.h"
 
 
+#include "invokestorage.h"
 #include "frontengine.h"
 
 FrontEngine::FrontEngine()
@@ -1027,36 +1028,85 @@ bool FrontEngine::mangle_method_to_symbol(clang::CXXMethodDecl *decl,
     return false;
 }
 
+
 bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<QVariant> &dparams)
 {
     QVector<QVariant> &dps = dparams;
 
-    auto eval_ctor = [](clang::CXXConstructExpr* expr, FrontEngine *tthis) -> QVariant {
+    auto plain_cinit_value = [](clang::Expr *e, FrontEngine *tthis) -> QVariant {
+        QStack<clang::Expr*> exps;
+        exps.push(e);
+        clang::Expr *re = NULL;
+        while (!exps.isEmpty()) {
+            clang::Expr *te = exps.pop();
+            re = te;
+            for (auto ce: te->children()) {
+                if (llvm::isa<clang::Expr>(ce)) {
+                    exps.push(llvm::cast<clang::Expr>(ce));
+                }
+            }
+        }
+        qDebug()<<re<<re->isEvaluatable(tthis->mtrunit->getASTContext());
+        re->dumpColor();
+        if (llvm::isa<clang::IntegerLiteral>(re)) {
+            llvm::APInt v = llvm::cast<clang::IntegerLiteral>(re)->getValue();
+            return QVariant::fromValue(v.getLimitedValue());
+        }
+        else if (llvm::isa<clang::CharacterLiteral>(re)) {
+            unsigned char c = llvm::cast<clang::CharacterLiteral>(re)->getValue();
+            return QVariant::fromValue(c);
+        } else {
+            qDebug()<<"unsupported expr:"<<re;
+        }
+        return QVariant();
+    };
+
+    auto eval_ctor = [&plain_cinit_value](clang::CXXConstructExpr* expr, FrontEngine *tthis) -> QVariant {
         clang::CXXConstructorDecl *decl = expr->getConstructor();
         clang::CXXRecordDecl *rec_decl = decl->getParent();
         QString klass_name = rec_decl->getName().data();
         decl->dumpColor();
-        // qDebug()<<"param klass name:"<<klass_name<<decl;
+        qDebug()<<"param klass name:"<<klass_name<<decl;
         if (klass_name == "QChar") {
             return QVariant(QChar(' '));
         } else if (klass_name == "QFlags") {
-            // qDebug()<<expr->isEvaluatable(tthis->mtrunit->getASTContext()); // false
-            // QFlags f(0);
+            qDebug()<<expr->isEvaluatable(tthis->mtrunit->getASTContext()); // false
+            QVariant evlst = plain_cinit_value(expr, tthis);
+            // if (evlst.isValid()) return evlst;
+
             QFlags<QUrl::ComponentFormattingOption> *f =
                 new QFlags<QUrl::ComponentFormattingOption>(0);
-            return QVariant::fromValue((void*)f);
+            QFlags<Qt::WindowType> *fw =
+                new QFlags<Qt::WindowType>(0);
+            qDebug()<<(*f);
+            QFlag f2(2);
+            xQFlag f3 = {0};
+            QVariant vf = QVariant::fromValue(f3);
+            qDebug()<<vf<<vf.type()<<vf.userType();
+            // QVariant pv = plain_cinit_value(expr, tthis);
+            // qDebug()<<pv;
+            // return vf;
+            return QVariant::fromValue((void*)fw);
         }
         
         return QVariant(99813721);
     };
 
-    for (auto it = decl->param_begin(); it != decl->param_end(); it++) {
+    int cnter = 0;
+    qDebug()<<"============"<<dps.count();
+    decl->dumpColor();
+    for (auto it = decl->param_begin(); it != decl->param_end(); it++, cnter++) {
         clang::ParmVarDecl *pd = *it;
+        qDebug()<<cnter<<dps;
         if (!pd->hasDefaultArg()) {          
             dps << QVariant();
             continue;
         }
         clang::Expr *dae = pd->getDefaultArg();
+        clang::Expr *udae = pd->getUninstantiatedDefaultArg();
+        clang::QualType otype = pd->getOriginalType();
+        qDebug()<<otype.getAsString().data();
+        udae->dumpColor();
         llvm::APSInt ival;
         bool bret;
         int nulltype = 0;
@@ -1070,23 +1120,26 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
             qDebug()<<bret;
             eres.Val.dump();
             bret = dae->EvaluateAsInt(ival, mtrunit->getASTContext());
-            qDebug()<<bret;
+            qDebug()<<cnter<<bret<<ival.getLimitedValue() ;
             ival.dump();
+            qDebug()<<"========";
             nulltype = dae->isNullPointerConstant(mtrunit->getASTContext(), 
                                                   clang::Expr::NullPointerConstantValueDependence::NPC_NeverValueDependent);
             if (nulltype == clang::Expr::NullPointerConstantKind::NPCK_ZeroLiteral) {
-                dps << QVariant(0);
+                dps << QVariant::fromValue((void*)0);
+            } else {
+                qDebug()<<"unknown eval result type:";
             }
         }
         else {
-            qDebug()<<dae->isCXX11ConstantExpr(mtrunit->getASTContext())
+            qDebug()<<cnter<<dae->isCXX11ConstantExpr(mtrunit->getASTContext())
                     <<dae->isConstantInitializer(mtrunit->getASTContext(), true)
                     <<dae->isEvaluatable(mtrunit->getASTContext());
         }
 
     }
 
-    qDebug()<<"dargs:"<<dps;
+    qDebug()<<"dargs:"<<dps<<cnter<<dps.count();
 
     return true;
 }

@@ -12,17 +12,6 @@ done
 
 echo $CXXFLAGS
 
-QSslConfiguration
-
-
-Holds the configuration and state of an SSL connection
-
-QSslError
-
-
-SSL error
-
-QSslKey
 
 care_classes="QAccessible QAction QActionGroup QObject QString QBitArray
 QBitmap QBuffer QBoxLayout
