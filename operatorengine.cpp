@@ -202,6 +202,13 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
             cargs.push_back(lv);
         }; break;
         default:
+            if (v.userType() == EvalType::id) {
+                EvalType r = v.value<EvalType>();
+                qDebug()<<"eval type:"<<v<<r.ve<<r.vv;
+                // cargs.push_back(r.vv);
+                // r.vv->dump();
+                break;
+            }
             qDebug()<<"not known type:"<<v<<v.type();
             break;
         }

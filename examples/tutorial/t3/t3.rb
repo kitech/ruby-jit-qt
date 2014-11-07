@@ -7,7 +7,7 @@ app = Qt5::QApplication.new(ARGV.count, ARGV)
 
 window = Qt5::QWidget.new
 
-#exit;
+exit;
 
 window.resize(200, 120)
 

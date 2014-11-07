@@ -7,6 +7,8 @@
 #include "ctrlengine.h"
 #include "clvm.h"
 #include "clvmengine.h"
+#include "invokestorage.h"
+
 
 CtrlEngine::CtrlEngine()
 {
@@ -38,27 +40,44 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     qDebug()<<ctor_decl;
     ctor_decl->dumpColor();
 
+    QVector<QVariant> dargs;
+    mfe->get_method_default_params(ctor_decl, dargs);
+    
     // auto mod = mce->conv_ctor(mfe->getASTContext(), ctor_decl);
-    auto mod = mce->conv_ctor2(mfe->getASTUnit(), ctor_decl);
+    auto mod = mce->conv_ctor2(mfe->getASTUnit(), ctor_decl, dargs);
     qDebug()<<mod;// <<mod->getDataLayout();
     // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
     QString symname = mce->mangle_ctor(mfe->getASTContext(), ctor_decl);
     qDebug()<<mod<<symname;
 
+    clang::FunctionDecl *jmt_decl = mfe->find_free_function("__jit_main_tmpl");
+    qDebug()<<jmt_decl;
+    jmt_decl->dumpColor();
+    
+    for (auto &v: dargs) {
+        // qDebug()<<v<<v.type()<<(int)v.type()<<v.userType();
+        int t = (int)v.type();
+        if (v.type() != QMetaType::User) continue;
+        if (v.userType() != EvalType::id) continue;
+        mce->gen_darg(mod, v, jmt_decl);
+        EvalType r = v.value<EvalType>();
+        qDebug()<<v<<r.ve<<r.vv;
+    }    
+
     OperatorEngine oe;
-    QVector<QVariant> dargs;
-    mfe->get_method_default_params(ctor_decl, dargs);
     void *kthis = calloc(oe.getClassAllocSize(klass), 1);
     qDebug()<<oe.getClassAllocSize(klass)<<kthis<<(int64_t)kthis<<dargs.count();
 
     // QString lamsym = oe.bind(mod, "_ZN7QStringC2Ev", kthis, uargs, dargs);
     QString lamsym = oe.bind(mod, symname, kthis, klass, uargs, dargs, false);
     qDebug()<<lamsym;
+
+    
     Clvm *vm = new Clvm;
     auto gv = vm->execute2(mod, lamsym);
     qDebug()<<"gv:"<<llvm::GVTOP(gv);
     // QVector<clang::CXXMethodDecl*> mths = mfe->find_method_decls(rec_decl, klass_name, "fromLatin1");
-    // if (mths.count() > 0) {
+    // if (mths.count() > 0) {eval type: QVariant(EvalType, )
     //     clang::CXXMethodDecl *mth = mths.at(0);
     //     mce->conv_method(mfe->getASTContext(), mth);
     // }
@@ -86,6 +105,12 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     OperatorEngine oe;
     QVector<QVariant> dargs;
     mfe->get_method_default_params(mth_decl, dargs);
+
+    // darg expr eval
+    for (auto &v: dargs) {
+        if (v.type() != EvalType::id) continue;
+    }
+    
     QString lamsym = oe.bind(mod, symname, kthis, klass, uargs, dargs, mth_decl->isStatic());
     qDebug()<<lamsym;
     Clvm *vm = new Clvm;

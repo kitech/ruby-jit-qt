@@ -1,0 +1,19 @@
+
+\section{默认参数值的传递表达}
+\subsection{普通类型}
+这种类型包括内置类型，int,char,QVariant支持的类。
+这种可以直接使用QVariant表示，并且能够非常容易的检测。
+
+\subsection{表达式参数值}
+这种包括类似QChar(' '), QString("")，QFlags<???>()，
+在FrontEngine中转换打包这个表达式，
+传递到CompilerEngine进行编译相应的表达式，并传递到OperatorEngine中引用表达式结果。
+表达式的结果应该在CompilerEngine中生成，因为底层不应该再调用上层。
+不过这个表达式代码还是挺难生成的。
+
+\subsection{void*类型}
+这种是一个透明传递的QXxx*类型实例。
+
+
+
+

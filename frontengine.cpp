@@ -628,6 +628,39 @@ bool FrontEngine::get_method_return_type(QString klass, QString method, QVector<
 
 
 ///// privates
+clang::FunctionDecl *FrontEngine::find_free_function(QString fname)
+{
+    clang::TranslationUnitDecl *udecl = this->mtrunit;
+    qDebug()<<fname<<udecl;
+    Q_ASSERT(udecl != NULL);
+
+    clang::FunctionDecl *res_fundecl = NULL;
+    for (auto it = udecl->decls_begin(); it != udecl->decls_end(); it++) {
+        clang::Decl *decl = *it;
+        clang::FunctionDecl *fundecl;
+        QString declname;
+        // qDebug()<<decl<<decl->getDeclKindName()<<decl->getKind();
+        switch (decl->getKind()) {
+        case clang::Decl::Function:
+            fundecl = llvm::cast<clang::FunctionDecl>(decl);
+            declname = QString(fundecl->getName().data());
+            if (declname == fname) {
+                res_fundecl = fundecl;
+            }
+            break;
+        default:
+            break;
+        }
+
+    }
+    
+    if (res_fundecl == NULL) {
+        qDebug()<<"func decl not found:"<<fname;
+        return NULL;
+    }
+    return res_fundecl;
+}
+
 clang::CXXRecordDecl* FrontEngine::find_class_decl(QString klass)
 {
     clang::TranslationUnitDecl *udecl = this->mtrunit;
@@ -1114,7 +1147,8 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
         if (dae->isIntegerConstantExpr(ival, this->mtrunit->getASTContext())) {
             dps << QVariant((qlonglong)ival.getZExtValue());
         } else if (clang::isa<clang::CXXConstructExpr>(dae)) {
-            dps << eval_ctor(clang::cast<clang::CXXConstructExpr>(dae), this);
+            // dps << eval_ctor(clang::cast<clang::CXXConstructExpr>(dae), this);
+            dps << QVariant::fromValue(EvalType(dae, 0));
         } else if (dae->isCXX11ConstantExpr(mtrunit->getASTContext())) {
             bret = dae->EvaluateAsRValue(eres, mtrunit->getASTContext());
             qDebug()<<bret;

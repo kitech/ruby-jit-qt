@@ -16,6 +16,7 @@ namespace clang {
     class ASTUnit;
     class ASTImporter;
     class MangleContext;
+    class FunctionDecl;
     class TranslationUnitDecl;
     class CXXRecordDecl;
     class CXXMethodDecl;
@@ -87,6 +88,7 @@ public:
 
 private:
 public:
+    clang::FunctionDecl *find_free_function(QString fname);
     clang::CXXRecordDecl* find_class_decl(QString klass);
     clang::ClassTemplateDecl* find_tpl_class_decl(QString klass);
     QVector<clang::CXXMethodDecl*> find_method_decls(clang::CXXRecordDecl *decl, 

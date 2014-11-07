@@ -54,6 +54,7 @@ set(handby_lib_SRCS
   frontengine.cpp
   clvm_operator.cpp
   clvm.cpp
+  invokestorage.cpp
 #  metalize/metar_qt.cpp
   metalize/metar_classes_qtcore.cpp
   metalize/metar_classes_qtgui.cpp

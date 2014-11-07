@@ -31,6 +31,7 @@
 #include <llvm/AsmParser/Parser.h>
 
 
+#include "invokestorage.h"
 #include "compilerengine.h"
 
 void test_raw_codegen()
@@ -735,9 +736,13 @@ QString CompilerEngine::mangle_method(clang::ASTContext &ctx, clang::CXXMethodDe
 }
 
 llvm::Module* 
-CompilerEngine::conv_ctor2(clang::ASTUnit *unit, clang::CXXConstructorDecl *ctor)
+CompilerEngine::conv_ctor2(clang::ASTUnit *unit, clang::CXXConstructorDecl *ctor,
+                           QVector<QVariant> dargs)
 {
     auto cu = this->createCompilerUnit(unit, ctor);
+    cu->mdargs = dargs;
+    this->mcus.insert(cu->mmod, cu);
+    
     this->gen_ctor(cu);
 
     this->gen_undefs(cu);
@@ -750,7 +755,8 @@ llvm::Module*
 CompilerEngine::conv_method2(clang::ASTUnit *unit, clang::CXXMethodDecl *mth)
 {
     auto cu = this->createCompilerUnit(unit, mth);
-
+    this->mcus.insert(cu->mmod, cu);
+    
     if (llvm::cast<clang::CXXMethodDecl>(cu->mbdecl)->isInlined()) {
         this->gen_method(cu);
     } else {
@@ -849,6 +855,108 @@ bool CompilerEngine::gen_ctor(CompilerUnit *cu, clang::CXXConstructorDecl *yacto
         }
     }
 
+
+    return false;
+}
+
+bool CompilerEngine::gen_darg(llvm::Module *mod, QVariant &darg, clang::FunctionDecl *fd)
+{
+    CompilerUnit *cu = mcus.value(mod);
+    
+    /*
+    for (auto &v: cu->mdargs) {
+        if (v.type() != EvalType::id) continue;
+        EvalType r = v.value<EvalType>();
+        // cgmod.EmitConstantExpr(r.ve,
+        this->gen_darg(cu, v);
+    }
+    */
+    EvalType r = darg.value<EvalType>();
+    auto expr = llvm::cast<clang::CXXConstructExpr>(r.ve);
+    auto ctor = expr->getConstructor();
+    this->gen_ctor(cu, ctor);
+    qDebug()<<"hhhhhhhhh";
+    ctor->dumpColor();
+
+    // this->gen_free_function(cu, fd);
+    
+    // 对这种初始化，一般无法直接生成。
+    auto v = cu->mcgm->EmitConstantExpr(expr, expr->getType());
+    qDebug()<<v;
+
+    // cu->mcgf->EmitCXXConstructLValue(expr);
+    // qDebug()<<v;
+
+    if (0) {
+        qDebug()<<"hhhhhhhhhee";
+        auto tv = cu->mcgf->EmitAnyExprToTemp(expr);
+        r.vv = tv.getAggregateAddr();
+        qDebug()<<"hhhhhhhhhee"<<tv.getAggregateAddr()<<tv.getScalarVal()
+                <<tv.isScalar()<<tv.isComplex()<<tv.isAggregate();
+        qDebug()<<darg;
+        darg = QVariant::fromValue(EvalType(r.ve, r.vv));
+        r.vv->setName("argxx");
+        qDebug()<<darg<<r.vv->hasName()<<r.vv->getName().data();
+        r.vv->dump();
+    }
+    if (0) {
+        llvm::Value *mv = NULL;
+        // mv = llvm::Constant::getNullValue(cu->mcgf->Int8PtrTy);
+        // mv = cu->mcgf.Builder
+        mv = cu->mcgf->CreateIRTemp(expr->getType());
+        // cu->mcgf->EmitAnyExprToMem(expr, mv, expr->getType().getQualifiers(), true);
+        // auto lv = cu->mcgf->Emit
+        qDebug()<<mv;
+        mv->dump();
+    }
+
+    
+    auto ce = *expr->children();
+    qDebug()<<"ffffffff";
+    ce->dumpColor();
+    if (0) {
+        auto lv = cu->mcgf->EmitMaterializeTemporaryExpr(llvm::cast<clang::MaterializeTemporaryExpr>(ce));
+        auto lvd = lv.getAddress();
+        qDebug()<<lv.getAddress();
+        lvd->dump();
+        r.vv = lvd;
+        darg = QVariant::fromValue(EvalType(r.ve, r.vv));
+        r.vv->setName("argxx");
+        
+    }
+    // auto lv = cu->mcgm->GetAddrOfGlobalTemporary(llvm::cast<clang::MaterializeTemporaryExpr>(ce), NULL);
+    // qDebug()<<lv;
+
+    if (1) {
+        clang::CodeGen::CodeGenFunction cgf(*cu->mcgm, true);
+        // cgf.EmitMaterializeTemporaryExpr(llvm::cast<clang::MaterializeTemporaryExpr>(ce));
+        clang::CodeGen::FunctionArgList args;
+        auto &cgtypes = cu->mcgm->getTypes();
+        const clang::CodeGen::CGFunctionInfo &FI
+            // = cgtypes.arrangeLLVMFunctionInfo();
+            = cgtypes.arrangeFunctionDeclaration(fd);
+        llvm::Constant *func = cu->mcgm->GetAddrOfFunction(fd);
+        llvm::Function *func_fn = llvm::cast<llvm::Function>(func);
+        
+        cu->mcgf->StartFunction(clang::GlobalDecl(fd), fd->getReturnType(),
+                                func_fn, FI, args);
+    }
+
+    if (1) {
+        auto lv = cu->mcgf->EmitLValue(expr);
+        auto lvd = lv.getAddress();
+        qDebug()<<lvd;
+        lvd->dump();
+    }
+
+    if (1) {
+        // ret xxx
+        cu->mcgf->FinishFunction();
+    }
+    
+    mod->dump();
+    // exit(0);
+    
     return false;
 }
 

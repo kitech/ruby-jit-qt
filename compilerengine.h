@@ -60,7 +60,7 @@ public:
     CompilerUnit *createCompilerUnit(clang::ASTUnit *unit, clang::NamedDecl *decl);
     bool destroyCompilerUnit(CompilerUnit *cu);
 
-    llvm::Module* conv_ctor2(clang::ASTUnit *unit, clang::CXXConstructorDecl *ctor);
+    llvm::Module* conv_ctor2(clang::ASTUnit *unit, clang::CXXConstructorDecl *ctor, QVector<QVariant> dargs);
     llvm::Module* conv_method2(clang::ASTUnit *unit, clang::CXXMethodDecl *mth);
 
     bool gen_ctor(CompilerUnit *cu, clang::CXXConstructorDecl *yactor = NULL);
@@ -68,6 +68,8 @@ public:
     bool gen_method_decl(CompilerUnit *cu, clang::CXXMethodDecl *yamth = NULL);
     bool gen_free_function(CompilerUnit *cu, clang::FunctionDecl *yafun = NULL);
     bool gen_undefs(CompilerUnit *cu);
+    bool gen_darg(llvm::Module *mod, QVariant &darg, clang::FunctionDecl *fd);
+    
     clang::CXXMethodDecl *get_decl_with_body(clang::CXXMethodDecl *decl);
     bool find_undef_symbols(CompilerUnit *cu);
     bool is_in_type_module(QString symbol);
@@ -92,6 +94,9 @@ public:
     clang::CompilerInvocation *mciv = NULL;
     clang::driver::Driver *mdrv = NULL;
     llvm::Module *mtmod = NULL;
+    QHash<llvm::Module*, CompilerUnit*> mcus;
+    // 动态构造AST语法树所用的ASTUnit/TranslateDecl
+    
 };
 
 class CompilerUnit
@@ -107,6 +112,7 @@ public:
     clang::NamedDecl *mbdecl = NULL; // bodyed
     QVector<QString> mUndefSymbols;
     QHash<QString, bool> mNoinlineSymbols;
+    QVector<QVariant> mdargs;
 };
 
 #endif /* COMPILERENGINE_H */

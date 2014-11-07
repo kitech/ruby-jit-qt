@@ -18,6 +18,10 @@
 #include "metalize/metar_classes_qtwidgets.h"
 #include "metalize/metar_classes_qtnetwork.h"
 
+inline void *__jit_main_tmpl()
+{
+    return 0;
+}
 
 #endif /* QTHDRSRC_H */
 

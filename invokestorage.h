@@ -7,6 +7,13 @@
 #include <QMetaType>
 #include <QStringList>
 
+namespace llvm {
+    class Value;
+};
+namespace clang {
+    class Expr;
+};
+
 // for QFlag in QVariant
 struct xQFlag
 {
@@ -17,6 +24,16 @@ struct xQFlag
 };
 
 Q_DECLARE_METATYPE(xQFlag);
+// METATYPE类型，必须要有一个默认构造函数
+struct EvalType {
+    EvalType() {}
+    EvalType(clang::Expr *e, llvm::Value *v);    
+    clang::Expr *ve = NULL; // value expr
+    llvm::Value *vv = NULL; // value value
+    static int id;
+    void *vx = NULL;
+};
+Q_DECLARE_METATYPE(EvalType);
 
 constexpr int MAX_IS_COUNT = 10;
 
