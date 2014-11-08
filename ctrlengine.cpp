@@ -53,15 +53,18 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     clang::FunctionDecl *jmt_decl = mfe->find_free_function("__jit_main_tmpl");
     qDebug()<<jmt_decl;
     jmt_decl->dumpColor();
-    
+
+    int cnter = 0;
+    if (true)
     for (auto &v: dargs) {
         // qDebug()<<v<<v.type()<<(int)v.type()<<v.userType();
         int t = (int)v.type();
         if (v.type() != QMetaType::User) continue;
         if (v.userType() != EvalType::id) continue;
-        mce->gen_darg(mod, v, jmt_decl);
+        mce->gen_darg(mod, v, cnter, jmt_decl);
         EvalType r = v.value<EvalType>();
         qDebug()<<v<<r.ve<<r.vv;
+        cnter ++;
     }    
 
     OperatorEngine oe;
@@ -74,6 +77,7 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
 
     
     Clvm *vm = new Clvm;
+    if (vm == NULL) qFatal("kkkkkkkkk");
     auto gv = vm->execute2(mod, lamsym);
     qDebug()<<"gv:"<<llvm::GVTOP(gv);
     // QVector<clang::CXXMethodDecl*> mths = mfe->find_method_decls(rec_decl, klass_name, "fromLatin1");

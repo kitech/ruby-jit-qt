@@ -174,7 +174,7 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
             cnter++;
             fexpr.push(expr);
         }
-        // qDebug()<<"push child:"<<cnter;
+        // qDebug()<<"push child:"<<cnter<<s->getStmtClassName();
         
         if (clang::isa<clang::CallExpr>(s)) {
             cexpr.append(clang::cast<clang::CallExpr>(s));
@@ -185,6 +185,8 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
         else if (llvm::isa<clang::ReturnStmt>(s)) {
             // qDebug()<<"do smth."<<s;
             // s->dumpColor();
+        } else {
+            qDebug()<<"do smth."<<s<<s->getStmtClassName();
         }
     }
     qDebug()<<bdecl<<"call expr count:"<<cexpr.count();
@@ -223,6 +225,8 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
         auto ctor_decl = llvm::cast<clang::CXXConstructorDecl>(bdecl);
         for (auto ci: ctor_decl->inits()) {
             auto e = ci->getInit();
+            qDebug()<<"ctorinit..."<<e;
+            e->dumpColor();
             auto d = this->find_callee_decl_by_symbol(bdecl, callee_symbol, e);
             if (d) return d;
         }
@@ -238,6 +242,8 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
     clang::Stmt *stmts = bstmt;
     QStack<clang::Stmt*> fexpr; // flat expr
     QVector<clang::CallExpr*> cexpr; // call expr
+    QVector<clang::CXXConstructExpr*> ctor_expr;
+    
     int cnter = 0;
     for (auto expr: stmts->children()) {
         qDebug()<<"e:"<<cnter++<<expr->getStmtClassName();
@@ -249,6 +255,8 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
     }
 
     qDebug()<<"flat expr count:"<<fexpr.count();
+    auto mgctx = bdecl->getASTContext().createMangleContext();
+    
     while (!fexpr.isEmpty()) {
         clang::Stmt *s = fexpr.pop();
         for (auto expr: s->children()) {
@@ -258,13 +266,30 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
         if (clang::isa<clang::CallExpr>(s)) {
             cexpr.append(clang::cast<clang::CallExpr>(s));
         }
+        else if (clang::isa<clang::MemberExpr>(s)) {
+        }
+        else if (clang::isa<clang::DeclRefExpr>(s)) {
+            auto d = llvm::cast<clang::DeclRefExpr>(s)->getDecl();
+            qDebug()<<"dddddddref"<<d->getName().data();
+            d->dumpColor();
+            if (0) {
+                std::string str; llvm::raw_string_ostream stm(str);
+                mgctx->mangleName(clang::cast<clang::NamedDecl>(d), stm);
+                qDebug()<<"mangle name:"<<stm.str().c_str();
+            }
+        }
+        else if (llvm::isa<clang::CXXConstructExpr>(s)) {
+            ctor_expr.append(llvm::cast<clang::CXXConstructExpr>(s));
+        }
+        else {
+            qDebug()<<"stmt..."<<s<<s->getStmtClassName();
+        }
     }
     if (cexpr.count() == 0 && llvm::isa<clang::CallExpr>(bstmt)) {
         cexpr.append(llvm::cast<clang::CallExpr>(bstmt));
     }
-    qDebug()<<"call expr count:"<<cexpr.count();
+    qDebug()<<"call expr count:"<<cexpr.count()<<ctor_expr.count();
 
-    auto mgctx = bdecl->getASTContext().createMangleContext();
     for (auto expr: cexpr) {
         qDebug()<<"==========";
         // expr->dumpColor();
@@ -285,6 +310,23 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
             this->conv_method(bdecl->getASTContext(), d1);
         }
     }
+
+    for (auto expr: ctor_expr) {
+        auto cd = expr->getConstructor();
+        std::string str; llvm::raw_string_ostream stm(str);
+        std::string str2; llvm::raw_string_ostream stm2(str2);
+        mgctx->mangleCXXCtor(cd, clang::Ctor_Base, stm);
+        mgctx->mangleCXXCtor(cd, clang::Ctor_Complete, stm2);
+        qDebug()<<"mangle name:"<<stm.str().c_str()<<callee_symbol
+                <<stm2.str().c_str();
+        if (stm.str() == callee_symbol.toStdString()
+            || stm2.str() == callee_symbol.toStdString()) {
+            if (clang::isa<clang::FunctionDecl>(cd)) {
+                return clang::cast<clang::FunctionDecl>(cd);
+            }
+        }
+    }
+    
     return NULL;
 }
 
@@ -687,6 +729,7 @@ llvm::Module* CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMeth
     return mod;
 }
 
+// TODO 使用 MangleContext::MangleCtor 代替当前方式。
 QString CompilerEngine::mangle_ctor(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor)
 {
     clang::CompilerInstance ci;
@@ -859,7 +902,8 @@ bool CompilerEngine::gen_ctor(CompilerUnit *cu, clang::CXXConstructorDecl *yacto
     return false;
 }
 
-bool CompilerEngine::gen_darg(llvm::Module *mod, QVariant &darg, clang::FunctionDecl *fd)
+// TODO 优化，改进，现有问题是，一个函数中如果多个这种类型的参数，则会不适用
+bool CompilerEngine::gen_darg(llvm::Module *mod, QVariant &darg, int idx, clang::FunctionDecl *fd)
 {
     CompilerUnit *cu = mcus.value(mod);
     
@@ -943,8 +987,33 @@ bool CompilerEngine::gen_darg(llvm::Module *mod, QVariant &darg, clang::Function
     }
 
     if (1) {
-        auto lv = cu->mcgf->EmitLValue(expr);
+        // auto lv = cu->mcgf->EmitLValue(expr);
+        qDebug()<<"ck:"<<expr->getConstructionKind()
+                <<ctor->isTrivial()<<ctor->isDefaultConstructor();
+        // 为什么这个设置不管用呢？
+        // expr->setConstructionKind(clang::CXXConstructExpr::CK_Complete);
+        expr->setConstructionKind(clang::CXXConstructExpr::CK_VirtualBase);
+        // expr->setConstructionKind(clang::CXXConstructExpr::CK_NonVirtualBase);
+        // expr->setConstructionKind(clang::CXXConstructExpr::CK_Delegating);
+        qDebug()<<"ck:"<<expr->getConstructionKind();
+
+        ctor->setTrivial(false);        
+        cu->mcgf->CurGD = clang::GlobalDecl(ctor, clang::Ctor_Base);// 不管用
+        qDebug()<<"ctor type:"<<cu->mcgf->CurGD.getCtorType();
+        // expr->setElidable(false); // no
+        // expr->setRequiresZeroInitialization(true); // no
+        
+        auto lv = cu->mcgf->EmitCXXConstructLValue(expr);
+        qDebug()<<"ctor type:"<<cu->mcgf->CurGD.getCtorType();
         auto lvd = lv.getAddress();
+        r.vv = lvd;
+        lvd->setName(QString("toargx%1").arg(idx).toStdString());
+        EvalType nr(r.ve, r.vv);
+        // ctor->setElidable(false);
+        nr.vf_base_name = this->mangle_ctor(cu->munit->getASTContext(), ctor);
+        // darg = QVariant::fromValue(EvalType(r.ve, r.vv));
+        darg = QVariant::fromValue(nr);
+        
         qDebug()<<lvd;
         lvd->dump();
     }
@@ -953,6 +1022,9 @@ bool CompilerEngine::gen_darg(llvm::Module *mod, QVariant &darg, clang::Function
         // ret xxx
         cu->mcgf->FinishFunction();
     }
+
+    qDebug()<<"fffffffff:";
+    this->gen_undefs(cu, ctor, expr);
     
     mod->dump();
     // exit(0);
@@ -1085,10 +1157,11 @@ bool CompilerEngine::gen_free_function(CompilerUnit *cu, clang::FunctionDecl *ya
     return false;
 }
 
-bool CompilerEngine::gen_undefs(CompilerUnit *cu)
+bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, clang::Stmt *yastmt)
 {
     QVector<clang::FunctionDecl*> froms;
     froms.append(llvm::cast<clang::FunctionDecl>(cu->mbdecl));
+    if (yafun) froms.append(yafun);
     
     int cnter = 0;
     while (cnter++ < 10) {
@@ -1105,6 +1178,10 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu)
                 if (callee_decl) break;
             }
             qDebug()<<"callee decl:"<<callee_decl<<sym<<froms.count();
+            if (callee_decl == NULL && yastmt) {
+                callee_decl = this->find_callee_decl_by_symbol(froms.at(0), sym, yastmt);
+            }
+            qDebug()<<"callee decl:"<<callee_decl<<sym<<froms.count();
             if (callee_decl == NULL) {
                 // 如果没有找到，则一定是查找方法还有问题
                 cu->mmod->dump();
@@ -1112,9 +1189,11 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu)
                     qDebug()<<"decl dump:"<<d;
                     d->dumpColor();
                 }
+                qFatal("vvvvvvv"); // 在作为ruby模块的情况下，这个方便，不会生成太长的调用桟列表
                 assert(1==2);
             }
             qDebug()<<"is method:"<<llvm::isa<clang::CXXMethodDecl>(callee_decl)
+                    <<", is ctor:"<<llvm::isa<clang::CXXConstructorDecl>(callee_decl)
                     <<", is tmpl inst:"<<callee_decl->isTemplateInstantiation()
                     <<", is func tmpl spec:"<<callee_decl->isFunctionTemplateSpecialization()
                     <<", is global:"<<callee_decl->isGlobal()
@@ -1132,10 +1211,16 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu)
                     "_ZN15QTypedArrayDataIcE10sharedNullEv",
                     "_ZN15QTypedArrayDataItE10sharedNullEv",
                     "_ZN15QTypedArrayDataIcE4dataEv",
+                    "_ZN6QFlagsIN2Qt10WindowTypeEEC1EMNS2_7PrivateEi", // ctor
                 };
                 if (known_syms.contains(tsym)) {
-                    this->instantiate_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
-                    this->gen_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
+                    if (llvm::isa<clang::CXXConstructorDecl>(callee_decl)) {
+                        this->instantiate_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
+                        this->gen_ctor(cu, llvm::cast<clang::CXXConstructorDecl>(callee_decl));
+                    } else {
+                        this->instantiate_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
+                        this->gen_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
+                    }
                 } else {
                     qDebug()<<"unsupported tmpl inst..."<<tsym;
                 }
@@ -1352,6 +1437,8 @@ bool CompilerEngine::destroyCompilerUnit(CompilerUnit *cu)
     return true;
 }
 
+// 已经能够支持Ctor
+// instantate时，不需要考虑是Ctor_Base或Ctor_Complete
 bool CompilerEngine::instantiate_method(CompilerUnit *cu, clang::CXXMethodDecl *tmpl_mthdecl)
 {
     clang::CXXMethodDecl *mthdecl2 = tmpl_mthdecl;

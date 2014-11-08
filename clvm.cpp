@@ -574,7 +574,6 @@ Clvm::run_module_func(llvm::Module *mod, std::vector<llvm::GenericValue> &args, 
     }
     // */
 
-
     EE->finalizeObject();
     EE->runStaticConstructorsDestructors(false);
 

@@ -18,6 +18,8 @@ namespace llvm {
     class Function;
 };
 
+class EvalType;
+
 class OperatorEngine
 {
 public:
@@ -41,6 +43,11 @@ private:
     ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
                       QVector<QVariant> uargs, QVector<QVariant> dargs,
                       llvm::Module *tymod, llvm::Function *dstfun, bool is_static);
+    bool instcpy();
+    // 默认参数临时值生成指令拷贝
+    // 假设已经有InsertPoint
+    bool darg_instcpy(llvm::Module *mod, llvm::IRBuilder<> &builder, EvalType *et,
+                      llvm::Module *tymod);
 };
 
 #endif /* OPERATORENGINE_H */

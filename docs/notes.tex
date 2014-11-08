@@ -11,9 +11,18 @@
 表达式的结果应该在CompilerEngine中生成，因为底层不应该再调用上层。
 不过这个表达式代码还是挺难生成的。
 
+表达式生成的执行逻辑优化：目前是在CE中，
+
 \subsection{void*类型}
 这种是一个透明传递的QXxx*类型实例。
 
+\section{模板方法的实例化}
+\subsection{普通方法实例化}
+\subsection{构造函数实例化}
+默认情况下会生成Ctor\_Complete类型的实例。
 
+\section{参考}
+Graal/Truffle
+llvm/vmkit
 
 

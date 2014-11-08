@@ -32,6 +32,8 @@ struct EvalType {
     llvm::Value *vv = NULL; // value value
     static int id;
     void *vx = NULL;
+    llvm::Value *vf_base = NULL;// Ctor_Base
+    QString vf_base_name;
 };
 Q_DECLARE_METATYPE(EvalType);
 
