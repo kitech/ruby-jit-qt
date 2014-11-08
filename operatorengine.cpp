@@ -64,7 +64,6 @@ llvm::Type *OperatorEngine::uniqTy(llvm::Module *mod, QString tyname)
     return getUniqTy(mod, mtmod, tyname);
 }
 
-llvm::Value *argx0;
 // 把用户传递过来的值转换成ll调用的值
 std::vector<llvm::Value*>
 OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
@@ -82,6 +81,9 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
         }
     }
 
+    // 处理EvalType类型参数
+    QHash<QString, llvm::Value*> evals = this->darg_instcpy(module, builder, tymod);
+    
     auto &func_params = dstfun->getArgumentList();
     qDebug()<<"param count:"<<func_params.size();
     auto fpit = func_params.begin();
@@ -208,26 +210,16 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
             // TOOOOOOOOOOOOOOOOOODO
             if (v.userType() == EvalType::id) {
                 EvalType r = v.value<EvalType>();
-                qDebug()<<"eval type:"<<v<<r.ve<<r.vv;
-                // cargs.push_back(r.vv);
-                // r.vv->dump();
-                this->darg_instcpy(module, builder, &r, tymod);
-                cargs.push_back(argx0);
-                QFlags<Qt::WindowType> *fw =
-                    new QFlags<Qt::WindowType>(0);
-                QFlags<QUrl::ComponentFormattingOption> *f =
-                    new QFlags<QUrl::ComponentFormattingOption>(0);
-                
-                lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)fw);
-                lv = llvm::ConstantExpr::getIntToPtr(lc, aty); // for byval param, 这个正确，但是void*则不正确
-                // cargs.push_back(lv);
+                QString argval = QString("toargx%1").arg(i-1); // %this为0占掉1个参数位置
+                qDebug()<<"eval type:"<<v<<r.ve<<r.vv<<evals.contains(argval)<<argval;
+                cargs.push_back(evals.value(argval));
                 break;
             }
+            
             qDebug()<<"not known type:"<<v<<v.type();
             break;
         }
     }
-    
 
     return cargs;
 }
@@ -238,62 +230,77 @@ bool OperatorEngine::instcpy()
 }
 
 // TODO 更好的拷贝方式，现在是写死的两个参数
-bool OperatorEngine::darg_instcpy(llvm::Module *mod, llvm::IRBuilder<> &builder,
-                                  EvalType *et, llvm::Module *tymod)
+QHash<QString, llvm::Value*>
+OperatorEngine::darg_instcpy(llvm::Module *mod, llvm::IRBuilder<> &builder, llvm::Module *tymod)
 {
     // @_Z15__jit_main_tmplv
     llvm::Function *src_fun = mod->getFunction("_Z15__jit_main_tmplv");
-    int cnter = 0;
-    for (auto &blk: src_fun->getBasicBlockList()) {
-        qDebug()<<"blk cnter:"<<cnter++;
-        for (auto &inst: blk.getInstList()) {
-            qDebug()<<"inst:"<<&inst<<inst.hasName()<<inst.getName().data()
-                    <<et->vf_base_name;
-            inst.dump();
-            QString name = inst.getName().data();
-            if (name.startsWith("toargx")) {
-                auto new_inst = inst.clone();
-                auto rt_inst = builder.Insert(new_inst, inst.getName());
-                argx0 = rt_inst;
-            } else if (inst.getOpcode() == llvm::Instruction::Call
-                       || inst.getOpcode() == llvm::Instruction::Invoke) {
-                auto new_inst = inst.clone();
-                qDebug()<<inst.getParent()<<new_inst->getParent();
-                // new_inst->setParent(inst.getParent());
-                auto call_inst = llvm::cast<llvm::CallInst>(new_inst);
-                llvm::Function *callee_func = call_inst->getCalledFunction();
-                if (et->vf_base_name.length() > 0) {
-                    QString cname = callee_func->getName().data();
-                    cname.replace("C1", "C2");
-                    // llvm::Type *ft = tymod->getTypeByName("class.QFlags");
-                    // auto ttt = builder.CreateAlloca(ft);
+    QHash<QString, llvm::Value*> vals;
 
-                    // llvm::Function *new_callee_func = mod->getFunction(et->vf_base_name.toStdString());
-                    llvm::Function *new_callee_func = mod->getFunction(cname.toStdString());
-                    call_inst->setCalledFunction(new_callee_func);
-                    llvm::Value *a0v = call_inst->getArgOperand(0);
-                    qDebug()<<a0v->getName().data();
+    if (!src_fun) {
+        qDebug()<<"maybe not need darg_instcpy:";
+        return vals;
+    }
+    
+    // 暂时这个函数只有一个BasicBlock
+    auto &blk = src_fun->getEntryBlock();
+    for (auto &inst: blk.getInstList()) {
+        qDebug()<<"inst:"<<&inst<<inst.hasName()<<inst.getName().data();
+        inst.dump();
+        QString name = inst.getName().data();
+        if (name.startsWith("toargx")) {
+            auto new_inst = inst.clone();
+            auto rt_inst = builder.Insert(new_inst, inst.getName());
+            vals[name] = rt_inst;
+        } else if (inst.getOpcode() == llvm::Instruction::Call
+                   || inst.getOpcode() == llvm::Instruction::Invoke) {
+            llvm::CallInst *pcall_inst = llvm::cast<llvm::CallInst>(&inst);
+            std::vector<llvm::Value*> call_args;
+            auto new_inst = inst.clone();
+            qDebug()<<inst.getParent()<<new_inst->getParent()
+                    <<pcall_inst->getNumArgOperands()
+                    <<call_args.size();
 
-                    // 发现了点东西，
-                    /*
-                      以下两名都能生成相同的一行指令，但前者生成的语句就会导致崩溃，后者生成的则无问题
-                      call void @_ZN6QFlagsIN2Qt10WindowTypeEEC2EMNS2_7PrivateEi(%class.QFlags* %toargx0, i32 -1)
-                      call void @_ZN6QFlagsIN2Qt10WindowTypeEEC2EMNS2_7PrivateEi(%class.QFlags* %toargx0, i32 -1)
-                     */
-                    qDebug()<<call_inst->getParent();                    
-                    // builder.Insert<llvm::CallInst>(call_inst);
-                    // builder.Insert(&inst);
-                    qDebug()<<call_inst->getParent();
-
-                    llvm::Constant *lc = builder.getInt32(-1);
-                    call_inst = builder.CreateCall2(new_callee_func, argx0, lc);
+            auto call_inst = llvm::cast<llvm::CallInst>(new_inst);
+            for (int i = 0; i < pcall_inst->getNumArgOperands(); i ++) {
+                auto lv = call_inst->getArgOperand(i);
+                QString aname = lv->getName().data();
+                llvm::Type *axt = lv->getType();
+                if (llvm::isa<llvm::ConstantInt>(lv)) {
+                    auto ilv = llvm::cast<llvm::ConstantInt>(lv);
+                    auto nlv = llvm::ConstantInt::get(axt, ilv->getValue());
+                    nlv->setName(lv->getName());
+                    call_args.push_back(nlv);
                 }
-                
-                // builder.Insert(call_inst);
+                else if (llvm::isa<llvm::ConstantStruct>(lv)) {
+                    qDebug()<<"structtttttt.";
+                } else if (axt->isPointerTy()) {
+                    qDebug()<<"pointer ty."<<lv->getName().data()
+                            <<vals.contains(aname);
+                    call_args.push_back(vals.value(aname));
+                }
+                qDebug()<<i<<lv<<lv->getName().data()<<axt->getTypeID()
+                        <<lv->getValueID()
+                        <<llvm::Value::ConstantIntVal;
             }
+            llvm::Function *callee_func = call_inst->getCalledFunction();
+            QString cname = callee_func->getName().data();
+            cname.replace("C1", "C2");
+            llvm::Function *new_callee_func = mod->getFunction(cname.toStdString());
+
+            // 发现了点东西，
+            /*
+              可能就是api中说的，clone出来的Inst与原来不一样，没有Parent
+              以下两名都能生成相同的一行指令，但前者生成的语句就会导致崩溃，后者生成的则无问题
+              call void @_ZN6QFlagsIN2Qt10WindowTypeEEC2EMNS2_7PrivateEi(%class.QFlags* %toargx0, i32 -1)
+              call void @_ZN6QFlagsIN2Qt10WindowTypeEEC2EMNS2_7PrivateEi(%class.QFlags* %toargx0, i32 -1)
+            */
+            call_inst = builder.CreateCall(new_callee_func,
+                                           llvm::ArrayRef<llvm::Value*>(call_args));
         }
     }
-    return false;
+
+    return vals;
 }
 
 // TODO dereferenced return and dereferenced params

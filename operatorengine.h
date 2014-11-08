@@ -46,8 +46,8 @@ private:
     bool instcpy();
     // 默认参数临时值生成指令拷贝
     // 假设已经有InsertPoint
-    bool darg_instcpy(llvm::Module *mod, llvm::IRBuilder<> &builder, EvalType *et,
-                      llvm::Module *tymod);
+    QHash<QString, llvm::Value*>
+    darg_instcpy(llvm::Module *mod, llvm::IRBuilder<> &builder, llvm::Module *tymod);
 };
 
 #endif /* OPERATORENGINE_H */
