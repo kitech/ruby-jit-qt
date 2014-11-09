@@ -136,7 +136,7 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     
     Clvm *vm = new Clvm;
     auto gv = vm->execute2(mod, lamsym);
-    qDebug()<<"gv:"<<llvm::GVTOP(gv);
+    qDebug()<<"gv:"<<llvm::GVTOP(gv)<<gv.IntVal.getZExtValue();
     qDebug()<<"======================";
     
     return QVariant();

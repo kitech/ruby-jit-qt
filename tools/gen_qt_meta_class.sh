@@ -23,14 +23,14 @@ QSslSocket QSslCipher QSslConfiguration QSslError QSslKey
 QNetworkCookie QNetworkCookieJar
 QNetworkAccessManager QNetworkRequest QNetworkReply
 QGuiApplication  QIcon QFont QPaintDevice
-QWidget QMainWindow
+QWidget QMainWindow QColor QPalette QRect QRegion QLabel QPoint
 QPushButton QLCDNumber QSlider QLayout QBoxLayout QGridLayout
 QApplication
 ";
 
 # 32 位系统有问题
 broken_classes="QNetworkReply"
-multi_inone_classes="QVBoxLayout QHBoxLayout"
+multi_inone_classes="QVBoxLayout QHBoxLayout QTime QDate "
 
 ##### gen jit types body
 jit_types_body_file="metalize/jit_types_body.cpp"
@@ -45,8 +45,12 @@ for klass in $care_classes ; do
 done
 echo "(void)(QVBoxLayout*)v0;" >> $jit_types_body_file
 echo "(void)(QHBoxLayout*)v0;" >> $jit_types_body_file
+echo "(void)(QDate*)v0;" >> $jit_types_body_file
+echo "(void)(QTime*)v0;" >> $jit_types_body_file
 echo "RQCLASS_REGISTER(QVBoxLayout);" >> $qtruby_register_file
 echo "RQCLASS_REGISTER(QHBoxLayout);" >> $qtruby_register_file
+echo "RQCLASS_REGISTER(QDate);" >> $qtruby_register_file
+echo "RQCLASS_REGISTER(QTime);" >> $qtruby_register_file
 
 #### exit
 

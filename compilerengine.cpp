@@ -1231,7 +1231,7 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
             else if (llvm::isa<clang::CXXConstructorDecl>(callee_decl)) {
                 // maybe controll
                 QStringList known_syms = {
-                    "_ZN5QSizeC1Eii",
+                    "_ZN5QSizeC1Eii", "_ZN5QRectC1Eiiii",
                 };
                 if (known_syms.contains(tsym)) {
                     auto callee_decl_with_body = 
@@ -1255,6 +1255,8 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
                 QStringList known_syms = {
                     "_ZNK10QByteArray4sizeEv", "_ZN10QArrayData10sharedNullEv",
                     "_ZN10QArrayData4dataEv", "_ZN7QWidget6resizeERK5QSize",
+                    "_ZN7QWidget11setGeometryERK5QRect", "_ZNK5QRect6heightEv",
+                    "_ZNK6QPoint1xEv", "_ZNK6QPoint1yEv",
                 };
                 if (known_syms.contains(tsym)) {
                     auto callee_decl_with_body = 

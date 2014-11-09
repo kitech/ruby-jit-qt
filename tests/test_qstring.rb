@@ -76,6 +76,7 @@ end
 
 def test_else()
   puts File.dirname($0)
+  puts File.absolute_path(File.dirname($0))
 end
 
 test_else;

@@ -929,7 +929,7 @@ clang::CXXMethodDecl* FrontEngine::find_method_decl(clang::CXXRecordDecl *decl,
     qDebug()<<"matcc:"<<mats.count()<<"mats:"<<mats;
     
     if (mats.count() <= 0) {
-        qDebug()<<"method not found:";
+        qDebug()<<"method not found:"<<method;
         return this->find_method_decl_from_base(decl, klass, method, uargs);
         return NULL;
     }
@@ -1011,7 +1011,13 @@ bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl,
                 if (ptype->isCharType()) ok = true;
                 break;
             case QMetaType::VoidStar:
+                qDebug()<<ptype->isObjectType() << ptype->isPointerType()
+                        <<ptype->isReferenceType();
+                qDebug()<<nrptype->isObjectType() << nrptype->isPointerType()
+                        <<nrptype->isReferenceType();
                 if (ptype->isObjectType() && ptype->isPointerType()) ok = true;
+                // for const QPalette& and similar syntax args
+                if (ptype->isReferenceType() && nrptype->isObjectType()) ok = true;
                 break;
             case QMetaType::QStringList:
                 if (tstr.indexOf("char **") != -1) ok = true;

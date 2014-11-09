@@ -758,8 +758,14 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
         return Qnil;
     }
     
-    gce->vm_call(ci, klass_name, method_name, args);
-
+    QVariant gv = gce->vm_call(ci, klass_name, method_name, args);
+    qDebug()<<"vv:"<<gv;
+    // TODO 使用真实的返回值
+    if (method_name == "height" || method_name == "width"
+        || method_name == "x" || method_name == "y") {
+        return INT2NUM(gv.toInt());
+    }
+    
     return Qnil;
 }
 
