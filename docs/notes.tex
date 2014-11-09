@@ -1,3 +1,5 @@
+\section{TODO列表}
+
 
 \section{默认参数值的传递表达}
 \subsection{普通类型}
@@ -11,7 +13,21 @@
 表达式的结果应该在CompilerEngine中生成，因为底层不应该再调用上层。
 不过这个表达式代码还是挺难生成的。
 
-表达式生成的执行逻辑优化：目前是在CE中，
+默认值表达式生成的执行逻辑优化：
+1、目前是在FE中，检测表达式中的类类型，在AST查找时就明确生成这个类的实例，把这个类传递到IR生成类OE中使用。
+这种实现没有灵活性，并且需要在后续的测试中不断加入新的默认值类型的处理。
+2、现在，已经使用了更优化的方式，为默认值表达式生成一段IR代码，传递到IR生成类OE中使用。
+一般默认值表达式不会太复杂，生成的IR代码也比较简单，也容易处理使用。
+3、也许，后续还可以把这些默认值表达式缓存，把生成的IR代码也缓存，不需要每次使用的时候都重复处理了。
+
+// 发现了点东西，拷贝IR指令时需要注意的。
+/*
+  可能就是api中说的，clone出来的Inst与原来的Inst有点不一样，没有Parent
+  以下两名都能生成相同的一行指令，但前者生成的语句就会导致崩溃，后者生成的则无问题
+  call void @_ZN6QFlagsIN2Qt10WindowTypeEEC2EMNS2_7PrivateEi(%class.QFlags* %toargx0, i32 -1)
+  call void @_ZN6QFlagsIN2Qt10WindowTypeEEC2EMNS2_7PrivateEi(%class.QFlags* %toargx0, i32 -1)
+*/
+
 
 \subsection{void*类型}
 这种是一个透明传递的QXxx*类型实例。
@@ -21,8 +37,15 @@
 \subsection{构造函数实例化}
 默认情况下会生成Ctor\_Complete类型的实例。
 
-\section{参考}
-Graal/Truffle
-llvm/vmkit
+\section{预编译头文件AST的应用}
+可用。
+不完善，修改了其中一个头文件，则需要重新生成ast文件。
+如果实时生成，则速度太慢，上秒级。
+可以考虑使用增量式的AST生成。
 
+
+\section{参考}
+ROOT/cling
+llvm/vmkit
+Graal/Truffle
 

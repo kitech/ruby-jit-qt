@@ -141,6 +141,8 @@ bool FrontEngine::loadPreparedASTFile()
         //                                 bool OnlyLocalDecls, 
         //                                 ArrayRef<RemappedFile> RemappedFiles);
     QDateTime etime = QDateTime::currentDateTime();
+    if (!unit) qFatal("load ast faild.");
+    
     clang::ASTContext &tctx = unit->getASTContext();
     clang::SourceManager &srcman = unit->getSourceManager();
     clang::FileManager &fman = unit->getFileManager();

@@ -285,16 +285,9 @@ OperatorEngine::darg_instcpy(llvm::Module *mod, llvm::IRBuilder<> &builder, llvm
             }
             llvm::Function *callee_func = call_inst->getCalledFunction();
             QString cname = callee_func->getName().data();
-            cname.replace("C1", "C2");
+            // cname.replace("C1", "C2"); // 这个也许不需要替换，直接使用C1也行。
             llvm::Function *new_callee_func = mod->getFunction(cname.toStdString());
 
-            // 发现了点东西，
-            /*
-              可能就是api中说的，clone出来的Inst与原来不一样，没有Parent
-              以下两名都能生成相同的一行指令，但前者生成的语句就会导致崩溃，后者生成的则无问题
-              call void @_ZN6QFlagsIN2Qt10WindowTypeEEC2EMNS2_7PrivateEi(%class.QFlags* %toargx0, i32 -1)
-              call void @_ZN6QFlagsIN2Qt10WindowTypeEEC2EMNS2_7PrivateEi(%class.QFlags* %toargx0, i32 -1)
-            */
             call_inst = builder.CreateCall(new_callee_func,
                                            llvm::ArrayRef<llvm::Value*>(call_args));
         }
