@@ -43,6 +43,8 @@
 lcd.value = 5
 lcd.range = 0..99
 估计需要考虑检测是否是类的属性类型的symbol，再转换成相应的set函数调用。
+ruby会生成一个"interval="方法调用，有一个参数为赋值表达式的方法调用。
+这里的=号，无论在ruby离interval多远，都会被连接到property名字上当作一个方法名。
 
 \section{预编译头文件AST的应用}
 可用。
@@ -54,6 +56,8 @@ lcd.range = 0..99
 \section{Ruby nil}
 nil传递到Ruby C API之后会是什么类型的值，怎么表达的。
 nil传递到C时是int类型的0。
+区间0..99传递到Ruby C API之后会是什么类型，怎么表达的。
+即Range类型(内部表示为T\_STRUCT类型)，需要扩展成两个参数：起始值与结束值。
 
 \section{Ruby中继承Qt类的处理}
 

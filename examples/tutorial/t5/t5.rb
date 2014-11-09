@@ -15,10 +15,8 @@ def initialize()
     lcd = Qt5::QLCDNumber.new(2)
 
     slider = Qt5::QSlider.new(Qt5::Horizontal)
-    # slider.range = 0..99
-    # slider.value = 0
-    slider.setRange(0, 99)
-    slider.setValue(15)
+    slider.range = 0..99
+    slider.value = 55
 
     connect(quit, SIGNAL('clicked()'), $qApp, SLOT('quit()'))
     connect(slider, SIGNAL('valueChanged(int)'),

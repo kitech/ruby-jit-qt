@@ -20,7 +20,7 @@ app = Qt5::QApplication.new(ARGV.count, ARGV);
 # Qt5::connectrb(timer, "timeout()", thfix, :slot_ruby_space);
 # exit;
 # timer.start(500);
-Qt5::RubyThreadFix.new
+# Qt5::RubyThreadFix.new
 
 puts app
 # exit;
@@ -30,9 +30,16 @@ def test_widget()
   w.show()
 end
 
-test_widget;
+# okkk
+def test_range()
+  slider = Qt5::QSlider.new(Qt5::Horizontal)
+  slider.range = 1..99
+end
 
-app.exec()
+#test_widget;
+test_range;
+
+# app.exec()
 
 
 

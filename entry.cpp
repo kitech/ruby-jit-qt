@@ -226,11 +226,16 @@ static QGenericArgument Variant2Arg(int type, QVariant &v, int idx, InvokeStorag
  */
 static QVariant VALUE2Variant(VALUE v)
 {
+
     QVariant rv;
     QString str, str2;
     void *ci = NULL;
     QObject *obj = NULL;
 
+    VALUE v1;
+    VALUE v2;
+    VALUE v3;
+    
     switch (TYPE(v)) {
     case T_NONE:  rv = QVariant(); break;
     case T_FIXNUM: rv = (int)FIX2INT(v); break;
@@ -256,20 +261,103 @@ static QVariant VALUE2Variant(VALUE v)
         }
         rv = QVariant(ary);
     }; break;
+    case T_STRUCT:
+        qDebug()<<"use VALUE2Variant2 function.";
+        break;
     case T_CLASS:
     default:
         qDebug()<<"unknown VALUE type:"<<TYPE(v);
         break;
     }
-
+    
     return rv;
+}
+
+// Range类型支持
+static QVector<QVariant> VALUE2Variant2(VALUE v)
+{
+    QVector<QVariant> rvs(1);
+    QVariant rv;
+    QString str, str2;
+    void *ci = NULL;
+    QObject *obj = NULL;
+
+    VALUE v1;
+    VALUE v2;
+    VALUE v3;
+    
+    switch (TYPE(v)) {
+    case T_NONE:  rv = QVariant(); break;
+    case T_FIXNUM: rv = (int)FIX2INT(v); break;
+    case T_STRING:  rv = RSTRING_PTR(v); break;
+    case T_FLOAT:  rv = RFLOAT_VALUE(v); break;
+    case T_NIL:   rv = 0; break;
+    case T_TRUE:  rv = true; break;
+    case T_FALSE: rv = false; break;
+    case T_OBJECT:
+        str = QString(rb_class2name(RBASIC_CLASS(v)));
+        ci = Qom::inst()->jdobjs[rb_hash(v)];
+        // obj = dynamic_cast<QObject*>(ci);
+        qDebug()<<"unimpl VALUE:"<<str<<ci<<obj;
+        // rv = QVariant(QMetaType::VoidStar, ci);
+        rv = QVariant::fromValue(ci);
+        break;
+    case T_ARRAY: {
+        QStringList ary;
+        // ary << "a123" << "b3456";
+        qDebug()<<RARRAY_LEN(v)<<QT_VERSION;
+        for (int i = 0; i < RARRAY_LEN(v); i++) {
+            ary << VALUE2Variant(rb_ary_entry(v, i)).toString();
+        }
+        rv = QVariant(ary);
+    }; break;
+    case T_STRUCT: {
+        str = rb_class2name(RBASIC_CLASS(v));
+        if (str == "Range") {
+            // qDebug()<<"Range is struct???"<<BUILTIN_TYPE(v)
+            //         <<rb_class2name(RBASIC_CLASS(v))
+            //         <<RSTRUCT_LEN(v);
+            v1 = RSTRUCT_GET(v, 0);
+            v2 = RSTRUCT_GET(v, 1);
+            v3 = RSTRUCT_GET(v, 2);
+            // qDebug()<<TYPE(v1)<<TYPE(v2)<<TYPE(v3);
+            // qDebug()<<FIX2INT(v1)<<FIX2INT(v2);
+
+            rv = QVariant(FIX2INT(v1));
+            rvs.append(QVariant(FIX2INT(v2)));
+        } else {
+            qDebug()<<"unsupported struct type:"<<str;
+        }
+    }; break;
+    case T_CLASS:
+    default:
+        qDebug()<<"unknown VALUE type:"<<TYPE(v);
+        break;
+    }
+    
+    rvs[0] = rv;
+    return rvs;
+}
+
+static QVector<QVariant> ARGV2Variant(int argc, VALUE *argv, int start = 0)
+{
+    QVector<QVariant> args;
+    for (int i = start; i < argc; i ++) {
+        // if (i == 0) continue; // for ctor 0 is arg0
+        if (i >= argc) break;
+        qDebug()<<"i == "<< i << (i<argc) << (i>argc);
+        QVector<QVariant> targs = VALUE2Variant2(argv[i]);
+        for (auto v: targs) args << v;
+        qDebug()<<"i == "<< i << (i<argc) << (i>argc)<<targs;
+    }
+
+    return args;
 }
 
 /*
   统一的to_s方法
   
  */
-
 VALUE x_Qt_meta_class_to_s(int argc, VALUE *argv, VALUE obj)
 {
     qDebug()<<argc;
@@ -630,7 +718,7 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
 {
     void *jo = Qom::inst()->jdobjs[rb_hash(self)];
     void *ci = jo;
-    qDebug()<<ci;
+    qDebug()<<ci<<argc;
     assert(ci != 0);
     QString klass_name = get_qt_class(self);
     QString method_name = QString(rb_id2name(SYM2ID(argv[0])));
@@ -638,6 +726,7 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
     assert(argc >= 1);
 
     QVector<QVariant> args;
+    /*
     for (int i = 0; i < argc; i ++) {
         if (i == 0) continue;
         if (i >= argc) break;
@@ -647,6 +736,8 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
         args << VALUE2Variant(argv[i]);
         qDebug()<<"i == "<< i << (i<argc) << (i>argc)<<VALUE2Variant(argv[i]);
     }
+    */
+    args = ARGV2Variant(argc, argv, 1);
 
     // fix try_convert(obj) → array or nil
     if (method_name == "to_ary") {
@@ -657,6 +748,16 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
         return Qnil;
     }
 
+    // property assign
+    if (method_name.endsWith('=')) {
+        // TODO 需要更多的详细处理，通过类的property定义找到指定的赋值方法。
+        QString set_method_name = QString("set%1%2")
+            .arg(method_name.left(1).toUpper())
+            .arg(method_name.mid(1, method_name.length()-2));
+        gce->vm_call(ci, klass_name, set_method_name, args);
+        return Qnil;
+    }
+    
     gce->vm_call(ci, klass_name, method_name, args);
 
     return Qnil;
