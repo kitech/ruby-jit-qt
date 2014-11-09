@@ -992,19 +992,20 @@ bool CompilerEngine::gen_darg(llvm::Module *mod, QVariant &darg, int idx, clang:
                 <<ctor->isTrivial()<<ctor->isDefaultConstructor();
         // 为什么这个设置不管用呢？
         // expr->setConstructionKind(clang::CXXConstructExpr::CK_Complete);
-        expr->setConstructionKind(clang::CXXConstructExpr::CK_VirtualBase);
+        // expr->setConstructionKind(clang::CXXConstructExpr::CK_VirtualBase);
         // expr->setConstructionKind(clang::CXXConstructExpr::CK_NonVirtualBase);
         // expr->setConstructionKind(clang::CXXConstructExpr::CK_Delegating);
         qDebug()<<"ck:"<<expr->getConstructionKind();
 
-        ctor->setTrivial(false);        
-        cu->mcgf->CurGD = clang::GlobalDecl(ctor, clang::Ctor_Base);// 不管用
-        qDebug()<<"ctor type:"<<cu->mcgf->CurGD.getCtorType();
+        // ctor->setTrivial(false);
+        // cu->mcgf->CurGD = clang::GlobalDecl(ctor, clang::Ctor_Base);// 不管用
+        // qDebug()<<"ctor type:"<<cu->mcgf->CurGD.getCtorType();
         // expr->setElidable(false); // no
         // expr->setRequiresZeroInitialization(true); // no
+        qDebug()<<"elidable:"<<expr->isElidable();
         
         auto lv = cu->mcgf->EmitCXXConstructLValue(expr);
-        qDebug()<<"ctor type:"<<cu->mcgf->CurGD.getCtorType();
+        // qDebug()<<"ctor type:"<<cu->mcgf->CurGD.getCtorType();
         auto lvd = lv.getAddress();
         r.vv = lvd;
         lvd->setName(QString("toargx%1").arg(idx).toStdString());
@@ -1212,6 +1213,7 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
                     "_ZN15QTypedArrayDataItE10sharedNullEv",
                     "_ZN15QTypedArrayDataIcE4dataEv",
                     "_ZN6QFlagsIN2Qt10WindowTypeEEC1EMNS2_7PrivateEi", // ctor
+                    "_ZN6QFlagsIN2Qt13AlignmentFlagEEC1EMNS2_7PrivateEi",
                 };
                 if (known_syms.contains(tsym)) {
                     if (llvm::isa<clang::CXXConstructorDecl>(callee_decl)) {

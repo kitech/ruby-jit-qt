@@ -779,8 +779,8 @@ clang::ClassTemplateDecl* FrontEngine::find_tpl_class_decl(QString klass)
     return tpldecl;
 }
 
-QVector<clang::CXXMethodDecl*> FrontEngine::find_method_decls(clang::CXXRecordDecl *decl,
-                                                 QString klass, QString method)
+QVector<clang::CXXMethodDecl*>
+FrontEngine::find_method_decls(clang::CXXRecordDecl *decl, QString klass, QString method)
 {
     QVector<clang::CXXMethodDecl*> mdecls;
 
@@ -828,8 +828,8 @@ QVector<clang::CXXMethodDecl*> FrontEngine::find_method_decls(clang::CXXRecordDe
     return mdecls;
 }
 
-QVector<clang::CXXMethodDecl*> FrontEngine::find_tpl_method_decls(clang::ClassTemplateDecl *decl,
-                                                                  QString klass, QString method)
+QVector<clang::CXXMethodDecl*>
+FrontEngine::find_tpl_method_decls(clang::ClassTemplateDecl *decl, QString klass, QString method)
 {
     QVector<clang::CXXMethodDecl*> mdecls;
 
@@ -1234,3 +1234,72 @@ int FrontEngine::get_class_enum(clang::CXXRecordDecl *decl, QString enum_name)
     return ev.getLimitedValue();
     return -2;
 }
+
+// 查找Qt namespace的enum定义
+int FrontEngine::get_qtns_enum(QString enum_name)
+{
+    // find Qt namespace
+    clang::TranslationUnitDecl *udecl = this->mtrunit;
+    Q_ASSERT(udecl != NULL);
+
+    QVector<clang::NamespaceDecl*> nsdecls;
+    int qtns_num = 0;
+    for (auto it = udecl->decls_begin(); it != udecl->decls_end(); it++) {
+        clang::Decl *decl = *it;
+        clang::NamespaceDecl *nsdecl;
+
+        QString declname;
+        // qDebug()<<decl<<decl->getDeclKindName()<<decl->getKind();
+        switch (decl->getKind()) {
+        case clang::Decl::Namespace:
+            nsdecl = llvm::cast<clang::NamespaceDecl>(decl);
+            declname = nsdecl->getName().data();
+            // qDebug()<<declname;
+            if (declname == "Qt") {
+                qDebug()<<"found it:"<<declname;
+                qtns_num ++;
+                nsdecls.append(nsdecl);
+            }
+            break;
+        default: break;
+        }
+    }
+
+    // find enum here
+
+    bool found = false;
+    clang::EnumConstantDecl* ecd = NULL;
+    for (auto nsdecl: nsdecls) {
+        for (auto d: nsdecl->decls()) {
+            if (!llvm::isa<clang::EnumDecl>(d)) continue;
+
+            auto ed = llvm::cast<clang::EnumDecl>(d);
+            // qDebug()<<d->getDeclKindName()<<ed->getName().data();
+            for (auto e: ed->enumerators()) {
+                // qDebug()<<d->getDeclKindName()<<ed->getName().data()<<e->getName().data();
+                if (enum_name == e->getName().data()) {
+                    qDebug()<<"found it:"<<enum_name;
+                    qDebug()<<d->getDeclKindName()<<ed->getName().data()<<e->getName().data();
+                    found = true;
+                    ecd = e;
+                    break;
+                }
+            }
+            if (found) break;
+        }
+        if (found) break;
+    }
+
+    if (!found) {
+        qDebug()<<"enum not found:"<<enum_name;
+        return -4;
+    }
+
+    // 计算这个enum的值
+    llvm::APSInt ev = ecd->getInitVal();
+    // qDebug()<<ev.getLimitedValue();
+
+    return ev.getLimitedValue();
+    return -3;
+}
+

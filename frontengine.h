@@ -115,6 +115,8 @@ public:
 
     // 查找类的enum定义
     int get_class_enum(clang::CXXRecordDecl *decl, QString enum_name);
+    // 查找Qt namespace的enum定义
+    int get_qtns_enum(QString enum_name);
 };
 
 #endif /* FRONTENGINE_H */

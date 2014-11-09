@@ -1192,14 +1192,21 @@ static VALUE x_Qt_Constant_missing(int argc, VALUE* argv, VALUE self)
 {
     qDebug()<<"hehhe constant missing."<<argc<<TYPE(self);
 
+    QString vspace = "Qt";
+    QString vname;
+    
+    // assert(argc == 1);
+    // assert(TYPE(self) == T_SYMBOL)
     for (int i = 0; i < argc; i++) {
         qDebug()<<__FUNCTION__<<TYPE(argv[i]);
         switch (TYPE(argv[i])) {
         case T_STRING:
             qDebug()<<i<<"is string:"<<RSTRING_PTR(argv[i]);
+            vname = RSTRING_PTR(argv[i]);
             break;
         case T_SYMBOL:
             qDebug()<<i<<"is symbol:"<<rb_id2name(SYM2ID(argv[i]));
+            vname = rb_id2name(SYM2ID(argv[i]));
             break;
         case T_FIXNUM:
             qDebug()<<i<<"is num:"<<FIX2INT(argv[i]);
@@ -1210,7 +1217,12 @@ static VALUE x_Qt_Constant_missing(int argc, VALUE* argv, VALUE self)
         }
     }
 
-    return 0;
+    // vm exec
+    int val = gce->vm_enum(vspace, vname);
+    qDebug()<<"enum..."<<val;
+
+    return INT2NUM(val);
+    return Qnil;
 }
 
 // from qtobjectmanager.h

@@ -14,7 +14,7 @@ echo $CXXFLAGS
 
 
 care_classes="QAccessible QAction QActionGroup QObject QString QBitArray
-QBitmap QBuffer QBoxLayout
+QBitmap QBuffer
 QByteArray QThread QCoreApplication
 QChar QStringList QSize
 QTimer QDateTime QUrl QFile QRegExp
@@ -24,13 +24,13 @@ QNetworkCookie QNetworkCookieJar
 QNetworkAccessManager QNetworkRequest QNetworkReply
 QGuiApplication  QIcon QFont QPaintDevice
 QWidget QMainWindow
-QPushButton QLCDNumber QSlider QLayout QGridLayout
+QPushButton QLCDNumber QSlider QLayout QBoxLayout QGridLayout
 QApplication
 ";
 
 # 32 位系统有问题
 broken_classes="QNetworkReply"
-
+multi_inone_classes="QVBoxLayout QHBoxLayout"
 
 ##### gen jit types body
 jit_types_body_file="metalize/jit_types_body.cpp"
@@ -43,7 +43,10 @@ for klass in $care_classes ; do
     echo "(void)(${klass}*)v0;" >> $jit_types_body_file
     echo "RQCLASS_REGISTER(${klass});" >> $qtruby_register_file
 done
-
+echo "(void)(QVBoxLayout*)v0;" >> $jit_types_body_file
+echo "(void)(QHBoxLayout*)v0;" >> $jit_types_body_file
+echo "RQCLASS_REGISTER(QVBoxLayout);" >> $qtruby_register_file
+echo "RQCLASS_REGISTER(QHBoxLayout);" >> $qtruby_register_file
 
 #### exit
 

@@ -207,7 +207,7 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
             // TOOOOOOOOOOOOOOOOOODO
             if (v.userType() == EvalType::id) {
                 EvalType r = v.value<EvalType>();
-                QString argval = QString("toargx%1").arg(i-1); // %this为0占掉1个参数位置
+                QString argval = QString("toargx%1").arg(i); // %this为0占掉1个参数位置
                 qDebug()<<"eval type:"<<v<<r.ve<<r.vv<<evals.contains(argval)<<argval;
                 cargs.push_back(evals.value(argval));
                 break;
@@ -374,14 +374,30 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, void *kthis, QSt
         cval->setAttributes(sets);
     }
     // TODO byval call
+    for (auto &a: dstfun->getArgumentList()) {
+        if (a.hasByValAttr()) {
+            auto aty = a.getType();
+            std::string ostr; llvm::raw_string_ostream ostm(ostr); aty->print(ostm);
+            /*
+            qDebug()<<"need byval attr:"<<(&a)<<dstfun->getName().data()
+                    <<ostm.str().c_str()
+                    <<a.getType()->isPointerTy()
+                    <<a.getType()->isIntegerTy()
+                    <<a.getArgNo();
+            */
+            if (a.getType()->isPointerTy()) {
+                 // need +1, idx0为返回值属性,idx~0为函数属性。是否需要考虑sret？
+                cval->addAttribute(a.getArgNo()+1, llvm::Attribute::ByVal);
+            }
+        }
+    }
     // test for qflags byval
     if (false && symbol.indexOf("path") != -1 && klass == "QUrl") {
         cval->addAttribute(3, llvm::Attribute::ByVal);
         // qDebug()<<"QUrl::path called";
     }
-
     // for test
-    if (true && symbol.indexOf("_ZN7QWidgetC2EPS_6QFlagsIN2Qt10WindowTypeEE") != -1) {
+    if (false && symbol.indexOf("_ZN7QWidgetC2EPS_6QFlagsIN2Qt10WindowTypeEE") != -1) {
         cval->addAttribute(3, llvm::Attribute::ByVal);
     }
     

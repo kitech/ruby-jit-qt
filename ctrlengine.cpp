@@ -1,5 +1,6 @@
 
 #include <clang/AST/DeclCXX.h>
+#include <llvm/IR/Module.h>
 
 #include "frontengine.h"
 #include "compilerengine.h"
@@ -45,18 +46,20 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     
     // auto mod = mce->conv_ctor(mfe->getASTContext(), ctor_decl);
     auto mod = mce->conv_ctor2(mfe->getASTUnit(), ctor_decl, dargs);
-    qDebug()<<mod;// <<mod->getDataLayout();
+    qDebug()<<mod<<mod->getDataLayout();
     // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
     QString symname = mce->mangle_ctor(mfe->getASTContext(), ctor_decl);
     qDebug()<<mod<<symname;
 
+    // 默认参数编译成IR    
     clang::FunctionDecl *jmt_decl = mfe->find_free_function("__jit_main_tmpl");
     qDebug()<<jmt_decl;
     jmt_decl->dumpColor();
 
-    int cnter = 0;
+    int cnter = -1;
     if (true)
     for (auto &v: dargs) {
+        cnter ++;
         // qDebug()<<v<<v.type()<<(int)v.type()<<v.userType();
         int t = (int)v.type();
         if (v.type() != QMetaType::User) continue;
@@ -64,7 +67,6 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
         mce->gen_darg(mod, v, cnter, jmt_decl);
         EvalType r = v.value<EvalType>();
         qDebug()<<v<<r.ve<<r.vv;
-        cnter ++;
     }    
 
     OperatorEngine oe;
@@ -74,7 +76,6 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     // QString lamsym = oe.bind(mod, "_ZN7QStringC2Ev", kthis, uargs, dargs);
     QString lamsym = oe.bind(mod, symname, kthis, klass, uargs, dargs, false);
     qDebug()<<lamsym;
-
     
     Clvm *vm = new Clvm;
     if (vm == NULL) qFatal("kkkkkkkkk");
@@ -99,24 +100,40 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     qDebug()<<mth_decl<<mth_decl->isStatic();
     mth_decl->dumpColor();
 
+    QVector<QVariant> dargs;
+    mfe->get_method_default_params(mth_decl, dargs);
+    
     // auto mod = mce->conv_method(mfe->getASTContext(), mth_decl);
     auto mod = mce->conv_method2(mfe->getASTUnit(), mth_decl);
-    qDebug()<<mod;// <<mod->getDataLayout();
+    qDebug()<<mod<<mod->getDataLayout();
     // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
     QString symname = mce->mangle_method(mfe->getASTContext(), mth_decl);
     qDebug()<<mod<<symname;
 
-    OperatorEngine oe;
-    QVector<QVariant> dargs;
-    mfe->get_method_default_params(mth_decl, dargs);
-
-    // darg expr eval
+    // 默认参数编译成IR
+    clang::FunctionDecl *jmt_decl = mfe->find_free_function("__jit_main_tmpl");
+    qDebug()<<jmt_decl;
+    jmt_decl->dumpColor();
+    // /*    
+    int cnter = -1;
+    if (true)
     for (auto &v: dargs) {
-        if (v.type() != EvalType::id) continue;
+        cnter ++;
+        // qDebug()<<v<<v.type()<<(int)v.type()<<v.userType();
+        int t = (int)v.type();
+        if (v.type() != QMetaType::User) continue;
+        if (v.userType() != EvalType::id) continue;
+        mce->gen_darg(mod, v, cnter, jmt_decl);
+        EvalType r = v.value<EvalType>();
+        qDebug()<<v<<r.ve<<r.vv;
     }
-    
+    // mod->dump();
+    // */
+
+    OperatorEngine oe;
     QString lamsym = oe.bind(mod, symname, kthis, klass, uargs, dargs, mth_decl->isStatic());
     qDebug()<<lamsym;
+    
     Clvm *vm = new Clvm;
     auto gv = vm->execute2(mod, lamsym);
     qDebug()<<"gv:"<<llvm::GVTOP(gv);
@@ -128,13 +145,17 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
 int CtrlEngine::vm_enum(QString klass, QString enum_name)
 {
     mfe->loadPreparedASTFile();
-    clang::CXXRecordDecl *rec_decl = mfe->find_class_decl(klass);
-    qDebug()<<klass<<rec_decl;
-    // rec_decl->dumpColor();
-    
-    int ev = mfe->get_class_enum(rec_decl, enum_name);
 
-    return ev;
+    if (klass == "Qt") {
+        int ev = mfe->get_qtns_enum(enum_name);
+        return ev;
+    } else {
+        clang::CXXRecordDecl *rec_decl = mfe->find_class_decl(klass);
+        qDebug()<<klass<<rec_decl;
+        // rec_decl->dumpColor();
+        int ev = mfe->get_class_enum(rec_decl, enum_name);
+        return ev;
+    }
     return -1;
 }
 

@@ -39,6 +39,10 @@
 
 \section{返回的处理}
 
+\section{类属性赋值的处理}
+lcd.value = 5
+lcd.range = 0..99
+估计需要考虑检测是否是类的属性类型的symbol，再转换成相应的set函数调用。
 
 \section{预编译头文件AST的应用}
 可用。
