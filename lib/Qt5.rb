@@ -1,3 +1,5 @@
+### RUBYLIB env variable
+$VERBOSE = false; $:.unshift File.absolute_path(File.dirname($0))
 
 a = File.absolute_path(File.dirname(__FILE__))
 ret = require "#{a}/../handby.so"

@@ -61,10 +61,11 @@ end
 def test_signal_slots()
   t = Qt5::QTimer.new
   t.interval = 50..90
+  t.interval = 80
   # puts (50..90).class
-  #puts t.to_s();
-  #t.connect(t, "2timeout()", t, "1stop()");
-  #t.start(123); #  QObject::startTimer: Timers can only be used with threads started with QThread
+  puts t.to_s();
+  t.connect(t, "2timeout()", t, "1stop()");
+  t.start(123); #  QObject::startTimer: Timers can only be used with threads started with QThread
 end
 
 def test_enum()
@@ -73,10 +74,15 @@ def test_enum()
   puts Qt5::QString::SectionIncludeLeadingSep
 end
 
-# test_qstring
-# test_qbytearray # 处理这个类问题还比较多, fixed nowwwwww
-# test_qurl
+def test_else()
+  puts File.dirname($0)
+end
+
+test_else;
+test_qstring
+test_qbytearray # 处理这个类问题还比较多, fixed nowwwwww
+test_qurl
 test_signal_slots
-# test_enum
+test_enum
 
 

@@ -1214,6 +1214,7 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
                     "_ZN15QTypedArrayDataIcE4dataEv",
                     "_ZN6QFlagsIN2Qt10WindowTypeEEC1EMNS2_7PrivateEi", // ctor
                     "_ZN6QFlagsIN2Qt13AlignmentFlagEEC1EMNS2_7PrivateEi",
+                    "_ZNK14QScopedPointerI11QObjectData21QScopedPointerDeleterIS0_EEptEv",
                 };
                 if (known_syms.contains(tsym)) {
                     if (llvm::isa<clang::CXXConstructorDecl>(callee_decl)) {
