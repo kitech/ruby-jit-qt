@@ -35,7 +35,7 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     mfe->loadPreparedASTFile();
     clang::CXXRecordDecl *rec_decl = mfe->find_class_decl(klass);
     qDebug()<<rec_decl;
-    qDebug()<<uargs;
+    qDebug()<<"uargs:"<<uargs;
     clang::CXXConstructorDecl *ctor_decl = mfe->find_ctor_decl(rec_decl, klass, uargs);
     qDebug()<<ctor_decl;
     ctor_decl->dumpColor();

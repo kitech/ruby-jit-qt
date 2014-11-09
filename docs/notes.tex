@@ -37,11 +37,21 @@
 \subsection{构造函数实例化}
 默认情况下会生成Ctor\_Complete类型的实例。
 
+\section{返回的处理}
+
+
 \section{预编译头文件AST的应用}
 可用。
 不完善，修改了其中一个头文件，则需要重新生成ast文件。
 如果实时生成，则速度太慢，上秒级。
 可以考虑使用增量式的AST生成。
+
+\chapter{Ruby&Qt}
+\section{Ruby nil}
+nil传递到Ruby C API之后会是什么类型的值，怎么表达的。
+nil传递到C时是int类型的0。
+
+\section{Ruby中继承Qt类的处理}
 
 
 \section{参考}

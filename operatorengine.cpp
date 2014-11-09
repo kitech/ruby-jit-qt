@@ -141,10 +141,9 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
             cargs.push_back(lv);
             break;
 
-        case QMetaType::Int:
-        case QMetaType::UInt:
-        case QMetaType::Short:
-        case QMetaType::UShort: {
+        case QMetaType::Int: case QMetaType::UInt:
+        case QMetaType::Short: case QMetaType::UShort: {
+            // TODO 对于Int*类型是不是要考虑databit确定是Int32还是Int64。
             if (farg.getDereferenceableBytes() == 0) {
                 ctypes.push_back(builder.getInt32Ty());
                 lv = builder.getInt32(v.toInt());
@@ -156,8 +155,7 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
             }
             cargs.push_back(lv);
         }; break;
-        case QMetaType::LongLong:
-        case QMetaType::ULongLong:
+        case QMetaType::LongLong: case QMetaType::ULongLong:
             if (farg.getDereferenceableBytes() == 0) {
                 ctypes.push_back(builder.getInt64Ty());
                 lv = builder.getInt64(v.toLongLong());
@@ -188,11 +186,10 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
             gis2.vval[i] = mrg_args.at(i).value<void*>(); // mrg_args.at(i).value<void*>();
             lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)gis2.vval[i]);
             // lv = llvm::ConstantExpr::getIntToPtr(lc, builder.getVoidTy()->getPointerTo());
-            if (gis2.vval[i] == NULL) {
-                // for byval param, 这个正确，但是void*则不正确
-                // lv = llvm::ConstantExpr::getIntToPtr(lc, builder.getVoidTy()->getPointerTo());
+            if (gis2.vval[i] != NULL) {
                 lv = llvm::ConstantExpr::getIntToPtr(lc, aty);
             } else {
+                // TODO 这个处理合适吗？
                 lv = builder.getInt32((int64_t)(0));
             }
             cargs.push_back(lv);

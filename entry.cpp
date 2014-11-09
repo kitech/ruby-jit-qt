@@ -447,6 +447,24 @@ static VALUE x_Qt_class_dtor(VALUE id)
 }
 
 /*
+// 这应该叫统一的方法，获取qt class名称
+// get_qt_class(VALUE self)
+// 判断是否是qt类，如果不是，很可能是在Ruby中继承Qt类
+// 如果是继承类，取到需要实例化的Qt类名
+TODO 还需要考虑继承层次大于2的情况
+ */
+static QString get_qt_class(VALUE self)
+{
+    QString klass_name = rb_class2name(RBASIC_CLASS(self));
+    if (klass_name.startsWith("Qt5::Q")) return klass_name.split("::").at(1);
+
+    // 如果是继承类，取到需要实例化的Qt类名
+    VALUE pcls = RCLASS_SUPER(RBASIC_CLASS(self));
+    klass_name = rb_class2name(pcls);
+    return klass_name.split("::").at(1);
+}
+
+/*
   通过Qt类的初始化函数
   获取要实例化的类名，从staticMetaObject加载类信息，
   使用Qt的QMetaObject::newInstance创建新的实例对象。
@@ -456,9 +474,11 @@ static VALUE x_Qt_class_dtor(VALUE id)
 VALUE x_Qt_class_init_jit(int argc, VALUE *argv, VALUE self)
 {
     qDebug()<<argc<<TYPE(self);
-    QString klass_name = QString(rb_class2name(RBASIC_CLASS(self)));
-    klass_name = klass_name.split("::").at(1);
+    qDebug()<<rb_class2name(RBASIC_CLASS(self));
+
+    QString klass_name = get_qt_class(self);
     qDebug()<<"class name:"<<klass_name;
+
 
     // test_fe();
     // test_parse_class();
@@ -612,8 +632,7 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
     void *ci = jo;
     qDebug()<<ci;
     assert(ci != 0);
-    QString klass_name = QString(rb_class2name(RBASIC_CLASS(self)));
-    klass_name = klass_name.split("::").at(1);
+    QString klass_name = get_qt_class(self);
     QString method_name = QString(rb_id2name(SYM2ID(argv[0])));
     qDebug()<<"calling:"<<klass_name<<method_name<<argc<<(argc > 1);
     assert(argc >= 1);

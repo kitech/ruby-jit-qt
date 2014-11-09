@@ -542,7 +542,7 @@ Clvm::execute2(llvm::Module *mod, QString func_entry)
     EE->runStaticConstructorsDestructors(true);
     // cleanups
 
-    qDebug()<<"run code done.";
+    qDebug()<<"run code done."<<llvm::GVTOP(rgv)<<rgv.IntVal.getZExtValue();
     return rgv;
 }
 
