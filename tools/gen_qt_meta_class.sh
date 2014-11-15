@@ -24,6 +24,7 @@ QNetworkCookie QNetworkCookieJar
 QNetworkAccessManager QNetworkRequest QNetworkReply
 QGuiApplication  QIcon QFont QPaintDevice
 QWidget QMainWindow QColor QPalette QRect QRegion QLabel QPoint
+QFrame
 QPushButton QLCDNumber QSlider QLayout QBoxLayout QGridLayout
 QApplication
 ";
