@@ -186,11 +186,12 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
             gis2.vval[i] = mrg_args.at(i).value<void*>(); // mrg_args.at(i).value<void*>();
             lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)gis2.vval[i]);
             // lv = llvm::ConstantExpr::getIntToPtr(lc, builder.getVoidTy()->getPointerTo());
+            lv = llvm::ConstantExpr::getIntToPtr(lc, aty);
             if (gis2.vval[i] != NULL) {
-                lv = llvm::ConstantExpr::getIntToPtr(lc, aty);
+                // lv = llvm::ConstantExpr::getIntToPtr(lc, aty);
             } else {
                 // TODO 这个处理合适吗？
-                lv = builder.getInt32((int64_t)(0));
+                // lv = builder.getInt32((int64_t)(0));
             }
             cargs.push_back(lv);
             break;
@@ -206,10 +207,16 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
         default:
             // TOOOOOOOOOOOOOOOOOODO
             if (v.userType() == EvalType::id) {
-                EvalType r = v.value<EvalType>();
-                QString argval = QString("toargx%1").arg(i); // %this为0占掉1个参数位置
-                qDebug()<<"eval type:"<<v<<r.ve<<r.vv<<evals.contains(argval)<<argval;
-                cargs.push_back(evals.value(argval));
+                // 为什么64位和32位的传参方式不同呢？？？
+                if (sizeof(void*) == 8) {
+                    lv = builder.getInt32(0);
+                    cargs.push_back(lv);
+                } else { // OS x86
+                    EvalType r = v.value<EvalType>();
+                    QString argval = QString("toargx%1").arg(i); // %this为0占掉1个参数位置
+                    qDebug()<<"eval type:"<<v<<r.ve<<r.vv<<evals.contains(argval)<<argval;
+                    cargs.push_back(evals.value(argval));
+                }
                 break;
             }
             
@@ -373,8 +380,18 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, void *kthis, QSt
         sets = sets.addAttributes(mod->getContext(), 0, llvm::AttributeSet::get(mod->getContext(), 0, ab));
         cval->setAttributes(sets);
     }
-    // TODO byval call
+    // TODO byval call and reference arg
     for (auto &a: dstfun->getArgumentList()) {
+        qDebug()<<a.getArgNo()<<a.hasByValAttr()<<a.getDereferenceableBytes();
+        
+        if (a.getDereferenceableBytes() > 0) {
+            llvm::AttrBuilder ab(llvm::Attribute::getWithDereferenceableBytes(mod->getContext(), a.getDereferenceableBytes()));
+            llvm::AttributeSet sets;
+            sets = sets.addAttributes(mod->getContext(), a.getArgNo()+1,
+                                      llvm::AttributeSet::get(mod->getContext(), a.getArgNo()+1, ab));
+            cval->setAttributes(sets);
+        }
+        
         if (a.hasByValAttr()) {
             auto aty = a.getType();
             std::string ostr; llvm::raw_string_ostream ostm(ostr); aty->print(ostm);

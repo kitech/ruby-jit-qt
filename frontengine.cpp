@@ -975,7 +975,7 @@ bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl,
       如果下一个参数没有提供用户参数，看是否有默认参数值，如果有，则匹配。
       如果没有，则记录累计缺失参数的个数，后续计算匹配度。
      */
-    
+    qDebug()<<uargs;
     int idx = 0;
     int pless = 0; //
     QVector<int> lessed;
