@@ -772,6 +772,42 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
 
 /*
   stack structure:
+  self => CLASS
+  [0] => SYM function name
+  [1] => arg0
+  [2] => arg1
+  [3] => arg2
+  ...
+ */
+VALUE x_Qt_class_singleton_method_missing_jit(int argc, VALUE *argv, VALUE self)
+{
+    qDebug()<<argc;
+    QString klass_name = rb_class2name(self);
+    klass_name = klass_name.split("::").at(1);
+    QString method_name = QString(rb_id2name(SYM2ID(argv[0])));
+    qDebug()<<"calling:"<<klass_name<<method_name<<argc<<(argc > 1);        
+    
+
+    QVector<QVariant> args;
+    args = ARGV2Variant(argc, argv, 1);
+
+    // fix try_convert(obj) → array or nil
+    if (method_name == "to_ary") {
+        return Qnil;
+    }
+
+    if (method_name == "to_s") {
+        return Qnil;
+    }
+
+    QVariant gv = gce->vm_static_call(klass_name, method_name, args);
+    qDebug()<<"vv:"<<gv;
+    
+    return Qnil;
+}
+
+/*
+  stack structure:
   [0] => SYM function name
   [1] => arg0
   [2] => arg1

@@ -15,7 +15,9 @@ extern "C" {
     rb_define_method(c##klass, "initialize", (VALUE (*) (...)) x_Qt_class_init_jit, -1); \
     rb_define_method(c##klass, "to_s", (VALUE (*) (...)) x_Qt_meta_class_to_s, -1); \
     rb_define_method(c##klass, "method_missing", (VALUE (*) (...)) x_Qt_class_method_missing_jit, -1); \
-    rb_define_singleton_method(c##klass, "const_missing",  (VALUE (*) (...)) x_Qt_class_const_missing_jit, -1);
+    rb_define_singleton_method(c##klass, "const_missing",  (VALUE (*) (...)) x_Qt_class_const_missing_jit, -1); \
+    rb_define_singleton_method(c##klass, "method_missing",              \
+                               (VALUE (*) (...)) x_Qt_class_singleton_method_missing_jit, -1);
 
 #define RQCLASS_REGISTER_YAJIT(klass)                                         \
     static VALUE c##klass = rb_define_class_under(module, ""#klass, rb_cObject); \
@@ -41,6 +43,10 @@ extern "C" {
         // fix method conflict
         #include "metalize/qtruby_fix_body.cpp"
         // RQCLASS_FIX_CONFLICT(QLCDNumber, display);
+
+        // for test static method_missing
+        // rb_define_singleton_method(cQObject, "method_missing",
+        //                            (VALUE (*) (...)) x_Qt_class_singleton_method_missing_jit, -1);
 
         // cQObject = rb_define_class_under(module, "QObject", rb_cObject);
         // rb_define_method(cQObject, "initialize", FUNVAL x_Qt_meta_class_init, -1);

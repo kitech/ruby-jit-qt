@@ -91,19 +91,28 @@ public:
     clang::FunctionDecl *find_free_function(QString fname);
     clang::CXXRecordDecl* find_class_decl(QString klass);
     clang::ClassTemplateDecl* find_tpl_class_decl(QString klass);
-    QVector<clang::CXXMethodDecl*> find_method_decls(clang::CXXRecordDecl *decl, 
-                                                     QString klass, QString method);
-    QVector<clang::CXXMethodDecl*> find_tpl_method_decls(clang::ClassTemplateDecl *decl,
-                                                                  QString klass, QString method);
+    QVector<clang::CXXMethodDecl*>
+    find_method_decls(clang::CXXRecordDecl *decl, QString klass, QString method);
+    QVector<clang::CXXMethodDecl*>
+    find_tpl_method_decls(clang::ClassTemplateDecl *decl, QString klass, QString method);
 
     // 查找一个类的符合条件的构造函数定义。
-    clang::CXXConstructorDecl* find_ctor_decl(clang::CXXRecordDecl *decl, 
-                                              QString klass, QVector<QVariant> uargs);
+    clang::CXXConstructorDecl*
+    find_ctor_decl(clang::CXXRecordDecl *decl, QString klass, QVector<QVariant> uargs);
     // 查找一个类的符合条件的方法定义。
-    clang::CXXMethodDecl* find_method_decl(clang::CXXRecordDecl *decl, 
-                                           QString klass, QString method, QVector<QVariant> uargs);
-    clang::CXXMethodDecl* find_method_decl_from_base(clang::CXXRecordDecl *decl, 
-                                                     QString klass, QString method, QVector<QVariant> uargs);
+    clang::CXXMethodDecl*
+    find_method_decl(clang::CXXRecordDecl *decl, 
+                     QString klass, QString method, QVector<QVariant> uargs);
+    clang::CXXMethodDecl*
+    find_method_decl_from_base(clang::CXXRecordDecl *decl, 
+                               QString klass, QString method, QVector<QVariant> uargs);
+    clang::CXXMethodDecl*
+    find_static_method_decl(clang::CXXRecordDecl *decl, 
+                            QString klass, QString method, QVector<QVariant> uargs);
+    clang::CXXMethodDecl*
+    find_static_method_decl_from_base(clang::CXXRecordDecl *decl, 
+                                      QString klass, QString method, QVector<QVariant> uargs);
+    
     bool method_match_by_uargs(clang::CXXMethodDecl *decl, 
                                QString klass, QString method, QVector<QVariant> uargs);
     bool mangle_method_to_symbol(clang::CXXMethodDecl *decl, 

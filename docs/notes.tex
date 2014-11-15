@@ -46,6 +46,9 @@ lcd.range = 0..99
 ruby会生成一个"interval="方法调用，有一个参数为赋值表达式的方法调用。
 这里的=号，无论在ruby离interval多远，都会被连接到property名字上当作一个方法名。
 
+\section{类重载操作符的处理}
+像==、!=、>、<等重载的操作符号。
+
 \section{预编译头文件AST的应用}
 可用。
 不完善，修改了其中一个头文件，则需要重新生成ast文件。
@@ -67,6 +70,10 @@ nil传递到C时是int类型的0。
 类似的情况可能还有许多，但需要一个一个列出来。
 这是还涉及到BasicObject类中的方法。
 因为继承层次为BasicObject <- Object。
+
+在ruby qtbinding项目中，它使用的是在ruby层重定义并覆盖这个方法的方式，
+在qtruby4.rb文件中。
+并且它使用的是覆盖整个Object类的方法，而不是针对某一个Qt类实例相应的修正。
 
 
 \section{参考}

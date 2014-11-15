@@ -31,9 +31,9 @@ public:
 
 public:
     // 类似std::bind
-    QString bind(llvm::Module *mod, QString symbol, void *kthis, QString klass,
+    QString bind(llvm::Module *mod, QString symbol, QString klass,
                  QVector<QVariant> uargs, QVector<QVariant> dargs,
-                 bool is_static);
+                 bool is_static, void *kthis);
     int getClassAllocSize(QString klass);
 
 private:

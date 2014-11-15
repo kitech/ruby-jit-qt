@@ -963,7 +963,61 @@ FrontEngine::find_method_decl_from_base(clang::CXXRecordDecl *decl,
     return 0;
 }
 
+// 查找一个类的符合条件的方法定义。
+clang::CXXMethodDecl*
+FrontEngine::find_static_method_decl(clang::CXXRecordDecl *decl, 
+                                     QString klass, QString method, QVector<QVariant> uargs)
+{
+    this->loadPreparedASTFile();
 
+    clang::CXXRecordDecl *recdecl = this->find_class_decl(klass);
+    QVector<clang::CXXMethodDecl*> mthdecls = this->find_method_decls(recdecl, klass, method);
+    bool match = false;
+
+    QVector<clang::CXXMethodDecl*> mats;
+    for (clang::CXXMethodDecl *d: mthdecls) {
+        if (!d->isStatic()) continue;
+        match = this->method_match_by_uargs(d, klass, method, uargs);
+        if (match) {
+            mats << d;
+        }
+    }
+    qDebug()<<"matcc:"<<mats.count()<<"mats:"<<mats;
+    
+    if (mats.count() <= 0) {
+        qDebug()<<"method not found:"<<method;
+        return this->find_static_method_decl_from_base(decl, klass, method, uargs);
+        return NULL;
+    }
+    else if (mats.count() > 1) {
+        qDebug()<<"find more matched method, try first now.";
+    }
+    // else mats.count() == 1
+
+    clang::CXXMethodDecl *md = mats.at(0);
+    Q_ASSERT(md);
+    return md;
+}
+
+clang::CXXMethodDecl* 
+FrontEngine::find_static_method_decl_from_base(clang::CXXRecordDecl *decl, 
+                                               QString klass, QString method, QVector<QVariant> uargs)
+{
+    qDebug()<<"base classes:"<<decl->getNumBases();
+    for (auto bs: decl->bases()) {
+        auto bt = bs.getType();
+        qDebug()<<bt.getAsString().data();
+        auto tp = QString(bt.getAsString().data()).split(' ');
+        qDebug()<<tp;
+        QString bklass = tp.at(1);
+        clang::CXXRecordDecl *bdecl = this->find_class_decl(bklass);
+        clang::CXXMethodDecl *mth_decl = this->find_static_method_decl(bdecl, bklass, method, uargs);
+        if (mth_decl != NULL) {
+            return mth_decl;
+        }
+    }
+    return 0;
+}
 
 bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl, 
                            QString klass, QString method, QVector<QVariant> uargs)
@@ -999,6 +1053,8 @@ bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl,
             case QMetaType::Short: case QMetaType::UShort:
                 if (ptype->isIntegralOrEnumerationType()) ok = true;
                 if (nrptype->isIntegralOrEnumerationType()) ok = true;
+                // sth. like QWidget *p = 0
+                if (uargs.at(idx).toInt() == 0 && ptype->isPointerType()) ok = true;
                 break;
             case QMetaType::Double: case QMetaType::Float:
                 if (ptype->isRealFloatingType()) ok = true;

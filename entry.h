@@ -13,6 +13,7 @@
 
   x_Qt_class_singleton_const_missing  # 类常量，不需要实例访问的常量
   x_Qt_class_const_missing            # 实例常量
+  x_Qt_class_singleton_method_missing #类方法，不需要实例访问的常量，即静态方法
   x_Qt_class_method_missing
 
 
@@ -46,6 +47,7 @@ VALUE x_Qt_meta_class_method_missing_jit(int argc, VALUE *argv, VALUE self);
 // 使用即时编译方式
 VALUE x_Qt_class_init_jit(int argc, VALUE *argv, VALUE self);
 VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self);
+VALUE x_Qt_class_singleton_method_missing_jit(int argc, VALUE *argv, VALUE self);
 VALUE x_Qt_class_const_missing_jit(int argc, VALUE *argv, VALUE obj);
 
 #endif /* ENTRY_H */

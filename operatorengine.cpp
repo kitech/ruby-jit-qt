@@ -301,9 +301,9 @@ OperatorEngine::darg_instcpy(llvm::Module *mod, llvm::IRBuilder<> &builder, llvm
 }
 
 // TODO dereferenced return and dereferenced params
-QString OperatorEngine::bind(llvm::Module *mod, QString symbol, void *kthis, QString klass,
+QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass,
                              QVector<QVariant> uargs, QVector<QVariant> dargs,
-                             bool is_static)
+                             bool is_static, void *kthis)
 {
     QString lamsym;
 

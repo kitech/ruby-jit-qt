@@ -74,7 +74,7 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     qDebug()<<oe.getClassAllocSize(klass)<<kthis<<(int64_t)kthis<<dargs.count();
 
     // QString lamsym = oe.bind(mod, "_ZN7QStringC2Ev", kthis, uargs, dargs);
-    QString lamsym = oe.bind(mod, symname, kthis, klass, uargs, dargs, false);
+    QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, false, kthis);
     qDebug()<<lamsym;
     
     Clvm *vm = new Clvm;
@@ -131,7 +131,39 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     // */
 
     OperatorEngine oe;
-    QString lamsym = oe.bind(mod, symname, kthis, klass, uargs, dargs, mth_decl->isStatic());
+    QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, mth_decl->isStatic(), kthis);
+    qDebug()<<lamsym;
+    
+    Clvm *vm = new Clvm;
+    auto gv = vm->execute2(mod, lamsym);
+    qDebug()<<"gv:"<<llvm::GVTOP(gv)<<gv.IntVal.getZExtValue();
+    qDebug()<<"======================";
+    
+    return QVariant();
+}
+
+QVariant CtrlEngine::vm_static_call(QString klass, QString method, QVector<QVariant> uargs)
+{
+    qDebug()<<"aaaaaa";
+    mfe->loadPreparedASTFile();
+    clang::CXXRecordDecl *rec_decl = mfe->find_class_decl(klass);
+    qDebug()<<rec_decl;
+    clang::CXXMethodDecl *mth_decl = mfe->find_static_method_decl(rec_decl, klass, method, uargs);
+    qDebug()<<mth_decl<<mth_decl->isStatic();
+    mth_decl->dumpColor();
+
+    QVector<QVariant> dargs;
+    mfe->get_method_default_params(mth_decl, dargs);
+
+    // auto mod = mce->conv_method(mfe->getASTContext(), mth_decl);
+    auto mod = mce->conv_method2(mfe->getASTUnit(), mth_decl);
+    qDebug()<<mod<<mod->getDataLayout();
+    // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
+    QString symname = mce->mangle_method(mfe->getASTContext(), mth_decl);
+    qDebug()<<mod<<symname;
+
+    OperatorEngine oe;
+    QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, mth_decl->isStatic(), NULL);
     qDebug()<<lamsym;
     
     Clvm *vm = new Clvm;
