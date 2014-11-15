@@ -23,6 +23,8 @@ extern "C" {
     rb_define_method(c##klass, "to_s", (VALUE (*) (...)) x_Qt_meta_class_to_s, -1); \
     rb_define_method(c##klass, "method_missing", (VALUE (*) (...)) x_Qt_meta_class_method_missing_jit, -1);
 
+#define RQCLASS_FIX_CONFLICT(klass, method)     \
+    rb_undef_method(c##klass, ""#method);
     
     // VALUE cQObject;
     // VALUE cQString;
@@ -35,6 +37,10 @@ extern "C" {
         // 所有Qt类的注释
         #include "metalize/qtruby_auto_body.cpp"
         // format: RQCLASS_REGISTER(QXxxxx);
+
+        // fix method conflict
+        #include "metalize/qtruby_fix_body.cpp"
+        // RQCLASS_FIX_CONFLICT(QLCDNumber, display);
 
         // cQObject = rb_define_class_under(module, "QObject", rb_cObject);
         // rb_define_method(cQObject, "initialize", FUNVAL x_Qt_meta_class_init, -1);

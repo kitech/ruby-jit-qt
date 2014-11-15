@@ -61,6 +61,13 @@ nil传递到C时是int类型的0。
 
 \section{Ruby中继承Qt类的处理}
 
+\section{Ruby的Object类已有方法的处理}
+像display方法，如果在Qt类中还有这个方法，则无法正确的调用到Qt类的方法，
+必须把Object类中的display方法undef掉，使用rb\_undef\_method函数。
+类似的情况可能还有许多，但需要一个一个列出来。
+这是还涉及到BasicObject类中的方法。
+因为继承层次为BasicObject <- Object。
+
 
 \section{参考}
 ROOT/cling

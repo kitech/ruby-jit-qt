@@ -117,8 +117,8 @@ class GameBoard < Qt5::QWidget
     end
 
     def newGame()
-        #@shotsLeft.display( 15.0 )
-        #@hits.display( 0 )
+        @shotsLeft.display( 15.0 )
+        @hits.display( 0 )
         @cannonField.restartGame
         @cannonField.newTarget
     end

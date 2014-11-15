@@ -757,7 +757,8 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
         gce->vm_call(ci, klass_name, set_method_name, args);
         return Qnil;
     }
-    
+
+    qDebug()<<ci<<klass_name<<method_name<<args;
     QVariant gv = gce->vm_call(ci, klass_name, method_name, args);
     qDebug()<<"vv:"<<gv;
     // TODO 使用真实的返回值

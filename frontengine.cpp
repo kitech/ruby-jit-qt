@@ -1000,6 +1000,10 @@ bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl,
                 if (ptype->isIntegralOrEnumerationType()) ok = true;
                 if (nrptype->isIntegralOrEnumerationType()) ok = true;
                 break;
+            case QMetaType::Double: case QMetaType::Float:
+                if (ptype->isRealFloatingType()) ok = true;
+                // qDebug()<<ptype->isRealFloatingType()<<ptype->isBuiltinType();
+                break;
             case QMetaType::Bool:
                 if (ptype->isBooleanType()) ok = true;
                 break;

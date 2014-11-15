@@ -32,14 +32,25 @@ end
 
 # okkk
 def test_range()
-  slider = Qt5::QSlider.new(Qt5::Horizontal)
-  slider.range = 1..99
+    slider = Qt5::QSlider.new(Qt5::Horizontal)
+    slider.range = 1..99
+end
+
+def test_disp()
+    hits = Qt5::QLCDNumber.new( 2, self )
+    puts hits.value()
+    hits.display('123');  # display 和 ruby object的方法冲突了？？？确定
+    puts "============456"
+    exit;
+    
+    #display('aaaaaa')
 end
 
 #test_widget;
-test_range;
+#test_range;
+test_disp;
 
-# app.exec()
+#app.exec()
 
 
 
