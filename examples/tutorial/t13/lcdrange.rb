@@ -5,8 +5,7 @@ class LCDRange < Qt5::QWidget
     #slots 'setValue(int)', 'setRange(int, int)', 'setText(const char*)'
     
     def initialize(s, parent = nil)
-        #super(parent)
-        super()
+        super(parent)
         init()
         #setText(s)
     end

@@ -6,8 +6,6 @@ require 'gamebrd.rb'
 #require './gamebrd.rb'
 
 app = Qt5::QApplication.new(ARGV.count, ARGV)
-$qApp = app
-
 board = GameBoard.new
 board.setGeometry( 100, 100, 500, 355 )
 board.show

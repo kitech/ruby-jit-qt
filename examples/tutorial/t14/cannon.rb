@@ -8,8 +8,7 @@ class CannonField < Qt5::QWidget
     #slots   'angle=(int)', 'force=(int)', 'shoot()', 'moveShot()',
     #        'newTarget()', 'setGameOver()', 'restartGame()'
 
-    def initialize(# parent = nil
-                  )
+    def initialize(parent = nil)
         super()
         @currentAngle = 45
         @currentForce = 0

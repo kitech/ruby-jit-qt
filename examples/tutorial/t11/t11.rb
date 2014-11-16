@@ -8,11 +8,10 @@ require 'cannon.rb'
 # require './cannon.rb'
 
 class MyWidget < Qt5::QWidget
-    def initialize(# parent = nil
-                  )
+    def initialize(parent = nil)
         super
         quit = Qt5::QPushButton.new('Quit')
-        #quit.setFont(Qt5::QFont.new('Times', 18, Qt5::QFont::Bold))
+        quit.setFont(Qt5::QFont.new('Times', 18, Qt5::QFont::Bold))
     
         connect(quit, SIGNAL('clicked()'), $qApp, SLOT('quit()'))
     
@@ -62,8 +61,6 @@ class MyWidget < Qt5::QWidget
 end    
 
 app = Qt5::QApplication.new(ARGV.count, ARGV)
-$qApp = app
-
 widget = MyWidget.new
 widget.setGeometry( 100, 100, 500, 355 )
 widget.show

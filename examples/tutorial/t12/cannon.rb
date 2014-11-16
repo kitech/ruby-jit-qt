@@ -66,7 +66,7 @@ class CannonField < Qt5::QWidget
             @@currentForceirst_time = false
             midnight = Qt5::QTime.new( 0, 0, 0 )
             # srand( midnight.secsTo(Qt5::QTime.currentTime()) )
-            # TODO 静态方法调用
+            # TODO （静态）方法的返回值问题
         end
         r = Qt5::QRegion.new( targetRect() )
         rect = Qt5::QRect.new( 0, 0, 20, 10 )

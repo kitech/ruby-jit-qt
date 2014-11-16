@@ -32,8 +32,6 @@ end
 end
 
 app = Qt5::QApplication.new(ARGV.count, ARGV)
-$qApp = app
-
 widget = MyWidget.new
 widget.show
 app.exec

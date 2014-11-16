@@ -8,8 +8,7 @@ class GameBoard < Qt5::QWidget
 
     #slots 'fire()', 'hit()', 'missed()', 'newGame()'
 
-    def initialize(# parent = nil
-                  )
+    def initialize(parent = nil)
         super
         quit = Qt5::QPushButton.new('&Quit')
         quit.setFont(Qt5::QFont.new('Times', 18, Qt5::QFont::Bold))
@@ -40,7 +39,7 @@ class GameBoard < Qt5::QWidget
                     self, SLOT('missed()') )
                 
         shoot = Qt5::QPushButton.new( '&Shoot', self )
-        # shoot.setFont( Qt5::QFont.new( 'Times', 18, Qt5::QFont::Bold ) )
+         shoot.setFont( Qt5::QFont.new( 'Times', 18, Qt5::QFont::Bold ) )
 
         connect( shoot, SIGNAL('clicked()'), SLOT('fire()') )
         #connect( @cannonField, SIGNAL('canShoot(bool)'),

@@ -10,7 +10,7 @@ class GameBoard < Qt5::QWidget
     def initialize()
         super
         quit = Qt5::QPushButton.new('&Quit')
-        #quit.font = Qt5::QFont.new('Times', 18, Qt5::QFont::Bold)
+        quit.font = Qt5::QFont.new('Times', 18, Qt5::QFont::Bold)
     
         connect(quit, SIGNAL('clicked()'), $qApp, SLOT('quit()'))
     

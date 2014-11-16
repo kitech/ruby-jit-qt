@@ -5,7 +5,6 @@ $VERBOSE = true; $:.unshift File.dirname($0)
 require 'Qt'
 
 app = Qt5::QApplication.new(ARGV.count, ARGV)
-$qApp = app
 
 class MyWidget < Qt5::QWidget
 

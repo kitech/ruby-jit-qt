@@ -5,3 +5,9 @@ moc_*.cpp
 CMakeCache.txt
 CMakeFiles
 Makefile
+*.h.cpp
+*.h.err
+*.h.proto.cpp
+*yq*.h
+*#*#
+*.core
