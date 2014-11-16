@@ -5,11 +5,10 @@ require 'Qt'
 
 class LCDRange < Qt5::QWidget
 
-def initialize(# parent = nil
-              )
+def initialize(parent = nil)
     super
     lcd = Qt5::QLCDNumber.new(2)
-    slider = Qt5::QSlider.new(Qt5::QHorizontal)
+    slider = Qt5::QSlider.new(Qt5::Horizontal)
     slider.range = 0..99
     slider.value = 0
 
@@ -28,7 +27,7 @@ class MyWidget < Qt5::QWidget
 def initialize()
     super
     quit = Qt5::QPushButton.new('Quit')
-    #quit.setFont(Qt5::QFont.new('Times', 18, Qt5::QFont::Bold))
+    quit.setFont(Qt5::QFont.new('Times', 18, Qt5::QFont::Bold))
     connect(quit, SIGNAL('clicked()'), $qApp, SLOT('quit()'))
 
     grid = Qt5::QGridLayout.new

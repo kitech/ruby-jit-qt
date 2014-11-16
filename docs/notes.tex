@@ -49,6 +49,13 @@ ruby会生成一个"interval="方法调用，有一个参数为赋值表达式�
 \section{类重载操作符的处理}
 像==、!=、>、<等重载的操作符号。
 
+\section{qApp全局变量的处理}
+qtbinding中实例这个变量的方式是，通过继承出来一个假的Application或者CoreApplication类，
+在这个类的初始化时设置ruby全局变量$qApp。
+
+这种方式，实际也没有太多的技巧，也许可以考虑更好的方式。
+
+
 \section{预编译头文件AST的应用}
 可用。
 不完善，修改了其中一个头文件，则需要重新生成ast文件。

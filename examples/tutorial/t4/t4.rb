@@ -9,15 +9,13 @@ $qApp = app
 
 class MyWidget < Qt5::QWidget
 
-  def initialize(
-        # parent = nil  # 还是这nil参数的问题
-      )
+  def initialize(parent = nil)
     super
     setFixedSize(200, 120)
 
     quit = Qt5::QPushButton.new('Quit', self)
-    # quit.setGeometry(62, 40, 75, 30)  # symbol not found
-    # quit.setFont(Qt5::QFont.new('Times', 18, Qt5::QFont::Bold))
+    quit.setGeometry(62, 40, 75, 30)
+    quit.setFont(Qt5::QFont.new('Times', 18, Qt5::QFont::Bold))
 
     connect(quit, SIGNAL('clicked()'), $qApp, SLOT('quit()'))
 end

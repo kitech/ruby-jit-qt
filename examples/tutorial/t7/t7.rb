@@ -7,12 +7,10 @@ require 'lcdrange.rb'
 
 class MyWidget < Qt5::QWidget
 
-    def initialize(# parent = nil
-                  )
-        #super(parent)
-        super
+    def initialize(parent = nil)
+        super(parent)
         quit = Qt5::QPushButton.new('Quit')
-        #quit.setFont(Qt5::QFont.new('Times', 18, Qt5::QFont::Bold))
+        quit.setFont(Qt5::QFont.new('Times', 18, Qt5::QFont::Bold))
     
         connect(quit, SIGNAL('clicked()'), $qApp, SLOT('quit()'))
 
