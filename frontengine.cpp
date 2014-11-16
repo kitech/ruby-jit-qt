@@ -877,8 +877,84 @@ FrontEngine::find_tpl_method_decls(clang::ClassTemplateDecl *decl, QString klass
     return mdecls;
 }
 
-clang::CXXConstructorDecl* FrontEngine::find_ctor_decl(clang::CXXRecordDecl *decl, 
-                                          QString klass, QVector<QVariant> uargs)
+// template<typename DT>
+QVector<clang::CXXConstructorDecl*>
+resolve_callee_decl(QVector<clang::CXXConstructorDecl*> &decls, QVector<QVariant> &uargs)
+{
+    QVector<clang::CXXConstructorDecl*> res;
+    if (uargs.count() > 0) {
+        // drop default ctor
+        for (auto d: decls) {
+            if (!d->isDefaulted()) {
+                res.append(d);
+            }
+        }
+    }
+    if (res.count() <= 1) {
+        return res;
+    }
+
+    // next step, 定义的参数个数>=调用提供的参数个数
+    QVector<clang::CXXConstructorDecl*> res2;
+    QVector<int> score;
+    for (auto d: res2) score.append(1);
+
+    int idx = -1;
+    for (auto d: res) {
+        idx ++;
+        int callee_arg_num = d->getNumParams();
+        if (callee_arg_num >= uargs.count()) {
+            res2.append(d);
+        }
+    }
+
+    if (res.count() <= 1) return res2;
+    return res2;
+
+    QVector<clang::CXXConstructorDecl*> resn;
+    return resn;
+}
+
+template<typename DT>
+QVector<DT*> resolve_callee_decl(QVector<DT*> &decls, QVector<QVariant> &uargs)
+{
+    QVector<DT*> res;
+    if (uargs.count() > 0) {
+        // drop default ctor
+        for (auto d: decls) {
+            if (!d->isDefaulted()) {
+                res.append(d);
+            }
+        }
+    }
+    if (res.count() <= 1) {
+        return res;
+    }
+
+    // next step, 定义的参数个数>=调用提供的参数个数
+    QVector<DT*> res2;
+    QVector<int> score;
+    for (auto d: res2) score.append(1);
+
+    int idx = -1;
+    for (auto d: res) {
+        idx ++;
+        int callee_arg_num = d->getNumParams();
+        if (callee_arg_num >= uargs.count()) {
+            res2.append(d);
+        }
+    }
+
+    if (res.count() <= 1) return res2;
+    return res2;
+
+    QVector<DT*> resn;
+    return resn;
+}
+
+clang::CXXConstructorDecl*
+FrontEngine::find_ctor_decl(clang::CXXRecordDecl *decl, 
+                            QString klass, QVector<QVariant> uargs)
 {
     bool match = false;
     QVector<clang::CXXConstructorDecl*> ctors;
@@ -900,7 +976,10 @@ clang::CXXConstructorDecl* FrontEngine::find_ctor_decl(clang::CXXRecordDecl *dec
         return NULL;
     }
     else if (ctors.count() > 1) {
-        qDebug()<<"find more matched method, try first now.";
+        qDebug()<<"find more matched method, try first now."<<ctors.count();
+        auto rcs = resolve_callee_decl(ctors, uargs);
+        ctors = rcs;
+        qDebug()<<rcs.count()<<rcs;
     }
     // else ctors.count() == 1
 
@@ -934,7 +1013,10 @@ clang::CXXMethodDecl* FrontEngine::find_method_decl(clang::CXXRecordDecl *decl,
         return NULL;
     }
     else if (mats.count() > 1) {
-        qDebug()<<"find more matched method, try first now.";
+        qDebug()<<"find more matched method, try first now."<<mats.count();
+        auto rcs = resolve_callee_decl<clang::CXXMethodDecl>(mats, uargs);
+        mats = rcs;
+        qDebug()<<rcs.count()<<rcs;        
     }
     // else mats.count() == 1
 

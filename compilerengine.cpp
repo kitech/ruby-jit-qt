@@ -1256,7 +1256,8 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
                     "_ZNK10QByteArray4sizeEv", "_ZN10QArrayData10sharedNullEv",
                     "_ZN10QArrayData4dataEv", "_ZN7QWidget6resizeERK5QSize",
                     "_ZN7QWidget11setGeometryERK5QRect", "_ZNK5QRect6heightEv",
-                    "_ZNK6QPoint1xEv", "_ZNK6QPoint1yEv",
+                    "_ZNK6QPoint1xEv", "_ZNK6QPoint1yEv", "_ZNK5QRect4sizeEv",
+                    "_ZNK5QRect5widthEv",
                 };
                 if (known_syms.contains(tsym)) {
                     auto callee_decl_with_body = 
