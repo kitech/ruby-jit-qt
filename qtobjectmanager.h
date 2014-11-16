@@ -28,7 +28,7 @@ public:
         QString raw_signal;
     };
     
-    QHash<quint64, void *> jdobjs; // jit'ed objects
+    QHash<RB_VALUE, void *> jdobjs; // jit'ed objects
     QHash<quint64, QObject *> objs;
     // QHash<QString, const QMetaObject *> metas;
     QHash<void *, ObjectInfo*> qobjs; // qtobject => ObjectInfo

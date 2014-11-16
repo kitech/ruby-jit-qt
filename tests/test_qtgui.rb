@@ -46,6 +46,13 @@ def test_disp()
     #display('aaaaaa')
 end
 
+def test_qApp()
+    puts '========'
+    puts $qApp;
+    puts '========'    
+end
+
+test_qApp;
 #test_widget;
 #test_range;
 test_disp;

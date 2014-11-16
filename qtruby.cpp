@@ -35,11 +35,15 @@ extern "C" {
     // VALUE cQUrl;
 
     int register_qtruby_classes(VALUE module)
-    {
-        // 所有Qt类的注释
+    {        
+        // 所有Qt类的注册
         #include "metalize/qtruby_auto_body.cpp"
         // format: RQCLASS_REGISTER(QXxxxx);
 
+        // for qApp 类Qt全局变量
+        rb_define_virtual_variable("$qApp", (VALUE (*)(ANYARGS)) x_Qt_global_variable_get,
+                                   (void (*)(ANYARGS)) x_Qt_global_variable_set);
+        
         // fix method conflict
         #include "metalize/qtruby_fix_body.cpp"
         // RQCLASS_FIX_CONFLICT(QLCDNumber, display);

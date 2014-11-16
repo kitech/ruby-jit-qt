@@ -5,13 +5,13 @@
 
 #include "qtobjectmanager.h"
 
-#define SAVE_CI0(value) Qom::inst()->objs[rb_hash(self)] = (QObject*)value
-#define SAVE_CI2(type, value) Qom::inst()->objs[rb_hash(self)] = (QObject*)value
+#define SAVE_CI0(value) Qom::inst()->objs[self] = (QObject*)value
+#define SAVE_CI2(type, value) Qom::inst()->objs[self] = (QObject*)value
 // ci == cpp instance 
- #define GET_CI2(type) type *ci = (type*)Qom::inst()->objs[rb_hash(self)]
+ #define GET_CI2(type) type *ci = (type*)Qom::inst()->objs[self]
 
-#define GET_CI3(type) y##type *ci = (y##type*)Qom::inst()->objs[rb_hash(self)]
-#define GET_CI0() QObject *ci = (QObject*)Qom::inst()->objs[rb_hash(self)]
+#define GET_CI3(type) y##type *ci = (y##type*)Qom::inst()->objs[self]
+#define GET_CI0() QObject *ci = (QObject*)Qom::inst()->objs[self]
 
 #define FUNVAL (VALUE (*) (...))
 
@@ -25,7 +25,7 @@
 template<typename QtObjectType>
 void save_ci(VALUE self) {
     QtObjectType *io = new QtObjectType();
-    Qom::inst()->objs[rb_hash(self)] = (QObject*)io;
+    Qom::inst()->objs[self] = (QObject*)io;
     QMetaObject *mo = io->metaObject();
 }
 

@@ -1,0 +1,7 @@
+2014-11
+	直接存储ruby VALUE类型作为hash的key值，不再使用rb_hash计算一次。
+	实现诸如qApp的Qt全局变量getter/setter。
+
+2014-10
+	基本的jit执行。
+	

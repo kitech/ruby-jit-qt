@@ -50,4 +50,9 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self);
 VALUE x_Qt_class_singleton_method_missing_jit(int argc, VALUE *argv, VALUE self);
 VALUE x_Qt_class_const_missing_jit(int argc, VALUE *argv, VALUE obj);
 
+// Qt全局变量
+VALUE x_Qt_global_variable_get(ID id, VALUE *data, struct global_entry *entry);
+void x_Qt_global_variable_set(VALUE value, ID id, VALUE *data, struct global_entry *entry);
+
+
 #endif /* ENTRY_H */

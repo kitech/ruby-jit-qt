@@ -22,20 +22,11 @@
 
 #include "clvm.h"
 
-// #include "rcoreapplication.h"
-
 #include "metalize/metar_classes_qtcore.h"
 #include "metalize/metas.h"
 #include "qtruby.h"
 
 // extern "C" {
-
-// #define SAVE_CI2(type, value) Qom::inst()->objs[rb_hash(self)] = (QObject*)value
-// ci == cpp instance 
-// #define GET_CI2(type) type *ci = (type*)Qom::inst()->objs[rb_hash(self)]
-
-
-// #define FUNVAL (VALUE (*) (...))
 
 
 /*
@@ -246,7 +237,7 @@ static QVariant VALUE2Variant(VALUE v)
     case T_FALSE: rv = false; break;
     case T_OBJECT:
         str = QString(rb_class2name(RBASIC_CLASS(v)));
-        ci = Qom::inst()->jdobjs[rb_hash(v)];
+        ci = Qom::inst()->jdobjs[v];
         // obj = dynamic_cast<QObject*>(ci);
         qDebug()<<"unimpl VALUE:"<<str<<ci<<obj;
         // rv = QVariant(QMetaType::VoidStar, ci);
@@ -296,7 +287,7 @@ static QVector<QVariant> VALUE2Variant2(VALUE v)
     case T_FALSE: rv = false; break;
     case T_OBJECT:
         str = QString(rb_class2name(RBASIC_CLASS(v)));
-        ci = Qom::inst()->jdobjs[rb_hash(v)];
+        ci = Qom::inst()->jdobjs[v];
         // obj = dynamic_cast<QObject*>(ci);
         qDebug()<<"unimpl VALUE:"<<str<<ci<<obj;
         // rv = QVariant(QMetaType::VoidStar, ci);
@@ -362,7 +353,7 @@ VALUE x_Qt_meta_class_to_s(int argc, VALUE *argv, VALUE obj)
 {
     qDebug()<<argc;
     QString klass_name = QString(rb_class2name(RBASIC_CLASS(obj)));
-    void *ci = Qom::inst()->jdobjs[rb_hash(obj)];
+    void *ci = Qom::inst()->jdobjs[obj];
     
     QString stc; // stream container
     QDebug dm(&stc);
@@ -474,7 +465,7 @@ static VALUE x_Qt_meta_class_dtor_jit(VALUE id)
     klass_name = klass_name.split("::").at(1);
     qDebug()<<"dtor:"<<klass_name;
 
-    void *ci = Qom::inst()->jdobjs[rb_hash(self)];
+    void *ci = Qom::inst()->jdobjs[self];
     qDebug()<<"herhe:"<<ci;
 
     // TODO
@@ -528,7 +519,7 @@ static VALUE x_Qt_class_dtor(VALUE id)
     // delete ci;
 
     // void* now, can not delete, need dtor and free
-    void *qo = Qom::inst()->jdobjs[rb_hash(self)];
+    void *qo = Qom::inst()->jdobjs[self];
     qDebug()<<qo<<rb_class2name(RBASIC_CLASS(self));
 
     return Qnil;
@@ -586,9 +577,9 @@ VALUE x_Qt_class_init_jit(int argc, VALUE *argv, VALUE self)
     }
     
     void *jo = gce->vm_new(klass_name, args);
-    qDebug()<<jo;    
+    qDebug()<<jo<<self<<rb_hash(self);    
 
-    Qom::inst()->jdobjs[rb_hash(self)] = jo;
+    Qom::inst()->jdobjs[self] = jo;
 
     VALUE free_proc = rb_proc_new(FUNVAL x_Qt_class_dtor, 0);
     rb_define_finalizer(self, free_proc);
@@ -643,7 +634,7 @@ VALUE x_Qt_meta_class_init_jit(int argc, VALUE *argv, VALUE self)
     QVector<QVariant> args;
     void *jo = jit_vm_new(klass_name, args);
     qDebug()<<jo;
-    Qom::inst()->jdobjs[rb_hash(self)] = jo;
+    Qom::inst()->jdobjs[self] = jo;
 
     if (0) {
         QVector<llvm::GenericValue> envp;
@@ -651,7 +642,7 @@ VALUE x_Qt_meta_class_init_jit(int argc, VALUE *argv, VALUE self)
 
         llvm::GenericValue gvret = jit_vm_execute(code_src, envp);
         void *ci = llvm::GVTOP(gvret);
-        Qom::inst()->jdobjs[rb_hash(self)] = ci;
+        Qom::inst()->jdobjs[self] = ci;
         qDebug()<<"newed ci:"<<ci;
     }
 
@@ -716,7 +707,7 @@ QString &test_ir_objref(YaQString *pthis, QString &str)
  */
 VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
 {
-    void *jo = Qom::inst()->jdobjs[rb_hash(self)];
+    void *jo = Qom::inst()->jdobjs[self];
     void *ci = jo;
     qDebug()<<ci<<argc;
     assert(ci != 0);
@@ -816,7 +807,7 @@ VALUE x_Qt_class_singleton_method_missing_jit(int argc, VALUE *argv, VALUE self)
  */
 VALUE x_Qt_meta_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
 {
-    void *jo = Qom::inst()->jdobjs[rb_hash(self)];
+    void *jo = Qom::inst()->jdobjs[self];
     void *ci = jo;
     qDebug()<<ci;
     assert(ci != 0);
@@ -1312,7 +1303,7 @@ VALUE x_Qt_meta_class_singleton_method_missing(int argc, VALUE *argv, VALUE obj)
 }
 
 
-static VALUE x_QApplication_init(VALUE self)
+static VALUE x_QApplicatiton_init(VALUE self)
 {
     int argc = 1;
     char *argv[] = {(char*)"handby"};
@@ -1330,6 +1321,35 @@ static VALUE x_QApplication_exec(VALUE self)
     int n = ci->exec();
 
     return n;
+}
+
+// for qApp 等全局变量
+VALUE x_Qt_global_variable_get(ID id, VALUE *data, struct global_entry *entry)
+{
+    // qDebug()<<id<<data<<entry;
+    // qDebug()<<rb_id2name(id)<<qApp;
+    QString vname = rb_id2name(id);
+
+    if (vname == "$qApp") {
+        void *v = qApp;
+        if (v == NULL) return Qnil;
+        // TODO 提高查找效率。
+        for (auto it = Qom::inst()->jdobjs.begin(); it != Qom::inst()->jdobjs.end(); it++) {
+            if (it.value() == v) {
+                return it.key();
+            }
+        }
+        return Qnil;
+    }
+    qDebug()<<"undef variable:"<<vname;
+    return INT2NUM(123456);
+    return Qnil;
+}
+
+void x_Qt_global_variable_set(VALUE value, ID id, VALUE *data, struct global_entry *entry)
+{
+    qDebug()<<TYPE(value)<<id<<data<<entry;
+    return;
 }
 
 static VALUE x_Qt_Constant_missing(int argc, VALUE* argv, VALUE self)
