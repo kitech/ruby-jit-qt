@@ -1,3 +1,4 @@
+#include "fix_clang_undef_eai.h"
 
 #include <clang/AST/DeclCXX.h>
 #include <llvm/IR/Module.h>

@@ -18,6 +18,9 @@ class LCDRange < Qt5::QWidget
 		layout.addWidget(@slider)
 		setLayout(layout)
 
+        setPalette( Qt5::QPalette.new( Qt5::QColor.new( 250, 250, 20) ) )
+        setAutoFillBackground(true)
+        
         setFocusProxy(@slider)
     end
 

@@ -1,3 +1,4 @@
+#include "fix_clang_undef_eai.h"
 #include <QtCore>
 
 #include "clang/Basic/DiagnosticOptions.h"

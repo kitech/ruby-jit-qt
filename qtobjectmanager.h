@@ -1,6 +1,8 @@
 #ifndef QTOBJECTMANAGER_H
 #define QTOBJECTMANAGER_H
 
+#include "fix_clang_undef_eai.h"
+
 #include <functional>
 #include <atomic>
 #include <QtCore>

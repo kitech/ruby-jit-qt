@@ -1,3 +1,4 @@
+#include "fix_clang_undef_eai.h"
 
 #include <QDebug>
 #include <QVariant>

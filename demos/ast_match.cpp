@@ -1,3 +1,5 @@
+#include "fix_clang_undef_eai.h"
+
 #include <QtCore>
 
 #include "llvm/Support/Host.h"

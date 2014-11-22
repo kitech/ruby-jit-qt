@@ -1,3 +1,5 @@
+#include "fix_clang_undef_eai.h"
+
 #include "llvm/Support/Host.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "clang/Basic/DiagnosticOptions.h"

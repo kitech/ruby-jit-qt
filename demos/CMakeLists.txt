@@ -1,4 +1,6 @@
 
+include_directories("../")
+
 add_executable(tp1  var_tpl.cpp)
 qt5_use_modules(tp1 Core)
 

@@ -1,7 +1,7 @@
 #ifndef ENTRY_H
 #define ENTRY_H
 
-
+#include "fix_clang_undef_eai.h"
 #include <ruby.hpp>
 
 /*

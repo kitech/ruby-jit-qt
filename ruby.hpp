@@ -1,5 +1,7 @@
-#ifndef _CPP_RUBY_H
-#define _CPP_RUBY_H
+#ifndef _CPP_RUBY_HPP
+#define _CPP_RUBY_HPP
+
+#include "fix_clang_undef_eai.h"
 
 extern "C" {
     #include <ruby.h>
@@ -18,6 +20,6 @@ private:
     
 };
 
-#endif /* _CPP_RUBY_H */
+#endif /* _CPP_RUBY_HPP */
 
 

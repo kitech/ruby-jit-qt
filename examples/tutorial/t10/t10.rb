@@ -14,24 +14,24 @@ class MyWidget < Qt5::QWidget
         quit.setFont(Qt5::QFont.new('Times', 18, Qt5::QFont::Bold))
     
         connect(quit, SIGNAL('clicked()'), $qApp, SLOT('quit()'))
-    
+        
         angle = LCDRange.new( self )
         angle.range = 5..70
         
         force  = LCDRange.new( self )
         force.range = 10..50
         
-        cannonField = CannonField.new( self )
+        # cannonField = CannonField.new( self )
 
-        connect( angle, SIGNAL('valueChanged(int)'),
-                cannonField, SLOT('setAngle(int)') )
-        connect( cannonField, SIGNAL('angleChanged(int)'),
-                angle, SLOT('setValue(int)') )
+        # connect( angle, SIGNAL('valueChanged(int)'),
+        #         cannonField, SLOT('setAngle(int)') )
+        # connect( cannonField, SIGNAL('angleChanged(int)'),
+        #         angle, SLOT('setValue(int)') )
 
-        connect( force, SIGNAL('valueChanged(int)'),
-                cannonField, SLOT('setForce(int)') )
-        connect( cannonField, SIGNAL('forceChanged(int)'),
-                force, SLOT('setValue(int)') )
+        # connect( force, SIGNAL('valueChanged(int)'),
+        #         cannonField, SLOT('setForce(int)') )
+        # connect( cannonField, SIGNAL('forceChanged(int)'),
+        #         force, SLOT('setValue(int)') )
         
         leftLayout = Qt5::QVBoxLayout.new()
         leftLayout.addWidget( angle )
@@ -39,14 +39,20 @@ class MyWidget < Qt5::QWidget
 
         gridLayout = Qt5::QGridLayout.new
         gridLayout.addWidget( quit, 0, 0 )
-        gridLayout.addLayout(leftLayout, 1, 0)
-        gridLayout.addWidget( cannonField, 1, 1, 2, 1 )
-        gridLayout.setColumnStretch( 1, 10 )
+        #gridLayout.addWidget( angle, 1, 0 )
+        #gridLayout.addWidget( force, 0, 1 )
+        #gridLayout.addLayout(leftLayout, 0, 0)
+        #gridLayout.addWidget( cannonField, 1, 1, 2, 2 )
+        #gridLayout.addWidget( cannonField, 0, 1);
+        #gridLayout.setColumnStretch( 1, 10 )
 		setLayout(gridLayout)
+        #setLayout(leftLayout)
+
+        #gridLayout.columnCount();
     
-        angle.setValue( 60 )
-        force.setValue( 25 )
-        angle.setFocus()
+        #angle.setValue( 60 )
+        #force.setValue( 25 )
+        #angle.setFocus()
     end
 end    
 

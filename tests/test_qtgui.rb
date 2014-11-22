@@ -30,6 +30,41 @@ def test_widget()
   w.show()
 end
 
+### TODO QGridLayout not normal.
+def test_layout()
+    w = Qt5::QWidget.new
+    #w.show()
+    
+    b = Qt5::QPushButton.new("Quit...", w);
+    b2 = Qt5::QPushButton.new("Quit2222...", w);
+    vlo = Qt5::QVBoxLayout.new();
+    w2 = Qt5::QLCDNumber.new(w);
+    w3 = Qt5::QLCDNumber.new(w);
+
+    w2.display('6000');
+    w3.display('200');
+    
+    vlo.addWidget(w2);
+    vlo.addWidget(w3);
+
+    #w.setLayout(llo)
+
+    glo = Qt5::QGridLayout.new();
+    glo.addWidget(b, 0, 0)    
+    glo.addLayout(vlo, 1, 0);
+    #glo.addWidget(b2, 1, 0)
+
+    #w.layout(); # ok
+    w.setLayout(glo);
+    #w.layout(); # ok
+    #w.hide();
+    w.show();
+    #glo.rowCount();
+    #glo.columnCount();
+    #glo.dumpObjectInfo();
+    #w.dumpObjectTree();
+end
+
 # okkk
 def test_range()
     slider = Qt5::QSlider.new(Qt5::Horizontal)
@@ -52,12 +87,14 @@ def test_qApp()
     puts '========'    
 end
 
-test_qApp;
+
+test_layout;
+#test_qApp;
 #test_widget;
 #test_range;
-test_disp;
+# test_disp;
 
-#app.exec()
+app.exec()
 
 
 

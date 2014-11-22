@@ -96,6 +96,11 @@ nil传递到C时是int类型的0。
 在qtruby4.rb文件中。
 并且它使用的是覆盖整个Object类的方法，而不是针对某一个Qt类实例相应的修正。
 
+\section{clang与gcc兼容性问题}
+\subsection{/usr/include/string.h:82:1: error: unknown type name '\_\_extern\_always\_inline'}
+在使用clang编译时报错。
+一种解决方式是使用-O0优化参数，能够避免这个报错。
+
 
 \section{参考}
 ROOT/cling

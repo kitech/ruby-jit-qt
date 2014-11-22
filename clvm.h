@@ -1,6 +1,8 @@
 #ifndef CLVM_H
 #define CLVM_H
 
+#include "fix_clang_undef_eai.h"
+
 #include <QThread>
 #include <llvm/ExecutionEngine/GenericValue.h>
 

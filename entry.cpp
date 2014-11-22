@@ -1,4 +1,6 @@
 
+#include "fix_clang_undef_eai.h"
+
 #include <QtCore>
 #include <QtGui>
 #include <QtWidgets>
@@ -357,7 +359,7 @@ VALUE x_Qt_meta_class_to_s(int argc, VALUE *argv, VALUE obj)
     
     QString stc; // stream container
     QDebug dm(&stc);
-    dm << "tsed:" << klass_name << "Hash:" << rb_hash(obj) << "C:"<< ci;
+    dm << "tsed:" << klass_name << "Obj:"<< obj << "Hash:" << rb_hash(obj) << "C:"<< ci;
     // 怎么能解引用呢 *ci, 当前void*无法解。
     // dm << "hehe has newline???"; // 这种方式要手动换行。
 
@@ -365,6 +367,10 @@ VALUE x_Qt_meta_class_to_s(int argc, VALUE *argv, VALUE obj)
     if (klass_name == "Qt5:QString") dm << *(YaQString*)ci;
     else if (klass_name == "Qt5::QUrl") dm << *(YaQUrl*)ci;
 
+    if (klass_name == "Qt5::QWidget") {
+        QWidget *w = (QWidget*)ci;
+    }
+    
     // qDebug()<<stc;
     VALUE rv = rb_str_new2(stc.toLatin1().data());
     return rv;

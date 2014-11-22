@@ -1,3 +1,4 @@
+#include "fix_clang_undef_eai.h"
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
@@ -207,13 +208,25 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
         default:
             // TOOOOOOOOOOOOOOOOOODO
             if (v.userType() == EvalType::id) {
+                EvalType r = v.value<EvalType>();
+                QString argval = QString("toargx%1").arg(i); // %this为0占掉1个参数位置
+                
                 // 为什么64位和32位的传参方式不同呢？？？
                 if (sizeof(void*) == 8) {
-                    lv = builder.getInt32(0);
+                    QString tmp = dstfun->getName().data();
+                    std::vector<llvm::Value*> idxList;
+                    idxList.push_back(builder.getInt32(0));
+                    idxList.push_back(builder.getInt32(0));
+                    llvm::ArrayRef<llvm::Value*> vmIdxList(idxList);
+                    builder.CreateGEP(evals.value(argval), vmIdxList);
+                    
+                    if (tmp.indexOf("addLayout") >= 0) {
+                        lv = builder.getInt32(0);
+                    } else {
+                        lv = builder.getInt32(0);
+                    }
                     cargs.push_back(lv);
                 } else { // OS x86
-                    EvalType r = v.value<EvalType>();
-                    QString argval = QString("toargx%1").arg(i); // %this为0占掉1个参数位置
                     qDebug()<<"eval type:"<<v<<r.ve<<r.vv<<evals.contains(argval)<<argval;
                     cargs.push_back(evals.value(argval));
                 }
