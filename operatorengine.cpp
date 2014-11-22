@@ -218,14 +218,21 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
                     idxList.push_back(builder.getInt32(0));
                     idxList.push_back(builder.getInt32(0));
                     llvm::ArrayRef<llvm::Value*> vmIdxList(idxList);
-                    builder.CreateGEP(evals.value(argval), vmIdxList);
+                    llvm::Value* tlc = builder.CreateGEP(evals.value(argval), vmIdxList);
+                    qDebug()<<sty<<tlc<<".......";
+                    llvm::Value* tlv = builder.CreateLoad(tlc);
                     
                     if (tmp.indexOf("addLayout") >= 0) {
                         lv = builder.getInt32(0);
                     } else {
                         lv = builder.getInt32(0);
                     }
-                    cargs.push_back(lv);
+                    qDebug()<<sty<<"......."<<r.vf_base_name;
+                    if (r.vf_base_name.startsWith("_ZN6QFlagsIN2Qt")) {
+                        cargs.push_back(tlv);
+                    } else {
+                        cargs.push_back(lv);
+                    }
                 } else { // OS x86
                     qDebug()<<"eval type:"<<v<<r.ve<<r.vv<<evals.contains(argval)<<argval;
                     cargs.push_back(evals.value(argval));

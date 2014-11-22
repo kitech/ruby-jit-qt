@@ -37,6 +37,9 @@ public:
     // 查找这个类中的enum的值。
     int vm_enum(QString klass, QString enum_name);
 
+    // hot fix
+    QVariant vm_call_hotfix(void *kthis, QString klass, QString method, QVector<QVariant> uargs);
+    
 public:
     // 调度组件可能不需要这些组件，只管理调度问题。
     clang::CompilerInstance *mcis = NULL;

@@ -1,4 +1,5 @@
 #include "fix_clang_undef_eai.h"
+#include <QtWidgets>
 
 #include <clang/AST/DeclCXX.h>
 #include <llvm/IR/Module.h>
@@ -51,6 +52,9 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
     QString symname = mce->mangle_ctor(mfe->getASTContext(), ctor_decl);
     qDebug()<<mod<<symname;
+    if (symname.indexOf("LayoutC") != -1) {
+        symname = symname.replace("C2", "C1");
+    }
 
     // 默认参数编译成IR    
     clang::FunctionDecl *jmt_decl = mfe->find_free_function("__jit_main_tmpl");
@@ -72,6 +76,7 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
 
     OperatorEngine oe;
     void *kthis = calloc(oe.getClassAllocSize(klass), 1);
+    memset(kthis, 0, oe.getClassAllocSize(klass));
     qDebug()<<oe.getClassAllocSize(klass)<<kthis<<(int64_t)kthis<<dargs.count();
 
     // QString lamsym = oe.bind(mod, "_ZN7QStringC2Ev", kthis, uargs, dargs);
@@ -94,6 +99,12 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
 
 QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector<QVariant> uargs)
 {
+    // hotfix
+    if (klass == "QGridLayout"
+        && (method == "addWidget" || method == "addLayout")) {
+        return this->vm_call_hotfix(kthis, klass, method, uargs);
+    }
+    
     // mfe->loadPreparedASTFile();
     clang::CXXRecordDecl *rec_decl = mfe->find_class_decl(klass);
     qDebug()<<rec_decl;
@@ -192,8 +203,32 @@ int CtrlEngine::vm_enum(QString klass, QString enum_name)
     return -1;
 }
 
-
-
+/*
+  不是因为使用了QLayoutC2
+      
+*/
+QVariant
+CtrlEngine::vm_call_hotfix(void *kthis, QString klass, QString method, QVector<QVariant> uargs)
+{
+    QGridLayout *qci = (QGridLayout*)kthis;
+    QFlags<Qt::AlignmentFlag> f(0);
+    if (uargs.count() == 4) {
+        f = QFlags<Qt::AlignmentFlag>(uargs.at(3).toInt());
+    }    
+    if (method == "addWidget") {
+        void *va = uargs.at(0).value<void*>();            
+        QWidget *wa = (QWidget*)va;
+        qci->addWidget(wa, uargs.at(1).toInt(), uargs.at(2).toInt(), f);
+    } else if (method == "addLayout") {
+        void *va = uargs.at(0).value<void*>();            
+        QLayout *wa = (QLayout*)va;
+        qci->addLayout(wa, uargs.at(1).toInt(), uargs.at(2).toInt(), f);
+    } else {
+        qDebug()<<"unsupported method:"<<method;
+    }
+    
+    return QVariant();
+}
 
 
 

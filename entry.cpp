@@ -755,6 +755,10 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
         return Qnil;
     }
 
+    if (method_name.endsWith('?')) {
+        qDebug()<<"need rubyfier adjust";
+    }
+
     qDebug()<<ci<<klass_name<<method_name<<args;
     QVariant gv = gce->vm_call(ci, klass_name, method_name, args);
     qDebug()<<"vv:"<<gv;

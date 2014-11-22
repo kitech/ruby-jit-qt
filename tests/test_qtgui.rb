@@ -47,20 +47,28 @@ def test_layout()
     vlo.addWidget(w2);
     vlo.addWidget(w3);
 
-    #w.setLayout(llo)
+    #w.setLayout(vlo)
 
     glo = Qt5::QGridLayout.new();
     glo.addWidget(b, 0, 0)    
     glo.addLayout(vlo, 1, 0);
-    #glo.addWidget(b2, 1, 0)
+    glo.addWidget(b2, 1, 1)
 
+
+    #glo.columnCount();    
+    glo.rowCount();    # 这里如果>1，则成功了。
+    #exit;
+    
     #w.layout(); # ok
     w.setLayout(glo);
     #w.layout(); # ok
     #w.hide();
+
+
     w.show();
-    #glo.rowCount();
-    #glo.columnCount();
+    #glo.activate();
+    #w.resize(200, 100)
+    #glo.count()    
     #glo.dumpObjectInfo();
     #w.dumpObjectTree();
 end
