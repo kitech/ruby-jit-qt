@@ -495,7 +495,9 @@ Clvm::execute2(llvm::Module *mod, QString func_entry)
     // llvm::InitializeNativeTargetDisassembler();
 
     // run module
+    std::string errstr;
     llvm::EngineBuilder eb(mod);
+    eb.setErrorStr(&errstr);
     eb.setUseMCJIT(true);
 
     llvm::ExecutionEngine *EE = eb.create();
@@ -526,6 +528,9 @@ Clvm::execute2(llvm::Module *mod, QString func_entry)
         if (QString(v->getName().data()).startsWith("__PRETTY_FUNCTION__")) {
             continue;
         }
+        if (QString(v->getName().data()).startsWith("_Z15__jit_main_tmplv")) {
+            continue;
+        }
         // if (QString(v->getName().data()).indexOf("jit_main") >= 0) {
         if (QString(v->getName().data()).indexOf(func_entry) >= 0) {
             etyfn = mod->getFunction(v->getName());
@@ -539,7 +544,8 @@ Clvm::execute2(llvm::Module *mod, QString func_entry)
 
     std::vector<llvm::GenericValue> args;
     llvm::GenericValue rgv = EE->runFunction(etyfn, args);
-
+    qDebug()<<"err:"<<errstr.c_str();
+    
     EE->runStaticConstructorsDestructors(true);
     // cleanups
 

@@ -206,44 +206,37 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
             cargs.push_back(lv);
         }; break;
         default:
-            // TOOOOOOOOOOOOOOOOOODO
-            if (v.userType() == EvalType::id) {
-                EvalType r = v.value<EvalType>();
-                QString argval = QString("toargx%1").arg(i); // %this为0占掉1个参数位置
-                
-                // 为什么64位和32位的传参方式不同呢？？？
-                if (sizeof(void*) == 8) {
-                    QString tmp = dstfun->getName().data();
-                    std::vector<llvm::Value*> idxList;
-                    idxList.push_back(builder.getInt32(0));
-                    idxList.push_back(builder.getInt32(0));
-                    llvm::ArrayRef<llvm::Value*> vmIdxList(idxList);
-                    llvm::Value* tlc = builder.CreateGEP(evals.value(argval), vmIdxList);
-                    qDebug()<<sty<<tlc<<".......";
-                    llvm::Value* tlv = builder.CreateLoad(tlc);
-                    
-                    if (tmp.indexOf("addLayout") >= 0) {
-                        lv = builder.getInt32(0);
-                    } else {
-                        lv = builder.getInt32(0);
-                    }
-                    qDebug()<<sty<<"......."<<r.vf_base_name;
-                    if (r.vf_base_name.startsWith("_ZN6QFlagsIN2Qt")) {
-                        cargs.push_back(tlv);
-                    } else {
-                        cargs.push_back(lv);
-                    }
-                } else { // OS x86
-                    qDebug()<<"eval type:"<<v<<r.ve<<r.vv<<evals.contains(argval)<<argval;
-                    cargs.push_back(evals.value(argval));
-                }
+            if (v.userType() != EvalType::id) {
+                qDebug()<<"not known type:"<<v<<v.type();
                 break;
             }
-            
-            qDebug()<<"not known type:"<<v<<v.type();
+                
+            // TOOOOOOOOOOOOOOOOOODO
+            EvalType r = v.value<EvalType>();
+            QString argval = QString("toargx%1").arg(i); // %this为0占掉1个参数位置
+                
+            // 为什么64位和32位的传参方式不同呢？？？
+            if (sizeof(void*) == 8) {
+                if (r.vf_base_name.startsWith("_ZN6QFlagsIN2Qt")) {
+                    std::vector<llvm::Value*> idxList = {builder.getInt32(0), builder.getInt32(0)};
+                    llvm::Value* tlc = builder.CreateGEP(evals.value(argval), idxList);
+                    lv = builder.CreateLoad(tlc);
+                } else {
+                    lv = builder.getInt32(0);
+                }
+                cargs.push_back(lv);
+            } else { // OS x86
+                qDebug()<<"eval type:"<<v<<r.ve<<r.vv<<evals.contains(argval)<<argval;
+                cargs.push_back(evals.value(argval));
+            }
+            // et_code();
             break;
         }
     }
+
+    // TODO move EvalType codegen alone
+    auto et_code = []() -> void {
+    };
 
     return cargs;
 }
@@ -337,6 +330,7 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass,
     lamfun = (decltype(lamfun))(c_lamfun); // cast it
     builder.SetInsertPoint(llvm::BasicBlock::Create(mod->getContext(), "eee", lamfun));
 
+    
     std::vector<llvm::Value*> callee_arg_values;
     if (is_static) {
     } else {
@@ -387,6 +381,7 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass,
             callee_arg_values.insert(callee_arg_values.begin(), rlr5);    
         }
     }
+
     
     llvm::ArrayRef<llvm::Value*> callee_arg_values_ref(callee_arg_values);
     llvm::CallInst *cval = builder.CreateCall(dstfun, callee_arg_values_ref);

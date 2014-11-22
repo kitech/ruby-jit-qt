@@ -51,12 +51,12 @@ def test_layout()
 
     glo = Qt5::QGridLayout.new();
     glo.addWidget(b, 0, 0)    
-    glo.addLayout(vlo, 1, 0);
+    glo.addLayout(vlo, 1, 0); ## 没有执行？？？
     glo.addWidget(b2, 1, 1)
 
 
     #glo.columnCount();    
-    glo.rowCount();    # 这里如果>1，则成功了。
+    # glo.rowCount();    # 这里如果>1，则成功了。
     #exit;
     
     #w.layout(); # ok

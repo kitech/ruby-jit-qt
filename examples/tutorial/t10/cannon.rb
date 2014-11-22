@@ -8,7 +8,7 @@ class CannonField < Qt5::QWidget
         super
         @ang = 45
         @f = 0
-        setPalette( Qt5::QPalette.new( Qt5::QColor.new( 250, 25, 20) ) )
+        setPalette( Qt5::QPalette.new( Qt5::QColor.new( 250, 250, 200) ) )
         setAutoFillBackground(true)
     end
 

@@ -102,7 +102,7 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     // hotfix
     if (klass == "QGridLayout"
         && (method == "addWidget" || method == "addLayout")) {
-        return this->vm_call_hotfix(kthis, klass, method, uargs);
+        // return this->vm_call_hotfix(kthis, klass, method, uargs);
     }
     
     // mfe->loadPreparedASTFile();
@@ -214,15 +214,25 @@ CtrlEngine::vm_call_hotfix(void *kthis, QString klass, QString method, QVector<Q
     QFlags<Qt::AlignmentFlag> f(0);
     if (uargs.count() == 4) {
         f = QFlags<Qt::AlignmentFlag>(uargs.at(3).toInt());
-    }    
+    } else if (uargs.count() == 6) {
+        f = QFlags<Qt::AlignmentFlag>(uargs.at(5).toInt());
+    }
     if (method == "addWidget") {
-        void *va = uargs.at(0).value<void*>();            
+        void *va = uargs.at(0).value<void*>();
         QWidget *wa = (QWidget*)va;
-        qci->addWidget(wa, uargs.at(1).toInt(), uargs.at(2).toInt(), f);
+        if (uargs.count() == 5 || uargs.count() == 6)
+            qci->addWidget(wa, uargs.at(1).toInt(), uargs.at(2).toInt(),
+                           uargs.at(3).toInt(), uargs.at(4).toInt(), f);
+        if (uargs.count() == 3 || uargs.count() == 4)
+            qci->addWidget(wa, uargs.at(1).toInt(), uargs.at(2).toInt(), f);
     } else if (method == "addLayout") {
         void *va = uargs.at(0).value<void*>();            
         QLayout *wa = (QLayout*)va;
-        qci->addLayout(wa, uargs.at(1).toInt(), uargs.at(2).toInt(), f);
+        if (uargs.count() == 5 || uargs.count() == 6)
+            qci->addLayout(wa, uargs.at(1).toInt(), uargs.at(2).toInt(),
+                           uargs.at(3).toInt(), uargs.at(4).toInt(), f);
+        if (uargs.count() == 3 || uargs.count() == 4)
+            qci->addLayout(wa, uargs.at(1).toInt(), uargs.at(2).toInt(), f);
     } else {
         qDebug()<<"unsupported method:"<<method;
     }

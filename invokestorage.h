@@ -74,6 +74,7 @@ public:
     char **pcsval;
     QStringList slval[10];
     QFlag *fval;  // flag value
+    void *fval2[10]; // flags value
 } ;
 // TODO 多线程支持
 // TODO 更节省内存的存储方式
