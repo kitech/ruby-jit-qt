@@ -22,7 +22,8 @@
 
 // 发现了点东西，拷贝IR指令时需要注意的。
 /*
-  可能就是api中说的，clone出来的Inst与原来的Inst有点不一样，没有Parent
+  可能就是api中说的，clone出来的Inst与原来的Inst有点不一样，没有Parent。如下所示：
+
   以下两名都能生成相同的一行指令，但前者生成的语句就会导致崩溃，后者生成的则无问题
   call void @_ZN6QFlagsIN2Qt10WindowTypeEEC2EMNS2_7PrivateEi(%class.QFlags* %toargx0, i32 -1)
   call void @_ZN6QFlagsIN2Qt10WindowTypeEEC2EMNS2_7PrivateEi(%class.QFlags* %toargx0, i32 -1)
@@ -96,10 +97,19 @@ nil传递到C时是int类型的0。
 在qtruby4.rb文件中。
 并且它使用的是覆盖整个Object类的方法，而不是针对某一个Qt类实例相应的修正。
 
+\section{Ruby中new Qt类时，外带do |x| 块语法的处理}
+怎么获取，获取之后怎么执行。
+使用rb\_block\_given\_p()判断是否外带block语法，如果有，则直接rb\_yield(self)执行。
+
+
 \section{clang与gcc兼容性问题}
 \subsection{/usr/include/string.h:82:1: error: unknown type name '\_\_extern\_always\_inline'}
 在使用clang编译时报错。
 一种解决方式是使用-O0优化参数，能够避免这个报错。
+
+\section{Qt库调试}
+可以另行编译出Qt共享库，使用设置LD\_LIBRARY\_PATH方式，
+用新编译出的库替换系统自带的库文件，这样可以比较方便的在Qt中插入代码调试。
 
 
 \section{参考}

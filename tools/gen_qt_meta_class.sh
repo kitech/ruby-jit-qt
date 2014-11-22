@@ -16,7 +16,7 @@ echo $CXXFLAGS
 care_classes="QAccessible QAction QActionGroup QObject QString QBitArray
 QBitmap QBuffer
 QByteArray QThread QCoreApplication
-QChar QStringList QSize
+QChar QStringList QSize QSizePolicy
 QTimer QDateTime QUrl QFile QRegExp
 QHostAddress QAbstractSocket QTcpSocket QTcpServer
 QSslSocket QSslCipher QSslConfiguration QSslError QSslKey
@@ -24,7 +24,7 @@ QNetworkCookie QNetworkCookieJar
 QNetworkAccessManager QNetworkRequest QNetworkReply
 QGuiApplication  QIcon QFont QPaintDevice
 QWidget QMainWindow QColor QPalette QRect QRegion QLabel QPoint
-QFrame
+QFrame QShortcut QKeySequence
 QPushButton QLCDNumber QSlider QLayout QBoxLayout QGridLayout
 QApplication
 ";

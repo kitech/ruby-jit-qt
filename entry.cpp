@@ -560,10 +560,10 @@ VALUE x_Qt_class_init_jit(int argc, VALUE *argv, VALUE self)
 {
     qDebug()<<argc<<TYPE(self);
     qDebug()<<rb_class2name(RBASIC_CLASS(self));
+    qDebug()<<"has block:"<<rb_block_given_p();
 
     QString klass_name = get_qt_class(self);
     qDebug()<<"class name:"<<klass_name;
-
 
     // test_fe();
     // test_parse_class();
@@ -590,6 +590,11 @@ VALUE x_Qt_class_init_jit(int argc, VALUE *argv, VALUE self)
     VALUE free_proc = rb_proc_new(FUNVAL x_Qt_class_dtor, 0);
     rb_define_finalizer(self, free_proc);
 
+    // Qxxx.new() do {|i| }
+    if (rb_block_given_p()) {
+        rb_yield(self);
+    }
+    
     // test slot_ruby_space
     /*
     ID rbsym = rb_intern("slot_ruby_space");

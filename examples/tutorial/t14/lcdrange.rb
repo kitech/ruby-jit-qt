@@ -1,3 +1,5 @@
+# coding: utf-8
+
 class LCDRange < Qt5::QWidget
 
     #signals 'valueChanged(int)'
@@ -7,30 +9,31 @@ class LCDRange < Qt5::QWidget
     def initialize(s, parent = nil)
         super(parent)
         init()
-        #self.text = s
+        self.text = s
     end
     
     def init
         lcd = Qt5::QLCDNumber.new(2)
         @slider = Qt5::QSlider.new(Qt5::Horizontal) do |s|
             s.range = 0..99
-            s.value = 0
+            s.value = 50
         end
-        
+
         @label = Qt5::QLabel.new do |l|
-            #l.alignment = Qt5::QAlignHCenter.to_i | Qt5::QAlignTop.to_i
-            #l.setSizePolicy(Qt5::QSizePolicy::Preferred, Qt5::QSizePolicy::Fixed)
+            #l.alignment = Qt5::AlignHCenter.to_i | Qt5::AlignTop.to_i
+            #l.alignment = Qt5::AlignHCenter | Qt5::AlignTop
+            l.setSizePolicy(Qt5::QSizePolicy::Preferred, Qt5::QSizePolicy::Fixed)
         end
             
         connect(@slider, SIGNAL('valueChanged(int)'), lcd, SLOT('display(int)'))
         connect(@slider, SIGNAL('valueChanged(int)'), SIGNAL('valueChanged(int)'))
-        
+
         self.layout = Qt5::QVBoxLayout.new do |l|
             l.addWidget(lcd)
             l.addWidget(@slider)
             l.addWidget(@label)
         end
-        
+
         setFocusProxy(@slider)
     end
     

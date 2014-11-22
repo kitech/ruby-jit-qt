@@ -1233,6 +1233,7 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
                 // maybe controll
                 QStringList known_syms = {
                     "_ZN5QSizeC1Eii", "_ZN5QRectC1Eiiii",
+                    "_ZN11QSizePolicyC1ENS_6PolicyES0_NS_11ControlTypeE",
                 };
                 if (known_syms.contains(tsym)) {
                     auto callee_decl_with_body = 
