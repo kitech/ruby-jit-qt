@@ -56,7 +56,7 @@ def test_layout()
 
 
     #glo.columnCount();    
-    # glo.rowCount();    # 这里如果>1，则成功了。
+    c = glo.rowCount();    # 这里如果>1，则成功了。
     #exit;
     
     #w.layout(); # ok
@@ -71,6 +71,25 @@ def test_layout()
     #glo.count()    
     #glo.dumpObjectInfo();
     #w.dumpObjectTree();
+    #w.acceptDrops();
+    #h = w.height();
+    # p = glo.parent();
+    #w.setObjectName("j123456")
+    n = w.objectName();
+    #puts n
+    #puts n.length()
+end
+
+def test_return()
+    w = Qt5::QWidget.new
+    w.show();
+    #w.dumpObjectTree();
+    #w.acceptDrops();
+    #h = w.height();
+    #w.setObjectName("j123456")
+    n = w.objectName();
+    #puts n
+    #puts n.length()
 end
 
 # okkk
@@ -102,8 +121,5 @@ test_layout;
 #test_range;
 # test_disp;
 
-app.exec()
-
-
-
+ret = app.exec()
 

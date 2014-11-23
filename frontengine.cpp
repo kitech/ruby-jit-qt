@@ -1015,9 +1015,9 @@ clang::CXXMethodDecl* FrontEngine::find_method_decl(clang::CXXRecordDecl *decl,
     }
     else if (mats.count() > 1) {
         qDebug()<<"find more matched method, try first now."<<mats.count();
-        auto rcs = resolve_callee_decl<clang::CXXMethodDecl>(mats, uargs);
-        mats = rcs;
-        qDebug()<<rcs.count()<<rcs;        
+        // auto rcs = resolve_callee_decl<clang::CXXMethodDecl>(mats, uargs);
+        // mats = rcs;
+        // qDebug()<<rcs.count()<<rcs;        
     }
     // else mats.count() == 1
 

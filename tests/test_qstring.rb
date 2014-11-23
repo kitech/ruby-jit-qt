@@ -79,11 +79,42 @@ def test_else()
   puts File.absolute_path(File.dirname($0))
 end
 
+def test_return()
+    s = Qt5::QString.new
+    puts s
+    bv = s.isEmpty
+    puts 'isEmpty:' + bv.to_s
+    iv = s.length
+    puts 'len:' + iv.to_s
+    asv = s.append("123456")
+    ref = asv.leftRef(3)
+    slv = s.split("3")
+
+    # puts 'len0:' + slv.count().to_s  # crash    
+    #stds = s.toStdString(); # 这种调用还有太多问题
+
+    puts 'len1:' + s.length().to_s
+    ss = s.left(3);
+    puts 'len2:' + ss.length().to_s
+    dv = ss.toDouble()
+    puts 'dv:' + dv.to_s
+    lv = s.toLong
+    puts 'lv:' + lv.to_s
+    bav = s.toLatin1
+    puts 'bav:' + bav.to_s
+
+    #cv = s.at(2) # crash
+    #puts 'cv:' + cv.to_s
+    #dat = s.data() #crash
+    #puts 'dat:' + dat.to_s
+end
+
 test_else;
 test_qstring
 test_qbytearray # 处理这个类问题还比较多, fixed nowwwwww
 test_qurl
 test_signal_slots
 test_enum
+test_return;
 
 

@@ -11,7 +11,8 @@
 #include "clvm.h"
 #include "clvmengine.h"
 #include "invokestorage.h"
-
+#include "qtobjectmanager.h"
+#include "ruby.hpp"
 
 CtrlEngine::CtrlEngine()
 {
@@ -97,6 +98,79 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     return kthis;
 }
 
+// TODO 也许可以放在其他源文件中，专门用作类型转换的marshall中
+QVariant GV2Variant(llvm::GenericValue gv, clang::FunctionDecl *decl, void *kthis)
+{
+    RB_VALUE rv = 0;
+    clang::QualType rty = decl->getReturnType();
+    // qDebug()<<"return type class:"<<rty->getTypeClassName();
+    // rty->dump();
+    if (rty->isVoidType()) return QVariant();
+
+    if (rty->isBooleanType()) {
+        bool bv = gv.Untyped[0] == 1;
+        rv = bv ? Qtrue : Qfalse;
+        qDebug()<<"boolean..."<<rv<<gv.Untyped[0];
+    }
+    else if (rty->isIntegralOrEnumerationType()) {
+        rv = INT2NUM((qlonglong)llvm::GVTOP(gv));
+        qDebug()<<"iore..."<<rv;
+    }
+    else if (rty->isIntegerType()) {
+        rv = INT2NUM((qlonglong)llvm::GVTOP(gv));
+        qDebug()<<"int..."<<rv;        
+    }
+    else if (rty->isFloatingType()) {
+        double dv = 0;
+        dv = gv.DoubleVal;
+        rv = rb_float_new(dv);
+        qDebug()<<"float..."<<rv<<dv;
+        // qDebug()<<gv.Untyped[0]<<gv.Untyped[1]<<gv.Untyped[2]<<gv.Untyped[3];
+    }
+    else if (rty->isPointerType()) {
+        //
+        void *vv = llvm::GVTOP(gv);
+        rv = Qom::inst()->getObject(vv);
+        if (rv == 0) {
+            qDebug()<<"unknown pointer type return:"<<vv;
+        }
+        qDebug()<<"x*...";        
+    }
+    // sret type, 一般是类对象，并且是非引用或者指针。
+    else if (rty->isRecordType()) {
+        qDebug()<<"record...";
+        auto rec_decl = rty->getAsCXXRecordDecl();
+        rec_decl->dumpColor();
+        qDebug()<<rec_decl->getName().data();
+        VALUE modval = rb_const_get(rb_cObject, rb_intern("Qt5"));
+        // VALUE clsval = rb_const_get(modval, rb_intern("QString"));
+        VALUE clsval = rb_const_get(modval, rb_intern(rec_decl->getName().data()));
+        qDebug()<<"kv:"<<TYPE(clsval)<<",,";
+        VALUE retobj = rb_class_new_instance(0, 0, clsval); // 参数个数可能不适用。
+        rv = retobj;
+        qDebug()<<"old ci:"<<Qom::inst()->jdobjs[retobj];
+        Qom::inst()->jdobjs[retobj] = llvm::GVTOP(gv);
+        qDebug()<<"new ci:"<<Qom::inst()->jdobjs[retobj];
+    }
+    // 引用类型返回值，如QString &
+    else if (rty->isLValueReferenceType()) {
+        qDebug()<<"lvalue ref:"<<"x&...";
+        void *vv = llvm::GVTOP(gv);
+        rv = Qom::inst()->getObject(vv);
+        if (rv == 0) {
+            qDebug()<<"unknown reference type return:"<<vv;
+        }
+    }
+    else {
+        qDebug()<<"unknown type return:"<<llvm::GVTOP(gv)
+                <<rty->getTypeClassName();
+        return QVariant();
+    }
+    
+    return QVariant(rv);
+}
+
+
 QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector<QVariant> uargs)
 {
     // hotfix
@@ -148,9 +222,11 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     
     Clvm *vm = new Clvm;
     auto gv = vm->execute2(mod, lamsym);
-    qDebug()<<"gv:"<<llvm::GVTOP(gv)<<gv.IntVal.getZExtValue();
+    qDebug()<<"gv:"<<llvm::GVTOP(gv)<<(qlonglong)llvm::GVTOP(gv)<<gv.IntVal.getZExtValue();
     qDebug()<<"======================";
-    
+
+    QVariant rv = GV2Variant(gv, mth_decl, kthis);
+    return rv;
     return QVariant();
 }
 
@@ -239,7 +315,4 @@ CtrlEngine::vm_call_hotfix(void *kthis, QString klass, QString method, QVector<Q
     
     return QVariant();
 }
-
-
-
 

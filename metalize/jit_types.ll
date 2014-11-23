@@ -182,6 +182,7 @@ target triple = "x86_64-unknown-linux-gnu"
 %class.QHBoxLayout = type { %class.QBoxLayout.base, [4 x i8] }
 %class.QDate = type { i64 }
 %class.QTime = type { i32 }
+%class.QStringRef = type { %class.QString*, i32, i32 }
 
 ; Function Attrs: nounwind uwtable
 define void @_Z16__keep_jit_typesv() #0 {
@@ -419,6 +420,8 @@ define void @_Z16__keep_jit_typesv() #0 {
   %230 = bitcast i8* %229 to %class.QDate*
   %231 = load i8** %v0, align 8
   %232 = bitcast i8* %231 to %class.QTime*
+  %233 = load i8** %v0, align 8
+  %234 = bitcast i8* %233 to %class.QStringRef*
   ret void
 }
 

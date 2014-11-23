@@ -40,7 +40,7 @@ public:
     bool addObject(RB_VALUE rbobj, void *qtobj);
     bool delObject(RB_VALUE rbobj);
     void *getObject(RB_VALUE rbobj);
-    RB_VALUE *getObject(void *qtobj);
+    RB_VALUE getObject(void *qtobj);
     
 public:
     void testParser();

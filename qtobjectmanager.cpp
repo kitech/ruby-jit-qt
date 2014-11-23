@@ -22,6 +22,17 @@ QtObjectManager *QtObjectManager::inst()
     return _Qom::_inst2;
 }
 
+RB_VALUE QtObjectManager::getObject(void *qtobj)
+{
+    for (auto it = this->jdobjs.begin(); it != this->jdobjs.end(); it++) {
+        if (it.value() == qtobj) {
+            RB_VALUE rv = it.key();
+            return rv;
+        }
+    }
+    return 0;
+}
+
 void QtObjectManager::testParser()
 {
     // get_class_method("abcdef.h");

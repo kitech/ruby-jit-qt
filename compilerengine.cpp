@@ -1212,10 +1212,11 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
                 QStringList known_syms = {
                     "_ZN15QTypedArrayDataIcE10sharedNullEv",
                     "_ZN15QTypedArrayDataItE10sharedNullEv",
-                    "_ZN15QTypedArrayDataIcE4dataEv",
+                    "_ZN15QTypedArrayDataIcE4dataEv", "_ZN15QTypedArrayDataItE4dataEv",
                     "_ZN6QFlagsIN2Qt10WindowTypeEEC1EMNS2_7PrivateEi", // ctor
                     "_ZN6QFlagsIN2Qt13AlignmentFlagEEC1EMNS2_7PrivateEi",
                     "_ZNK14QScopedPointerI11QObjectData21QScopedPointerDeleterIS0_EEptEv",
+                    "_ZN5QListI7QStringEC1Ev",
                 };
                 if (known_syms.contains(tsym)) {
                     if (llvm::isa<clang::CXXConstructorDecl>(callee_decl)) {
@@ -1252,14 +1253,24 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
                     qDebug()<<"unsupported ctor..."<<tsym;
                 }
             }
+            else if (llvm::isa<clang::CXXDestructorDecl>(callee_decl)) {
+                QStringList known_syms = {
+                    "_ZN10QByteArrayD1Ev",
+                };
+                qDebug()<<"dtor.........";
+                qFatal("hehhhhhhhhhhh");
+            }
             else if (llvm::isa<clang::CXXMethodDecl>(callee_decl)) {
                 // maybe controll
                 QStringList known_syms = {
                     "_ZNK10QByteArray4sizeEv", "_ZN10QArrayData10sharedNullEv",
+                    "_ZNK10QByteArray6lengthEv", "_ZNK10QByteArray9constDataEv",
+                    "_ZNK7QString6toUtf8Ev",
                     "_ZN10QArrayData4dataEv", "_ZN7QWidget6resizeERK5QSize",
                     "_ZN7QWidget11setGeometryERK5QRect", "_ZNK5QRect6heightEv",
                     "_ZNK6QPoint1xEv", "_ZNK6QPoint1yEv", "_ZNK5QRect4sizeEv",
                     "_ZNK5QRect5widthEv",
+                    "_ZNK7QWidget13testAttributeEN2Qt15WidgetAttributeE",
                 };
                 if (known_syms.contains(tsym)) {
                     auto callee_decl_with_body = 

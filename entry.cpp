@@ -770,9 +770,11 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
     // TODO 使用真实的返回值
     if (method_name == "height" || method_name == "width"
         || method_name == "x" || method_name == "y") {
-        return INT2NUM(gv.toInt());
+        // return INT2NUM(gv.toInt());
     }
-    
+    if (gv.isValid()) {
+        return gv.toULongLong();
+    }
     return Qnil;
 }
 

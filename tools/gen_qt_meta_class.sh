@@ -31,7 +31,7 @@ QApplication
 
 # 32 位系统有问题
 broken_classes="QNetworkReply"
-multi_inone_classes="QVBoxLayout QHBoxLayout QTime QDate "
+multi_inone_classes="QVBoxLayout QHBoxLayout QTime QDate QStringRef"
 
 ##### gen jit types body
 jit_types_body_file="metalize/jit_types_body.cpp"
@@ -52,6 +52,9 @@ echo "RQCLASS_REGISTER(QVBoxLayout);" >> $qtruby_register_file
 echo "RQCLASS_REGISTER(QHBoxLayout);" >> $qtruby_register_file
 echo "RQCLASS_REGISTER(QDate);" >> $qtruby_register_file
 echo "RQCLASS_REGISTER(QTime);" >> $qtruby_register_file
+echo "(void)(QStringRef*)v0;" >> $jit_types_body_file
+echo "RQCLASS_REGISTER(QStringRef);" >> $qtruby_register_file
+
 
 #### exit
 
