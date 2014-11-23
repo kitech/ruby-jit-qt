@@ -22,6 +22,52 @@ QtObjectManager *QtObjectManager::inst()
     return _Qom::_inst2;
 }
 
+bool QtObjectManager::addObject(RB_VALUE rbobj, void *qtobj)
+{
+    ObjectInfo *oi = new ObjectInfo;
+    oi->objid = ++_Qom::_objid2;
+    oi->rbobj = rbobj;
+    oi->qtobj = qtobj;
+
+    this->robjs[rbobj] = oi;
+    this->qobjs[qtobj] = oi;
+
+    this->jdobjs[rbobj] = qtobj;
+    
+    return false;
+}
+
+bool QtObjectManager::delObject(RB_VALUE rbobj)
+{
+    ObjectInfo *oi = NULL;
+
+    if (this->jdobjs.contains(rbobj)) {
+        this->jdobjs.remove(rbobj);
+    }
+    
+    if (this->robjs.contains(rbobj)) {
+        oi = this->robjs.value(rbobj);
+        this->robjs.remove(rbobj);
+        this->qobjs.remove(oi->qtobj);
+        // TODO delete qtobj instance
+        free(oi->qtobj);
+        delete oi;
+        return true;
+    }
+    
+    return false;
+}
+
+void *QtObjectManager::getObject(RB_VALUE rbobj)
+{
+    ObjectInfo *oi = NULL;
+    if (this->robjs.contains(rbobj)) {
+        oi = this->robjs.value(rbobj);
+        return oi->qtobj;
+    }
+    return NULL;
+}
+
 RB_VALUE QtObjectManager::getObject(void *qtobj)
 {
     for (auto it = this->jdobjs.begin(); it != this->jdobjs.end(); it++) {

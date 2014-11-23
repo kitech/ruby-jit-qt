@@ -136,21 +136,31 @@ QVariant GV2Variant(llvm::GenericValue gv, clang::FunctionDecl *decl, void *kthi
         }
         qDebug()<<"x*...";        
     }
+    // 类内类,像QMetaObject::Connection            
+    else if (rty->isRecordType() && llvm::isa<clang::ElaboratedType>(rty.getTypePtr())) {
+        auto rec_decl = rty->getAsCXXRecordDecl();
+        qDebug()<<"not supported elaborated record type:"<<rec_decl->getName().data()
+                <<rty->getTypeClassName()
+                <<rty->isElaboratedTypeSpecifier()
+                <<llvm::isa<clang::ElaboratedType>(rty.getTypePtr());
+        // exit(0);qFatal("sttttttttt");
+    }
     // sret type, 一般是类对象，并且是非引用或者指针。
     else if (rty->isRecordType()) {
         qDebug()<<"record...";
         auto rec_decl = rty->getAsCXXRecordDecl();
         rec_decl->dumpColor();
         qDebug()<<rec_decl->getName().data();
+
         VALUE modval = rb_const_get(rb_cObject, rb_intern("Qt5"));
         // VALUE clsval = rb_const_get(modval, rb_intern("QString"));
         VALUE clsval = rb_const_get(modval, rb_intern(rec_decl->getName().data()));
         qDebug()<<"kv:"<<TYPE(clsval)<<",,";
         VALUE retobj = rb_class_new_instance(0, 0, clsval); // 参数个数可能不适用。
         rv = retobj;
-        qDebug()<<"old ci:"<<Qom::inst()->jdobjs[retobj];
-        Qom::inst()->jdobjs[retobj] = llvm::GVTOP(gv);
-        qDebug()<<"new ci:"<<Qom::inst()->jdobjs[retobj];
+        qDebug()<<"old ci:"<<Qom::inst()->getObject(retobj);
+        Qom::inst()->addObject(retobj, llvm::GVTOP(gv));
+        qDebug()<<"new ci:"<<Qom::inst()->getObject(retobj);
     }
     // 引用类型返回值，如QString &
     else if (rty->isLValueReferenceType()) {

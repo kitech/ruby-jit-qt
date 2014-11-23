@@ -29,12 +29,16 @@ public:
         RB_ID signal = 0;
         QString raw_signal;
     };
-    
-    QHash<RB_VALUE, void *> jdobjs; // jit'ed objects
+        
+public:
     QHash<quint64, QObject *> objs;
     // QHash<QString, const QMetaObject *> metas;
+
+private:
+    QHash<RB_VALUE, void *> jdobjs; // jit'ed objects
+private:
     QHash<void *, ObjectInfo*> qobjs; // qtobject => ObjectInfo
-    QHash<quint64, ObjectInfo*> robjs; // rb_hash(rb_object) => ObjectInfo
+    QHash<RB_VALUE, ObjectInfo*> robjs; // rb_object => ObjectInfo
 
 public:
     bool addObject(RB_VALUE rbobj, void *qtobj);
