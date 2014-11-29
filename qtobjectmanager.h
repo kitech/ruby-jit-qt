@@ -57,6 +57,8 @@ private:
 };
 typedef QtObjectManager Qom; // for simple
 
+QDebug &qodebug(QDebug &dbg, void*obj, QString klass);
+
 class ConnectProxy : public QObject
 {
     Q_OBJECT;

@@ -849,6 +849,26 @@ CompilerEngine::conv_method2(clang::ASTUnit *unit, clang::CXXMethodDecl *mth)
     return 0;
 }
 
+llvm::Module* CompilerEngine::conv_function2(clang::ASTUnit *unit, clang::FunctionDecl *func)
+{
+    auto cu = this->createCompilerUnit(unit, func);
+    this->mcus.insert(cu->mmod, cu);
+    
+    if (llvm::cast<clang::FunctionDecl>(cu->mbdecl)->isInlined()) {
+        this->gen_free_function(cu, func);
+    } else {
+        this->gen_free_function(cu, func);
+    }
+    qDebug()<<"base decl gen done.";
+
+    this->gen_undefs(cu);
+    
+    cu->mmod->dump();
+    qDebug()<<"all gen done...";
+
+    return cu->mmod;
+}
+
 bool CompilerEngine::gen_ctor(CompilerUnit *cu, clang::CXXConstructorDecl *yactor)
 {
     // 转换到需要的参数类型

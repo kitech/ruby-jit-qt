@@ -62,6 +62,7 @@ public:
 
     llvm::Module* conv_ctor2(clang::ASTUnit *unit, clang::CXXConstructorDecl *ctor, QVector<QVariant> dargs);
     llvm::Module* conv_method2(clang::ASTUnit *unit, clang::CXXMethodDecl *mth);
+    llvm::Module* conv_function2(clang::ASTUnit *unit, clang::FunctionDecl *mth);
 
     bool gen_ctor(CompilerUnit *cu, clang::CXXConstructorDecl *yactor = NULL);
     bool gen_method(CompilerUnit *cu, clang::CXXMethodDecl *yamth = NULL);

@@ -289,6 +289,70 @@ int CtrlEngine::vm_enum(QString klass, QString enum_name)
     return -1;
 }
 
+QString CtrlEngine::vm_qdebug(void *kthis, QString klass)
+{
+    QString str;
+    mfe->loadPreparedASTFile();
+    
+    // _Zls6QDebugRK9QBitArray
+    QString symtpl = "_Zls6QDebugRK%1%2";
+    QString symname = symtpl.arg(klass.length()).arg(klass);
+
+    QBitArray *ba = new QBitArray();
+    QThread *th = new QThread();
+    void *vth = th;
+    qDebug()<<ba<<th<<vth;
+
+    QString stc; // stream container
+    QDebug dm(&stc);
+    
+    clang::FunctionDecl *fun_decl = mfe->find_free_function2(symname);
+    if (fun_decl) {
+        // fun_decl->dumpColor();
+
+        QVector<QVariant> dargs;
+        // mfe->get_method_default_params(mth_decl, dargs);
+        dargs << QVariant() << QVariant();
+
+        QVector<QVariant> uargs;
+        uargs.append(QVariant::fromValue((void*)(&dm)));
+        uargs.append(QVariant::fromValue(kthis));
+        
+        auto mod = mce->conv_function2(mfe->getASTUnit(), fun_decl);
+        qDebug()<<mod<<mod->getDataLayout();
+        // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
+        // QString symname = mce->mangle_method(mfe->getASTContext(), mth_decl);
+        qDebug()<<mod<<symname;
+
+        OperatorEngine oe;
+        QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, false, NULL);
+        qDebug()<<lamsym;
+    
+        Clvm *vm = new Clvm;
+        auto gv = vm->execute2(mod, lamsym);
+        qDebug()<<"gv:"<<llvm::GVTOP(gv)<<gv.IntVal.getZExtValue();
+        qDebug()<<"======================";
+    
+        // qDebug()<<stc;
+        str = stc;
+    } else {
+        if (klass == "QString") {
+            dm << *(QString*)kthis;
+            return stc;
+        } else if (klass == "QByteArray") {
+            dm << *(QByteArray*)kthis;
+            return stc;
+        }
+        char buf[64] = {0};
+        dm << kthis;
+        snprintf(buf, sizeof(buf)-1, "%s(%s)", klass.toLatin1().data(), stc.trimmed().toLatin1().data());
+        str = QString(buf);
+        // qDebug()<<str;
+    }
+
+    return str;
+}
+
 /*
   不是因为使用了QLayoutC2
       

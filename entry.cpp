@@ -347,6 +347,12 @@ static QVector<QVariant> ARGV2Variant(int argc, VALUE *argv, int start = 0)
     return args;
 }
 
+#include "ctrlengine.h"
+#include "frontengine.h"
+#include "tests.cpp"
+
+static CtrlEngine *gce = new CtrlEngine();
+
 /*
   统一的to_s方法
   
@@ -355,32 +361,32 @@ VALUE x_Qt_meta_class_to_s(int argc, VALUE *argv, VALUE obj)
 {
     qDebug()<<argc;
     QString klass_name = QString(rb_class2name(RBASIC_CLASS(obj)));
+    klass_name = klass_name.split("::").at(1);
     void *ci = Qom::inst()->getObject(obj);
+
+    QString jitstr = gce->vm_qdebug(ci, klass_name);
     
     QString stc; // stream container
     QDebug dm(&stc);
-    dm << "tsed:" << klass_name << "Obj:"<< obj << "Hash:" << rb_hash(obj) << "C:"<< ci;
+    // dm << "tsed:" << klass_name << "Obj:"<< obj << "Hash:" << rb_hash(obj) << "C:"<< ci;
+    dm << "RBO:"<<obj << "["<< jitstr << "]";
     // 怎么能解引用呢 *ci, 当前void*无法解。
     // dm << "hehe has newline???"; // 这种方式要手动换行。
 
     // 简单方法，
+    /*
     if (klass_name == "Qt5:QString") dm << *(YaQString*)ci;
     else if (klass_name == "Qt5::QUrl") dm << *(YaQUrl*)ci;
 
     if (klass_name == "Qt5::QWidget") {
         QWidget *w = (QWidget*)ci;
     }
+    */
     
     // qDebug()<<stc;
     VALUE rv = rb_str_new2(stc.toLatin1().data());
     return rv;
 }
-
-#include "ctrlengine.h"
-#include "frontengine.h"
-#include "tests.cpp"
-
-static CtrlEngine *gce = new CtrlEngine();
 
 /*
   解决类中的enum的处理
