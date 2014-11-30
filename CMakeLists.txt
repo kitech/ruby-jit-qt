@@ -44,18 +44,19 @@ include_directories(${CLANG_SRC_DIR2}/lib/CodeGen ${CLANG_SRC_DIR2}/lib/)
 set(handby_lib_SRCS
 #  llvm-3.5.0.src/tools/clang/lib/CodeGen/CodeGenModule.cpp
 #  llvm-3.5.0.src/tools/clang/lib/CodeGen/CodeGenFunction.cpp
-  qtruby.cpp
-  qtobjectmanager.cpp
-  entry.cpp
-  ctrlengine.cpp
-  clvmengine.cpp
-  operatorengine.cpp
-  compilerengine.cpp
-  frontengine.cpp
-  clvm_operator.cpp
-  clvm.cpp
-  invokestorage.cpp
-  metalize/metar_qt.cpp
+    qtruby.cpp
+    qtobjectmanager.cpp
+    entry.cpp
+    ctrlengine.cpp
+    clvmengine.cpp
+    operatorengine.cpp
+    compilerengine.cpp
+    frontengine.cpp
+    clvm_operator.cpp
+    clvm.cpp
+    namelookup.cpp
+    invokestorage.cpp
+    metalize/metar_qt.cpp
 #  metalize/metar_classes_qtcore.cpp
 #  metalize/metar_classes_qtgui.cpp
 #  metalize/metar_classes_qtwidgets.cpp
@@ -69,9 +70,9 @@ set(handby_lib_SRCS
 )
 
 set(handby_exe_SRCS
-  ${handby_lib_SRCS}
-  main.cpp
-  block.cpp
+    ${handby_lib_SRCS}
+    main.cpp
+    block.cpp
 )
 
 set(CLANGLIBS  -lclang -lLLVM-3.5

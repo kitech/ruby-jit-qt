@@ -5,6 +5,7 @@
 #include <llvm/IR/Module.h>
 
 #include "frontengine.h"
+#include "namelookup.h"
 #include "compilerengine.h"
 #include "operatorengine.h"
 #include "ctrlengine.h"
@@ -195,6 +196,10 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     clang::CXXMethodDecl *mth_decl = mfe->find_method_decl(rec_decl, klass, method, uargs);
     qDebug()<<mth_decl<<mth_decl->isStatic();
     mth_decl->dumpColor();
+
+    // test
+    nlu_find_method(mfe, method, rec_decl);
+    exit(-1);
 
     QVector<QVariant> dargs;
     mfe->get_method_default_params(mth_decl, dargs);

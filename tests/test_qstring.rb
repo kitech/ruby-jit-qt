@@ -109,12 +109,18 @@ def test_return()
     #puts 'dat:' + dat.to_s
 end
 
-test_else;
-test_qstring
-test_qbytearray # 处理这个类问题还比较多, fixed nowwwwww
-test_qurl
-test_signal_slots
-test_enum
-test_return;
+def test_lookup
+    s = Qt5::QString.new
+    s.length()
+end
 
+
+# test_else;
+# test_qstring
+# test_qbytearray # 处理这个类问题还比较多, fixed nowwwwww
+# test_qurl
+# test_signal_slots
+# test_enum
+# test_return;
+test_lookup;
 
