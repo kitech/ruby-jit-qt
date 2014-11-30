@@ -89,6 +89,7 @@ public:
 private:
 public:
     clang::FunctionDecl *find_free_function(QString fname);
+    clang::FunctionDecl *find_free_function2(QString symname); // by symbol
     clang::CXXRecordDecl* find_class_decl(QString klass);
     clang::ClassTemplateDecl* find_tpl_class_decl(QString klass);
     QVector<clang::CXXMethodDecl*>
@@ -117,6 +118,9 @@ public:
                                QString klass, QString method, QVector<QVariant> uargs);
     bool mangle_method_to_symbol(clang::CXXMethodDecl *decl, 
                                  QString &symbol_name, QString &proto_str);
+    bool mangle_function_to_symbol(clang::FunctionDecl *decl, 
+                                 QString &symbol_name, QString &proto_str);
+    
     // 获取方法的默认参数值
     bool get_method_default_params(clang::CXXMethodDecl *decl, QVector<QVariant> &dparams);
     // 获取一个方法的返回值类型，现在以字符串格式表示，后续可以考虑使用类型标识。

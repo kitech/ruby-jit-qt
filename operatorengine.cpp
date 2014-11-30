@@ -69,7 +69,7 @@ llvm::Type *OperatorEngine::uniqTy(llvm::Module *mod, QString tyname)
 std::vector<llvm::Value*>
 OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
                                   QVector<QVariant> uargs, QVector<QVariant> dargs,
-                                  llvm::Module *tymod, llvm::Function *dstfun, bool is_static)
+                                  llvm::Module *tymod, llvm::Function *dstfun, bool has_this)
 {
     std::vector<llvm::Value*> cargs;
     std::vector<llvm::Type*> ctypes;
@@ -93,7 +93,7 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
         fpit++;
     }
     // skip this param
-    if (!is_static) {
+    if (has_this) {
         fpit++;
     }
 
@@ -333,6 +333,7 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass,
     
     std::vector<llvm::Value*> callee_arg_values;
     if (is_static) {
+    } else if (kthis == NULL) {
     } else {
         llvm::Type *thisTy = this->uniqTy(mod, QString("class.%1").arg(klass));
         // 在32位系统上crash，可能是因为这里直接使用了64位整数。(已验证，果然是这个问题）
@@ -346,7 +347,7 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass,
 
     // Add uarg
     std::vector<llvm::Value*> more_values = 
-        ConvertToCallArgs(mod, builder, uargs, dargs, mtmod, dstfun, is_static);
+        ConvertToCallArgs(mod, builder, uargs, dargs, mtmod, dstfun, !is_static && kthis != NULL);
     // std::copy(more_values.begin(), more_values.end(), callee_arg_values.end());// why???
     for (auto v: more_values) callee_arg_values.push_back(v);
 

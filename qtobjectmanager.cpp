@@ -89,6 +89,17 @@ void QtObjectManager::testIR()
     // run_code_jit();
 }
 
+QDebug &qodebug(QDebug &dbg, void*obj, QString klass)
+{
+    // _Zls6QDebugRK9QBitArray
+    QString symtpl = "_Zls6QDebugRK%1%2";
+    QString symname = symtpl.arg(klass.length()).arg(klass);
+
+    
+    
+    return dbg.space();
+}
+
 /////////////////////
 ////
 /////////////////////

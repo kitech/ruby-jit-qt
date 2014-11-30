@@ -42,7 +42,7 @@ private:
     std::vector<llvm::Value*>
     ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
                       QVector<QVariant> uargs, QVector<QVariant> dargs,
-                      llvm::Module *tymod, llvm::Function *dstfun, bool is_static);
+                      llvm::Module *tymod, llvm::Function *dstfun, bool has_this);
     bool instcpy();
     // 默认参数临时值生成指令拷贝
     // 假设已经有InsertPoint

@@ -36,6 +36,8 @@ public:
     QVariant vm_static_call(QString klass, QString method, QVector<QVariant> uargs);
     // 查找这个类中的enum的值。
     int vm_enum(QString klass, QString enum_name);
+    // call _Zls6QDebugRK9QBitArray
+    QString vm_qdebug(void *kthis, QString klass);
 
     // hot fix
     QVariant vm_call_hotfix(void *kthis, QString klass, QString method, QVector<QVariant> uargs);

@@ -664,6 +664,43 @@ clang::FunctionDecl *FrontEngine::find_free_function(QString fname)
     return res_fundecl;
 }
 
+clang::FunctionDecl *FrontEngine::find_free_function2(QString symname)
+{
+    clang::TranslationUnitDecl *udecl = this->mtrunit;
+    qDebug()<<symname<<udecl;
+    Q_ASSERT(udecl != NULL);
+
+    clang::FunctionDecl *res_fundecl = NULL;
+    for (auto it = udecl->decls_begin(); it != udecl->decls_end(); it++) {
+        clang::Decl *decl = *it;
+        clang::FunctionDecl *fundecl;
+        QString declname;
+        QString proto_str;
+        // qDebug()<<decl<<decl->getDeclKindName()<<decl->getKind();
+        switch (decl->getKind()) {
+        case clang::Decl::Function:
+            fundecl = llvm::cast<clang::FunctionDecl>(decl);
+            mangle_function_to_symbol(fundecl, declname, proto_str);
+            if (declname.startsWith("_Zls6QDebugRK10")) 
+                qDebug()<<declname<<symname;
+            if (declname == symname) {
+                res_fundecl = fundecl;
+                break;
+            }
+            break;
+        default:
+            break;
+        }
+
+    }
+    
+    if (res_fundecl == NULL) {
+        qDebug()<<"func decl not found:"<<symname;
+        return NULL;
+    }
+    return res_fundecl;
+}
+
 clang::CXXRecordDecl* FrontEngine::find_class_decl(QString klass)
 {
     clang::TranslationUnitDecl *udecl = this->mtrunit;
@@ -1196,6 +1233,24 @@ bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl,
 
 bool FrontEngine::mangle_method_to_symbol(clang::CXXMethodDecl *decl, 
                              QString &symbol_name, QString &proto_str)
+{
+    Q_ASSERT(mgctx);
+
+    std::string strc;
+    llvm::raw_string_ostream stm(strc);
+    mgctx->mangleCXXName(decl, stm); // TODO, change to mangleCXXThunk for class method
+    // TODO mangle "operator new()" and "operator delete()"
+
+    if (stm.str().length() > 0) {
+        symbol_name = QString(stm.str().c_str());
+        return true;
+    }
+
+    return false;
+}
+
+bool FrontEngine::mangle_function_to_symbol(clang::FunctionDecl *decl, 
+                                            QString &symbol_name, QString &proto_str)
 {
     Q_ASSERT(mgctx);
 
