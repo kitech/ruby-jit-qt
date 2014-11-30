@@ -79,6 +79,69 @@ RB_VALUE QtObjectManager::getObject(void *qtobj)
     return 0;
 }
 
+// 这里的信号不能重载。
+bool QtObjectManager::addSignals(QString rbklass, QVector<QVariant> sigs)
+{
+
+    for (int i = 0; i < sigs.count(); i ++) {
+        QString signature = sigs.at(i).toString();
+        int pos = signature.indexOf('(');
+        QString method = signature.left(pos);
+
+        if (rbsignals.contains(rbklass)) {
+            if (rbsignals[rbklass].contains(method)) {
+                qDebug()<<"signal existed:"<<method<<signature<<rbsignals[rbklass][method];
+            } else {
+                rbsignals[rbklass][method] = signature;
+            }
+        } else {
+            QHash<QString, QString> tmp;
+            tmp[method] = signature;
+            rbsignals[rbklass] = tmp;
+        }
+    }
+
+    // qDebug()<<rbsignals;
+    return true;
+}
+
+QString QtObjectManager::getSignature(QString rbklass, QString signal)
+{
+    if (rbsignals.contains(rbklass)) {
+        if (rbsignals[rbklass].contains(signal)) {
+            return rbsignals[rbklass][signal];
+        }
+    }
+    return QString();
+}
+
+// 与rbconnectrb方法对应
+bool QtObjectManager::addConnection(QString rbklass, QString rbsignal, QtObjectManager::RubySlot *rbslot)
+{
+    QString key = QString("%1->%2").arg(rbklass).arg(rbsignal);
+    if (this->rbconnections.contains(key)) {
+        this->rbconnections[key].append(rbslot);
+    } else {
+        QVector<QtObjectManager::RubySlot*> slot = {rbslot};
+        this->rbconnections[key] = slot;
+    }
+    
+    return true;
+}
+
+QVector<QtObjectManager::RubySlot*>
+QtObjectManager::getConnections(QString rbklass, QString rbsignal)
+{
+    QVector<QtObjectManager::RubySlot*> conns;
+    QString key = QString("%1->%2").arg(rbklass).arg(rbsignal);
+
+    if (this->rbconnections.contains(key)) {
+        return this->rbconnections.value(key);
+    }
+    
+    return conns;
+}
+
 void QtObjectManager::testParser()
 {
     // get_class_method("abcdef.h");

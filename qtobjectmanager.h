@@ -39,12 +39,24 @@ private:
 private:
     QHash<void *, ObjectInfo*> qobjs; // qtobject => ObjectInfo
     QHash<RB_VALUE, ObjectInfo*> robjs; // rb_object => ObjectInfo
-
+    // QHash<classname, QHash<signame, signature> >
+    QHash<QString, QHash<QString, QString> > rbsignals;
+    // QHash<classname_sigal_method, QVector<RubySlot*> >
+    QHash<QString, QVector<RubySlot*> > rbconnections;
+    
 public:
     bool addObject(RB_VALUE rbobj, void *qtobj);
     bool delObject(RB_VALUE rbobj);
     void *getObject(RB_VALUE rbobj);
     RB_VALUE getObject(void *qtobj);
+
+    // 与class.signals()对应
+    bool addSignals(QString rbklass, QVector<QVariant> sigs);
+    QString getSignature(QString rbklass, QString signal);
+
+    // 与rbconnectrb方法对应
+    bool addConnection(QString rbklass, QString rbsignal, RubySlot *rbslot);
+    QVector<RubySlot*> getConnections(QString rbklass, QString rbsignal);
     
 public:
     void testParser();

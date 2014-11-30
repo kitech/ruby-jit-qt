@@ -68,6 +68,10 @@ def test_signal_slots()
   t.start(123); #  QObject::startTimer: Timers can only be used with threads started with QThread
 end
 
+def test_rbsignal()
+    
+end
+
 def test_enum()
   puts Qt5::QFont::Bold  # 这种格式会谁接收呢？module不会接收，类也不会接收。（还是应该类会接受）
   puts Qt5::QFont::ForceIntegerMetrics

@@ -543,16 +543,44 @@ static VALUE x_Qt_class_dtor(VALUE id)
 // 判断是否是qt类，如果不是，很可能是在Ruby中继承Qt类
 // 如果是继承类，取到需要实例化的Qt类名
 TODO 还需要考虑继承层次大于2的情况
+@param self T_OBJECT | T_CLASS
  */
 static QString get_qt_class(VALUE self)
 {
-    QString klass_name = rb_class2name(RBASIC_CLASS(self));
-    if (klass_name.startsWith("Qt5::Q")) return klass_name.split("::").at(1);
+    if (TYPE(self) == T_CLASS) {
+        QString klass_name = rb_class2name(self);
+        if (klass_name.startsWith("Qt5::Q")) return klass_name.split("::").at(1);
 
-    // 如果是继承类，取到需要实例化的Qt类名
-    VALUE pcls = RCLASS_SUPER(RBASIC_CLASS(self));
-    klass_name = rb_class2name(pcls);
-    return klass_name.split("::").at(1);
+        // 如果是继承类，取到需要实例化的Qt类名
+        VALUE pcls = RCLASS_SUPER(self);
+        klass_name = rb_class2name(pcls);
+        return klass_name.split("::").at(1);
+    }
+    // T_OBJECT
+    else {
+        QString klass_name = rb_class2name(RBASIC_CLASS(self));
+        if (klass_name.startsWith("Qt5::Q")) return klass_name.split("::").at(1);
+
+        // 如果是继承类，取到需要实例化的Qt类名
+        VALUE pcls = RCLASS_SUPER(RBASIC_CLASS(self));
+        klass_name = rb_class2name(pcls);
+        return klass_name.split("::").at(1);
+    }
+}
+
+static QString get_rb_class(VALUE self)
+{
+    if (TYPE(self) == T_CLASS) {
+        QString klass_name = rb_class2name(self);
+        if (klass_name.startsWith("Qt5::Q")) return QString();
+        else return klass_name;
+    }
+    // T_OBJECT
+    else {
+        QString klass_name = rb_class2name(RBASIC_CLASS(self));
+        if (klass_name.startsWith("Qt5::Q")) return QString();
+        else return klass_name;
+    }
 }
 
 /*
@@ -729,8 +757,9 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
     qDebug()<<ci<<argc;
     assert(ci != 0);
     QString klass_name = get_qt_class(self);
+    QString rbklass_name = get_rb_class(self);
     QString method_name = QString(rb_id2name(SYM2ID(argv[0])));
-    qDebug()<<"calling:"<<klass_name<<method_name<<argc<<(argc > 1);
+    qDebug()<<"calling:"<<rbklass_name<<klass_name<<method_name<<argc<<(argc > 1);
     assert(argc >= 1);
 
     QVector<QVariant> args;
@@ -751,11 +780,14 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
     if (method_name == "to_ary") {
         return Qnil;
     }
-
-    if (method_name == "to_s") {
+    else if (method_name == "to_s") {
         return Qnil;
     }
-
+    // for emit keyword, just as method 
+    else if (method_name == "emit") {
+        return argv[0];
+    }
+    
     // property assign
     if (method_name.endsWith('=')) {
         // TODO 需要更多的详细处理，通过类的property定义找到指定的赋值方法。
@@ -770,6 +802,25 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
         qDebug()<<"need rubyfier adjust";
     }
 
+    // for rbsignals
+    QString signature = Qom::inst()->getSignature(rbklass_name, method_name);
+    if (!signature.isEmpty()) {
+        qDebug()<<"handling rbsignal..."<<signature;
+        // 查找这个信号连接的所有slots列表，并依次执行。
+        QVector<Qom::RubySlot*> rbslots = Qom::inst()->getConnections(rbklass_name, method_name);
+        qDebug()<<rbslots;
+        if (rbslots.count() == 0) {
+            qDebug()<<"no slot connected from signal:"<<rbklass_name<<method_name<<signature;
+            return Qnil;
+        }
+        for (int i = 0; i < rbslots.count(); i ++) {
+            auto slot = rbslots.at(i);
+            // run slot now
+        }
+        return Qnil;
+    }
+
+    // others, call as a static member function
     qDebug()<<ci<<klass_name<<method_name<<args;
     QVariant gv = gce->vm_call(ci, klass_name, method_name, args);
     qDebug()<<"vv:"<<gv;
@@ -796,12 +847,11 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
 VALUE x_Qt_class_singleton_method_missing_jit(int argc, VALUE *argv, VALUE self)
 {
     qDebug()<<argc;
-    QString klass_name = rb_class2name(self);
-    klass_name = klass_name.split("::").at(1);
+    QString klass_name = get_qt_class(self);
+    QString rbklass_name = get_rb_class(self);
     QString method_name = QString(rb_id2name(SYM2ID(argv[0])));
-    qDebug()<<"calling:"<<klass_name<<method_name<<argc<<(argc > 1);        
+    qDebug()<<"calling:"<<rbklass_name<<klass_name<<method_name<<argc<<(argc > 1);        
     
-
     QVector<QVariant> args;
     args = ARGV2Variant(argc, argv, 1);
 
@@ -809,11 +859,16 @@ VALUE x_Qt_class_singleton_method_missing_jit(int argc, VALUE *argv, VALUE self)
     if (method_name == "to_ary") {
         return Qnil;
     }
-
-    if (method_name == "to_s") {
+    else if (method_name == "to_s") {
         return Qnil;
     }
-
+    // 处理signals方法
+    else if (method_name == "signals") {
+        // qDebug()<<args;
+        Qom::inst()->addSignals(rbklass_name, args);
+        return Qtrue;
+    }
+    
     QVariant gv = gce->vm_static_call(klass_name, method_name, args);
     qDebug()<<"vv:"<<gv;
     
@@ -1450,6 +1505,7 @@ void ConnectProxy::proxycall(void * arg0)
 }
 
 static ConnectProxy gcp;
+// for qt signal ==> rb slot
 static VALUE x_Qt_connectrb(int argc, VALUE* argv, VALUE self)
 {
     if (argc == 4) {
@@ -1526,6 +1582,27 @@ static VALUE x_Qt_connectrb(int argc, VALUE* argv, VALUE self)
     return Qnil;
 }
 
+// for rb signal ==> rb slot
+static VALUE x_Qt_rbconnectrb(int argc, VALUE* argv, VALUE self)
+{
+    qDebug()<<argc;
+    return Qnil;
+}
+
+// for rb signal ==> qt slot
+static VALUE x_Qt_rbconnect(int argc, VALUE* argv, VALUE self)
+{
+    qDebug()<<argc;
+    return Qnil;
+}
+
+// for qt signal ==> qt slot
+static VALUE x_Qt_connect(int argc, VALUE* argv, VALUE self)
+{
+    qDebug()<<argc;
+    return Qnil;
+}
+
 static VALUE x_Qt_Method_missing(int argc, VALUE* argv, VALUE self)
 {
     qDebug()<<"hehhe method missing."<< argc << argv << self;
@@ -1540,9 +1617,26 @@ static VALUE x_Qt_Method_missing(int argc, VALUE* argv, VALUE self)
     // ...
     QString method_name = rb_id2name(SYM2ID(argv[0]));
     qDebug()<<method_name;
+    
+    // Qt5::connectrb    
     if (method_name == "connectrb") {
         qDebug()<<"got ittttttt."<<method_name;
         return x_Qt_connectrb(argc, argv, self);
+    } 
+    // Qt5::rbconnectrb
+    else if (method_name == "rbconnectrb") {
+        qDebug()<<"got ittttttt."<<method_name;
+        return x_Qt_rbconnectrb(argc, argv, self);
+    }
+    // Qt5::rbconnect    
+    else if (method_name == "rbconnect") {
+        qDebug()<<"got ittttttt."<<method_name;
+        return x_Qt_rbconnect(argc, argv, self);
+    }
+    // Qt5::connect
+    else if (method_name == "connect") {
+        qDebug()<<"got ittttttt."<<method_name;
+        return x_Qt_connect(argc, argv, self);        
     }
 
     qDebug()<<"unimpled!!!";

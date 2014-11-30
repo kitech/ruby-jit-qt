@@ -84,6 +84,21 @@ nil传递到C时是int类型的0。
 区间0..99传递到Ruby C API之后会是什么类型，怎么表达的。
 即Range类型(内部表示为T\_STRUCT类型)，需要扩展成两个参数：起始值与结束值。
 
+\section{Ruby的层信号定义}
+使用signals 'hit()', 'missed()', 'changed(int)'语法
+处理过程：
+在ruby继续类中，使用该语法定义
+这个定义会生成一个signals(多维）哈希数组结合存储这些信号。
+这个信号可以连接Qt原始类的slot，也可连接Ruby继承类的slot（自动检测，只要是变通方法即可）
+可以使用Qt5::rbconnect方法，与Qt5::connectrb方法对应，表示信号是在ruby层定义的。
+也许还需要一个Qt5::rbconnectrb方法，处理从ruby层的信号，连接到ruby层的slot。
+还有一个默认的Qt5::QObject::connect，是使用qt层signal连接qt层的slot方法。
+最后，几个连接模式全部完成后，把几种连接方式合并成为统一的通用方式。
+
+在qtbindings中，也是使用类似的方式，但这些处理完全在ruby层实现的。
+另外qtbindings中，slots需要显式指定，与signals一样。
+而这里slots不需要显式指定，优先检测ruby层类是否有这个方法，如果有则优先使用，如果没有则使用qt层的slot方法。
+
 \section{Ruby中继承Qt类的处理}
 
 \section{Ruby的Object类已有方法的处理}
