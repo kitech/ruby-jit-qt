@@ -24,9 +24,11 @@ public:
     struct RubySlot {
         RB_VALUE receiver = 0;
         RB_ID slot = 0;
+        RB_VALUE vslot = 0;
         QString raw_slot;
         RB_VALUE sender = 0;
         RB_ID signal = 0;
+        RB_VALUE vsignal = 0;        
         QString raw_signal;
     };
         
@@ -55,8 +57,12 @@ public:
     QString getSignature(QString rbklass, QString signal);
 
     // 与rbconnectrb方法对应
+    // depcreated
     bool addConnection(QString rbklass, QString rbsignal, RubySlot *rbslot);
     QVector<RubySlot*> getConnections(QString rbklass, QString rbsignal);
+    // 与rbconnectrb方法对应    
+    bool addConnection(RB_VALUE rbobj, QString rbsignal, RubySlot *rbslot);
+    QVector<RubySlot*> getConnections(RB_VALUE rbobj, QString rbsignal);
     
 public:
     void testParser();

@@ -1583,9 +1583,41 @@ static VALUE x_Qt_connectrb(int argc, VALUE* argv, VALUE self)
 }
 
 // for rb signal ==> rb slot
+// Qt5::rbconnectrb(obj, signal, obj, slot);
 static VALUE x_Qt_rbconnectrb(int argc, VALUE* argv, VALUE self)
 {
     qDebug()<<argc;
+    ID mid = rb_intern("onchange");
+    VALUE msym = ID2SYM(mid);
+
+    // it's Module.method_definied?
+    auto rb_mod_method_defined = [](VALUE mod, VALUE mid) -> VALUE {
+        ID id = rb_check_id(&mid);
+        if (!id || !rb_method_boundp(mod, id, 1)) {
+            return Qfalse;
+        }
+        return Qtrue;
+    };
+
+    VALUE ok = rb_mod_method_defined(RBASIC_CLASS(argv[1]), msym);
+    qDebug()<<ok<<(Qtrue == ok);
+
+    if (ok == Qfalse) return Qfalse;
+
+    Qom::RubySlot *conn = new Qom::RubySlot();
+    conn->sender = argv[1];
+    conn->vsignal = argv[2];
+    conn->receiver = argv[3];
+    conn->vslot = argv[4];
+
+    QString klass_name = get_rb_class(argv[1]);
+    QString method_signature = RSTRING_PTR(argv[2]);
+    QString signal_name = method_signature.split('(').at(0);
+    QString slot_signature = RSTRING_PTR(argv[4]);
+    QString slot_name = slot_signature.split('(').at(0);
+    qDebug()<<klass_name<<method_signature<<signal_name;
+    Qom::inst()->addConnection(klass_name, signal_name, conn);
+    
     return Qnil;
 }
 

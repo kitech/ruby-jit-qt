@@ -142,6 +142,21 @@ QtObjectManager::getConnections(QString rbklass, QString rbsignal)
     return conns;
 }
 
+bool QtObjectManager::addConnection(RB_VALUE rbobj, QString rbsignal, RubySlot *rbslot)
+{
+
+    return false;
+}
+
+QVector<QtObjectManager::RubySlot*>
+QtObjectManager::getConnections(RB_VALUE rbobj, QString rbsignal)
+{
+    QVector<QtObjectManager::RubySlot*> conns;
+
+    return conns;
+}
+
+
 void QtObjectManager::testParser()
 {
     // get_class_method("abcdef.h");

@@ -9,10 +9,16 @@ class SigObject < Qt5::QObject
 
     def initialize()
         super()
+
+        Qt5::rbconnectrb(self, 'changed()', self, 'onchange()');
     end
     
     def tsig1()
         emit changed();
+    end
+
+    def onchange()
+        puts 'aaaaaaaaaaaaaaaaa';
     end
 end
 
