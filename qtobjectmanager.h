@@ -9,6 +9,9 @@
 
 typedef quint64 RB_VALUE;
 typedef quint64 RB_ID;
+#ifndef uint128_t
+#define uint128_t unsigned __int128
+#endif
 
 // Qt Object Manager
 class QtObjectManager
@@ -45,6 +48,11 @@ private:
     QHash<QString, QHash<QString, QString> > rbsignals;
     // QHash<classname_sigal_method, QVector<RubySlot*> >
     QHash<QString, QVector<RubySlot*> > rbconnections;
+    // QHash<rbobj << 64 & rbmethod, QVector<RubySlot*> >
+    unsigned __int128 v128;
+    QHash<uint128_t, QVector<RubySlot*> > rbconnections2;
+    QHash<RB_VALUE, QHash<QString, QVector<RubySlot*> > > rbconnections3;
+    
     
 public:
     bool addObject(RB_VALUE rbobj, void *qtobj);
@@ -63,6 +71,7 @@ public:
     // 与rbconnectrb方法对应    
     bool addConnection(RB_VALUE rbobj, QString rbsignal, RubySlot *rbslot);
     QVector<RubySlot*> getConnections(RB_VALUE rbobj, QString rbsignal);
+    bool removeConnection(RB_VALUE rbobj, QString rbsignal, const RubySlot *rbslot);
     
 public:
     void testParser();

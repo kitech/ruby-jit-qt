@@ -807,8 +807,9 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
     if (!signature.isEmpty()) {
         qDebug()<<"handling rbsignal..."<<signature;
         // 查找这个信号连接的所有slots列表，并依次执行。
-        QVector<Qom::RubySlot*> rbslots = Qom::inst()->getConnections(rbklass_name, method_name);
-        qDebug()<<rbslots;
+        // QVector<Qom::RubySlot*> rbslots = Qom::inst()->getConnections(rbklass_name, method_name);
+        QVector<Qom::RubySlot*> rbslots = Qom::inst()->getConnections(self, method_name);
+        qDebug()<<rbslots<<rbslots.count();
         if (rbslots.count() == 0) {
             qDebug()<<"no slot connected from signal:"<<rbklass_name<<method_name<<signature;
             return Qnil;
@@ -816,6 +817,13 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
         for (int i = 0; i < rbslots.count(); i ++) {
             auto slot = rbslots.at(i);
             // run slot now
+            int rargc = argc - 1;
+            VALUE rargv[10] = {0};
+            for (int i = 1; i < argc; i++) {
+                rargv[i-1] = argv[i];
+            }
+            qDebug()<<"invoking..."<<slot->receiver<<slot->slot;
+            VALUE fcret = rb_funcall3(slot->receiver, slot->slot, rargc, rargv);
         }
         return Qnil;
     }
@@ -1583,11 +1591,21 @@ static VALUE x_Qt_connectrb(int argc, VALUE* argv, VALUE self)
 }
 
 // for rb signal ==> rb slot
-// Qt5::rbconnectrb(obj, signal, obj, slot);
+// Qt5::rbconnectrb(sobj, signal, robj, slot);
+// TODO Qt5::rbconnectrb(sobj, signal, Proc|Block|Lambda)
+// TODO robj.rbconnectrb(sobj, signal, slot)
 static VALUE x_Qt_rbconnectrb(int argc, VALUE* argv, VALUE self)
 {
     qDebug()<<argc;
-    ID mid = rb_intern("onchange");
+    QString klass_name = get_rb_class(argv[1]);
+    QString method_signature = RSTRING_PTR(argv[2]);
+    QString signal_name = method_signature.split('(').at(0);
+    QString slot_signature = RSTRING_PTR(argv[4]);
+    QString slot_name = slot_signature.split('(').at(0);
+    qDebug()<<klass_name<<method_signature<<signal_name;
+
+    // ID mid = rb_intern("onchange");
+    ID mid = rb_intern(slot_name.toLatin1().data());
     VALUE msym = ID2SYM(mid);
 
     // it's Module.method_definied?
@@ -1609,15 +1627,57 @@ static VALUE x_Qt_rbconnectrb(int argc, VALUE* argv, VALUE self)
     conn->vsignal = argv[2];
     conn->receiver = argv[3];
     conn->vslot = argv[4];
+    conn->slot = mid;
 
+    Qom::inst()->addConnection(klass_name, signal_name, conn);
+    Qom::inst()->addConnection(argv[1], signal_name, conn);
+    
+    return Qnil;
+}
+
+// for rb signal ==> rb slot
+// Qt5::rbdisconnectrb(sobj, signal, robj, slot);
+// Qt5::rbdisconnectrb(sobj, signal, Proc|Block|Lambda);
+// TODO sobj.rbdisconnectrb(signal, robj, slot);
+// TODO sobj.rbdisconnectrb(robj, slot);
+static VALUE x_Qt_rbdisconnectrb(int argc, VALUE* argv, VALUE self)
+{
+    qDebug()<<argc;
     QString klass_name = get_rb_class(argv[1]);
     QString method_signature = RSTRING_PTR(argv[2]);
     QString signal_name = method_signature.split('(').at(0);
     QString slot_signature = RSTRING_PTR(argv[4]);
     QString slot_name = slot_signature.split('(').at(0);
     qDebug()<<klass_name<<method_signature<<signal_name;
-    Qom::inst()->addConnection(klass_name, signal_name, conn);
-    
+
+    // ID mid = rb_intern("onchange");
+    ID mid = rb_intern(slot_name.toLatin1().data());
+    VALUE msym = ID2SYM(mid);
+
+    // it's Module.method_definied?
+    auto rb_mod_method_defined = [](VALUE mod, VALUE mid) -> VALUE {
+        ID id = rb_check_id(&mid);
+        if (!id || !rb_method_boundp(mod, id, 1)) {
+            return Qfalse;
+        }
+        return Qtrue;
+    };
+
+    VALUE ok = rb_mod_method_defined(RBASIC_CLASS(argv[1]), msym);
+    qDebug()<<ok<<(Qtrue == ok);
+
+    if (ok == Qfalse) return Qfalse;
+
+    Qom::RubySlot *conn = new Qom::RubySlot();
+    conn->sender = argv[1];
+    conn->vsignal = argv[2];
+    conn->receiver = argv[3];
+    conn->vslot = argv[4];
+    conn->slot = mid;
+
+    bool bret = Qom::inst()->removeConnection(argv[1], signal_name, conn);
+    delete conn;
+    return bret ? Qtrue : Qfalse;
     return Qnil;
 }
 
@@ -1659,6 +1719,11 @@ static VALUE x_Qt_Method_missing(int argc, VALUE* argv, VALUE self)
     else if (method_name == "rbconnectrb") {
         qDebug()<<"got ittttttt."<<method_name;
         return x_Qt_rbconnectrb(argc, argv, self);
+    }
+    // Qt5::rbdisconnectrb
+    else if (method_name == "rbdisconnectrb") {
+        qDebug()<<"got ittttttt."<<method_name;
+        return x_Qt_rbdisconnectrb(argc, argv, self);
     }
     // Qt5::rbconnect    
     else if (method_name == "rbconnect") {

@@ -17,14 +17,20 @@ class SigObject < Qt5::QObject
         emit changed();
     end
 
+    def tsig2()
+        Qt5::rbdisconnectrb(self, 'changed()', self, 'onchange()');        
+    end
+    
     def onchange()
-        puts 'aaaaaaaaaaaaaaaaa';
+        puts 'onchange slot invoked............';
     end
 end
 
 
 def test_rbsignal()
     so = SigObject.new
+    so.tsig1
+    so.tsig2
     so.tsig1
 end
 

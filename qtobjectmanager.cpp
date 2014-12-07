@@ -144,18 +144,67 @@ QtObjectManager::getConnections(QString rbklass, QString rbsignal)
 
 bool QtObjectManager::addConnection(RB_VALUE rbobj, QString rbsignal, RubySlot *rbslot)
 {
-
-    return false;
+    RB_VALUE ikey = rbobj;
+    if (this->rbconnections3.contains(ikey)) {
+        if (this->rbconnections3[ikey].contains(rbsignal)) {
+            this->rbconnections3[ikey][rbsignal].append(rbslot);
+        } else {
+            QVector<QtObjectManager::RubySlot*> slot = {rbslot};            
+            this->rbconnections3[ikey][rbsignal] = slot;
+        }
+    } else {
+        QVector<QtObjectManager::RubySlot*> slot = {rbslot};
+        QHash<QString, QVector<QtObjectManager::RubySlot*> > hslots;
+        hslots[rbsignal] = slot;
+        this->rbconnections3[ikey] = hslots;
+    }
+    
+    return true;
 }
 
 QVector<QtObjectManager::RubySlot*>
 QtObjectManager::getConnections(RB_VALUE rbobj, QString rbsignal)
 {
     QVector<QtObjectManager::RubySlot*> conns;
-
+    RB_VALUE ikey = rbobj;
+    
+    if (this->rbconnections3.contains(ikey)) {
+        if (this->rbconnections3[ikey].contains(rbsignal)) {
+            conns = this->rbconnections3[ikey][rbsignal];
+        }
+    }
+    
     return conns;
 }
 
+bool QtObjectManager::removeConnection(RB_VALUE rbobj, QString rbsignal,
+                                       const QtObjectManager::RubySlot *rbslot)
+{
+    QVector<QtObjectManager::RubySlot*> conns;
+    conns = this->getConnections(rbobj, rbsignal);
+    if (conns.count() == 0) {
+        qDebug()<<"no rbconn:"<<rbobj<<rbsignal;
+        return true;
+    }
+
+    RB_VALUE ikey = rbobj;
+    int rmcnt = 0;
+    for (int i = conns.count()-1; i >= 0; i--) {
+        auto slot = conns.at(i);        
+        if (
+            // 删除该signal所有的slot            
+            rbslot == NULL ||
+            // 删除匹配的slot
+            (slot->receiver == rbslot->receiver && slot->slot == rbslot->slot)) {
+            this->rbconnections3[ikey][rbsignal].remove(i);
+            delete slot;
+            rmcnt ++;
+        }
+    }
+    qDebug()<<"removed conn:"<<rmcnt<<rbslot;
+    
+    return true;
+}
 
 void QtObjectManager::testParser()
 {
