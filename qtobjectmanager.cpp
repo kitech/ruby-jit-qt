@@ -142,8 +142,38 @@ QtObjectManager::getConnections(QString rbklass, QString rbsignal)
     return conns;
 }
 
+// 为什么在QHash中还是不能用呢。
+inline uint qHash(const uint128_t & key, uint seed) Q_DECL_NOTHROW
+{
+    uint h = 0;
+
+    quint64 hbit, lbit;
+    memcpy(&hbit, &key, 8);
+    memcpy(&lbit, ((char*)&key)+8, 8);
+
+    uint hh,hl;
+    hh = qHash(hbit);
+    hl = qHash(lbit);
+
+    quint64 tkey = hh;
+    tkey = tkey << 32;
+    hbit = tkey | hl;
+    h = qHash(hbit);
+    
+    return h;
+}
+
 bool QtObjectManager::addConnection(RB_VALUE rbobj, QString rbsignal, RubySlot *rbslot)
 {
+    QPair<RB_VALUE, QString> ckey = {rbobj, rbsignal};
+    if (this->rbconnections4.contains(ckey)) {
+        this->rbconnections4[ckey].append(rbslot);
+    } else {
+        QVector<QtObjectManager::RubySlot*> slot = {rbslot};
+        this->rbconnections4[ckey] = slot;
+    }
+
+    /// 
     RB_VALUE ikey = rbobj;
     if (this->rbconnections3.contains(ikey)) {
         if (this->rbconnections3[ikey].contains(rbsignal)) {
@@ -165,6 +195,12 @@ bool QtObjectManager::addConnection(RB_VALUE rbobj, QString rbsignal, RubySlot *
 QVector<QtObjectManager::RubySlot*>
 QtObjectManager::getConnections(RB_VALUE rbobj, QString rbsignal)
 {
+    QPair<RB_VALUE, QString> ckey = {rbobj, rbsignal};
+    if (this->rbconnections4.contains(ckey)) {
+        return this->rbconnections4[ckey];
+    }
+
+    // way 2
     QVector<QtObjectManager::RubySlot*> conns;
     RB_VALUE ikey = rbobj;
     
@@ -179,7 +215,7 @@ QtObjectManager::getConnections(RB_VALUE rbobj, QString rbsignal)
 
 bool QtObjectManager::removeConnection(RB_VALUE rbobj, QString rbsignal,
                                        const QtObjectManager::RubySlot *rbslot)
-{
+{    
     QVector<QtObjectManager::RubySlot*> conns;
     conns = this->getConnections(rbobj, rbsignal);
     if (conns.count() == 0) {
@@ -187,8 +223,9 @@ bool QtObjectManager::removeConnection(RB_VALUE rbobj, QString rbsignal,
         return true;
     }
 
+    int rmcnt = 0;    
+    QPair<RB_VALUE, QString> ckey = {rbobj, rbsignal};
     RB_VALUE ikey = rbobj;
-    int rmcnt = 0;
     for (int i = conns.count()-1; i >= 0; i--) {
         auto slot = conns.at(i);        
         if (
@@ -197,11 +234,12 @@ bool QtObjectManager::removeConnection(RB_VALUE rbobj, QString rbsignal,
             // 删除匹配的slot
             (slot->receiver == rbslot->receiver && slot->slot == rbslot->slot)) {
             this->rbconnections3[ikey][rbsignal].remove(i);
+            this->rbconnections4[ckey].remove(i);
             delete slot;
             rmcnt ++;
         }
     }
-    qDebug()<<"removed conn:"<<rmcnt<<rbslot;
+    qDebug()<<"removed conn3:"<<rmcnt<<rbslot;
     
     return true;
 }

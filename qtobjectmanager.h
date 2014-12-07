@@ -13,6 +13,8 @@ typedef quint64 RB_ID;
 #define uint128_t unsigned __int128
 #endif
 
+// uint qHash(uint128_t key, uint seed = 0) Q_DECL_NOTHROW;
+
 // Qt Object Manager
 class QtObjectManager
 {
@@ -51,6 +53,7 @@ private:
     // QHash<rbobj << 64 & rbmethod, QVector<RubySlot*> >
     unsigned __int128 v128;
     QHash<uint128_t, QVector<RubySlot*> > rbconnections2;
+    QHash<QPair<RB_VALUE, QString>, QVector<RubySlot*> > rbconnections4;
     QHash<RB_VALUE, QHash<QString, QVector<RubySlot*> > > rbconnections3;
     
     

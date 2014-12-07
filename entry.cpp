@@ -1591,15 +1591,91 @@ static VALUE x_Qt_connectrb(int argc, VALUE* argv, VALUE self)
 }
 
 // for rb signal ==> rb slot
-// Qt5::rbconnectrb(sobj, signal, robj, slot);
-// TODO Qt5::rbconnectrb(sobj, signal, Proc|Block|Lambda)
-// TODO robj.rbconnectrb(sobj, signal, slot)
+// signature1 Qt5::rbconnectrb(sobj, signal, robj, slot);
+// signature2 Qt5::rbconnectrb(sobj, signal, Proc|Block|Lambda)
+// TODO signature3 robj.rbconnectrb(sobj, signal, slot)
 static VALUE x_Qt_rbconnectrb(int argc, VALUE* argv, VALUE self)
 {
     qDebug()<<argc;
     QString klass_name = get_rb_class(argv[1]);
     QString method_signature = RSTRING_PTR(argv[2]);
     QString signal_name = method_signature.split('(').at(0);
+
+    if (argc < 3 || argc > 5) {
+        qDebug()<<rb_block_given_p();
+        qDebug()<<"parameter not match. need 3 to 5, given:"<<argc;
+        return Qfalse;
+    }
+
+    auto add_connection =
+        [](QString klass_name, QString signal_name,
+           VALUE s, VALUE signal, VALUE r, VALUE slot, ID sid) -> bool {
+        Qom::RubySlot *conn = new Qom::RubySlot();
+        conn->sender = s;
+        conn->vsignal = signal;
+        conn->receiver = r;
+        conn->vslot = slot;
+        conn->slot = sid;
+
+        Qom::inst()->addConnection(klass_name, signal_name, conn);
+        Qom::inst()->addConnection(s, signal_name, conn);
+        return true;
+    };
+
+    // signature 2, block
+    if (argc == 3 && rb_block_given_p()) {
+        VALUE pblk = rb_block_proc(); // ok 
+        VALUE lblk = rb_block_lambda(); // ok
+
+        ID cid = rb_intern("call");
+        VALUE csym = ID2SYM(cid);
+        VALUE mth = rb_obj_method(lblk, csym);
+
+        add_connection(klass_name, signal_name, argv[1], argv[2], lblk, mth, cid);
+        /*
+        Qom::RubySlot *conn = new Qom::RubySlot();
+        conn->sender = argv[1];
+        conn->vsignal = argv[2];
+        conn->receiver = lblk;
+        conn->vslot = mth;
+        conn->slot = cid;
+
+        Qom::inst()->addConnection(klass_name, signal_name, conn);
+        Qom::inst()->addConnection(argv[1], signal_name, conn);
+        */
+        return Qtrue;
+    } else if (argc == 3 && !rb_block_given_p()) {
+        qDebug()<<"need a block here.";
+        return Qfalse;
+    }
+    
+    // signature 2, proc,lambda
+    // qDebug()<<argc<<TYPE(argv[3])<<(TYPE(argv[3]) == T_DATA);
+    // qDebug()<<RTYPEDDATA_P(argv[3])<<(RBASIC_CLASS(argv[3]) == rb_cProc);
+    else if (argc == 4 && RBASIC_CLASS(argv[3]) == rb_cProc) {
+        ID cid = rb_intern("call");
+        VALUE csym = ID2SYM(cid);
+        VALUE mth = rb_obj_method(argv[3], csym);
+
+        add_connection(klass_name, signal_name, argv[1], argv[2], argv[3], mth, cid);
+        /*
+        Qom::RubySlot *conn = new Qom::RubySlot();
+        conn->sender = argv[1];
+        conn->vsignal = argv[2];
+        conn->receiver = argv[3];
+        conn->vslot = mth;
+        conn->slot = cid;
+
+        Qom::inst()->addConnection(klass_name, signal_name, conn);
+        Qom::inst()->addConnection(argv[1], signal_name, conn);
+        */
+        return Qtrue;
+    } else if (argc == 4 && RBASIC_CLASS(argv[3]) != rb_cProc) {
+        qDebug()<<"need a proc or lambda here.";
+        return Qfalse;
+    }
+
+    // else, standard signature 1
     QString slot_signature = RSTRING_PTR(argv[4]);
     QString slot_name = slot_signature.split('(').at(0);
     qDebug()<<klass_name<<method_signature<<signal_name;
@@ -1618,10 +1694,11 @@ static VALUE x_Qt_rbconnectrb(int argc, VALUE* argv, VALUE self)
     };
 
     VALUE ok = rb_mod_method_defined(RBASIC_CLASS(argv[1]), msym);
-    qDebug()<<ok<<(Qtrue == ok);
-
+    // qDebug()<<ok<<(Qtrue == ok);
     if (ok == Qfalse) return Qfalse;
 
+    add_connection(klass_name, signal_name, argv[1], argv[2], argv[3], argv[4], mid);
+    /*
     Qom::RubySlot *conn = new Qom::RubySlot();
     conn->sender = argv[1];
     conn->vsignal = argv[2];
@@ -1631,8 +1708,9 @@ static VALUE x_Qt_rbconnectrb(int argc, VALUE* argv, VALUE self)
 
     Qom::inst()->addConnection(klass_name, signal_name, conn);
     Qom::inst()->addConnection(argv[1], signal_name, conn);
+    */
     
-    return Qnil;
+    return Qtrue;
 }
 
 // for rb signal ==> rb slot
@@ -1698,7 +1776,7 @@ static VALUE x_Qt_connect(int argc, VALUE* argv, VALUE self)
 static VALUE x_Qt_Method_missing(int argc, VALUE* argv, VALUE self)
 {
     qDebug()<<"hehhe method missing."<< argc << argv << self;
-    qDebug()<<TYPE(self); // == 3(T_MODULE)
+    qDebug()<<argc<<TYPE(self); // == 3(T_MODULE)
     // RSTRING_PTR(argv[0]);
     for (int i = 0; i < argc; i ++) {
         qDebug()<<i<<TYPE(argv[i])<<VALUE2Variant(argv[i]);
