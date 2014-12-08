@@ -16,7 +16,7 @@
 
 #include "debugoutput.h"
 
-#include "ruby.hpp"
+#include "ruby_cxx.h"
 #include "qtobjectmanager.h"
 
 #include "utils.h"

@@ -44,6 +44,9 @@ include_directories(${CLANG_SRC_DIR2}/lib/CodeGen ${CLANG_SRC_DIR2}/lib/)
 set(handby_lib_SRCS
 #  llvm-3.5.0.src/tools/clang/lib/CodeGen/CodeGenModule.cpp
 #  llvm-3.5.0.src/tools/clang/lib/CodeGen/CodeGenFunction.cpp
+    ruby_cxx.cpp
+    marshallruby.cpp
+    connectruby.cpp    
     qtruby.cpp
     qtobjectmanager.cpp
     entry.cpp
@@ -67,6 +70,7 @@ set(handby_lib_SRCS
 #  metalize/kitech_qtnetwork.cpp
   metalize/metas.cpp
   debugoutput.cpp
+  macrolib.cpp
 )
 
 set(handby_exe_SRCS

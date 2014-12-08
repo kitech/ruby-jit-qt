@@ -7,6 +7,8 @@
 #include <atomic>
 #include <QtCore>
 
+#include "macrolib.h"
+
 typedef quint64 RB_VALUE;
 typedef quint64 RB_ID;
 #ifndef uint128_t
@@ -16,10 +18,10 @@ typedef quint64 RB_ID;
 // uint qHash(uint128_t key, uint seed = 0) Q_DECL_NOTHROW;
 
 // Qt Object Manager
-class QtObjectManager
+class QtObjectManager : public Singleton<QtObjectManager>
 {
 public:
-    static QtObjectManager *inst();
+    // static QtObjectManager *inst();
     struct ObjectInfo {
         qint64 objid = 0;
         RB_VALUE rbobj = 0;  // VALUE type
@@ -82,6 +84,8 @@ public:
 
     void **getfp(QString klass, QString method);
 
+public: // needed for inst()
+    friend class Singleton;
 private:
     QtObjectManager();
 };
@@ -89,6 +93,11 @@ typedef QtObjectManager Qom; // for simple
 
 QDebug &qodebug(QDebug &dbg, void*obj, QString klass);
 
+/*
+  用于从qt signal 连接到 ruby slot
+  对应于Qt5::connectrb
+  这种方式很难处理带参数的信号调用，需要使用自connectruby中实现的singal/slot调用。
+ */
 class ConnectProxy : public QObject
 {
     Q_OBJECT;

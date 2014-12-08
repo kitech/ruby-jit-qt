@@ -4,7 +4,7 @@
 
 // atomic singleton member
 namespace _Qom {
-    static std::atomic<QtObjectManager*> _inst2(NULL);
+    // static std::atomic<QtObjectManager*> _inst2(NULL);
     static std::atomic<qint64> _objid2(-1);
     static std::atomic<qint64> _connid(0);
 };
@@ -13,6 +13,7 @@ QtObjectManager::QtObjectManager()
 {
 }
 
+/*
 QtObjectManager *QtObjectManager::inst()
 {
     if (_Qom::_inst2 == NULL) {
@@ -21,6 +22,7 @@ QtObjectManager *QtObjectManager::inst()
     }
     return _Qom::_inst2;
 }
+*/
 
 bool QtObjectManager::addObject(RB_VALUE rbobj, void *qtobj)
 {

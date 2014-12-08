@@ -5,7 +5,7 @@
   注册Qt类到ruby的进程空间。
  */
 
-#include "ruby.hpp"
+#include "ruby_cxx.h"
 
 extern "C" {
     int register_qtruby_classes(VALUE module);

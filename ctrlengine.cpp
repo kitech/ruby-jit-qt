@@ -13,7 +13,7 @@
 #include "clvmengine.h"
 #include "invokestorage.h"
 #include "qtobjectmanager.h"
-#include "ruby.hpp"
+#include "ruby_cxx.h"
 
 CtrlEngine::CtrlEngine()
 {

@@ -2,7 +2,7 @@
 #define ENTRY_H
 
 #include "fix_clang_undef_eai.h"
-#include <ruby.hpp>
+#include <ruby_cxx.h>
 
 /*
   带meta的函数，是使用Qt moc方式实现的
