@@ -2,7 +2,11 @@
 $VERBOSE = false; $:.unshift File.absolute_path(File.dirname($0))
 
 a = File.absolute_path(File.dirname(__FILE__))
-ret = require "#{a}/../handby.so"
+if Dir.exist?("#{a}/../libexec")
+    ret = require "#{a}/../libexec/handby.so"
+else
+    ret = require "#{a}/../handby.so"
+end
 puts "module loaded: " + ret.to_s
 
 #RUBYLIB 
