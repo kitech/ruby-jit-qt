@@ -354,7 +354,7 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass,
             llvm::Value *rlr5 = builder.CreateLoad(rlr3, "sret2");
             callee_arg_values.insert(callee_arg_values.begin(), rlr5);    
         } else {
-            auto dlo = this->getDataLayout();
+            auto dlo = this->getDataLayout(mod);
             gis2.vbyvalret = calloc(1, dlo->getTypeAllocSize(sretype));
             llvm::Constant *rlr1 = builder.getInt64((int64_t)gis2.vbyvalret);
             llvm::Value *rlr2 = llvm::ConstantExpr::getIntToPtr(rlr1, sretype);
@@ -433,18 +433,20 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass,
 int OperatorEngine::getClassAllocSize(llvm::Module *mod, QString klass)
 {
     // auto &dlo = mtmod->getDataLayout();
-    auto dlo = this->getDataLayout();
+    auto dlo = this->getDataLayout(mod);
     auto kty = this->uniqTy(mod, QString("class.%1").arg(klass));
 
     return kty ? dlo->getTypeAllocSize(kty) : -1;
 }
 
-llvm::DataLayout *OperatorEngine::getDataLayout()
+llvm::DataLayout *OperatorEngine::getDataLayout(llvm::Module *mod)
 {
     // TODO dynamic datalayout
     static llvm::DataLayout *pdlo = NULL;
     if (pdlo == NULL) {
-        pdlo = new llvm::DataLayout("e-m:e-i64:64-f80:128-n8:16:32:64-S128");
+        // pdlo = new llvm::DataLayout("e-m:e-i64:64-f80:128-n8:16:32:64-S128");
+        pdlo = new llvm::DataLayout(*mod->getDataLayout());
     }
+    // qDebug()<<mod->getDataLayout()->getStringRepresentation().c_str();
     return pdlo;
 }

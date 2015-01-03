@@ -36,8 +36,8 @@ extern "C" {
 
     int register_qtruby_classes(VALUE module)
     {        
-        // 所有Qt类的注册
-        #include "metalize/qtruby_auto_body.cpp"
+        // 所有Qt类的注册。（已改为动态注册了）
+        //        #include "metalize/qtruby_auto_body.cpp"
         // format: RQCLASS_REGISTER(QXxxxx);
 
         // for qApp 类Qt全局变量
@@ -45,7 +45,7 @@ extern "C" {
                                    (void (*)(ANYARGS)) x_Qt_global_variable_set);
         
         // fix method conflict
-        #include "metalize/qtruby_fix_body.cpp"
+        // #include "metalize/qtruby_fix_body.cpp"
         // RQCLASS_FIX_CONFLICT(QLCDNumber, display);
 
         // for test static method_missing

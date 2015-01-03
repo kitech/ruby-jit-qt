@@ -537,8 +537,10 @@ llvm::Module* CompilerEngine::conv_ctor(clang::ASTContext &ctx, clang::CXXConstr
 
     auto vmctx = new llvm::LLVMContext();
     auto mod = new llvm::Module("piecegen", *vmctx);
+    mod->setDataLayout(ctx.getTargetInfo().getTargetDescription());
 
-    llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    // llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    llvm::DataLayout dlo(ctx.getTargetInfo().getTargetDescription());
     clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, *mod, dlo, diag);
     auto &cgtypes = cgmod.getTypes();
     auto cgf = new clang::CodeGen::CodeGenFunction(cgmod);
@@ -636,8 +638,10 @@ llvm::Module* CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMeth
 
     auto vmctx = new llvm::LLVMContext();
     auto mod = new llvm::Module("piecegen2", *vmctx);
+    mod->setDataLayout(ctx.getTargetInfo().getTargetDescription());
 
-    llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    // llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    llvm::DataLayout dlo(ctx.getTargetInfo().getTargetDescription());
     clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, *mod, dlo, diag);
     auto &cgtypes = cgmod.getTypes();
     auto cgf = new clang::CodeGen::CodeGenFunction(cgmod);
@@ -754,8 +758,10 @@ QString CompilerEngine::mangle_ctor(clang::ASTContext &ctx, clang::CXXConstructo
 
     auto vmctx = new llvm::LLVMContext();
     auto mod = new llvm::Module("piecegen", *vmctx);
+    mod->setDataLayout(ctx.getTargetInfo().getTargetDescription());
 
-    llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    // llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    llvm::DataLayout dlo(ctx.getTargetInfo().getTargetDescription());
     clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, *mod, dlo, diag);
     auto &cgtypes = cgmod.getTypes();
     auto cgf = new clang::CodeGen::CodeGenFunction(cgmod);
@@ -778,8 +784,10 @@ QString CompilerEngine::mangle_method(clang::ASTContext &ctx, clang::CXXMethodDe
 
     auto vmctx = new llvm::LLVMContext();
     auto mod = new llvm::Module("piecegen", *vmctx);
+    mod->setDataLayout(ctx.getTargetInfo().getTargetDescription());
 
-    llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    // llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    llvm::DataLayout dlo(ctx.getTargetInfo().getTargetDescription());
     clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, *mod, dlo, diag);
     auto &cgtypes = cgmod.getTypes();
     auto cgf = new clang::CodeGen::CodeGenFunction(cgmod);
@@ -1468,15 +1476,12 @@ CompilerEngine::createCompilerUnit(clang::ASTUnit *unit, clang::NamedDecl *decl)
 
     cu->mvmctx = new llvm::LLVMContext();
     cu->mmod = new llvm::Module("piecegen2", *cu->mvmctx);
+    cu->mmod->setDataLayout(ctx.getTargetInfo().getTargetDescription());
 
+    qDebug()<<ctx.getTargetInfo().getTargetDescription();
     // crash了半天，原来是因为这地方需要一个&类型llvm::DataLayout&
-    // llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
-    // dlo = *mtmod->getDataLayout();
-    static llvm::DataLayout *pdlo = NULL;
-    if (pdlo == NULL) {
-        pdlo = new llvm::DataLayout("e-m:e-i64:64-f80:128-n8:16:32:64-S128");
-    }
-    // auto &dlo = *mtmod->getDataLayout();
+    //  llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    llvm::DataLayout *pdlo = new llvm::DataLayout(ctx.getTargetInfo().getTargetDescription());
     auto &dlo = *pdlo;
     cu->mcgm = new clang::CodeGen::CodeGenModule(ctx, cgopt, *cu->mmod, dlo, diag);
     cu->mcgf = new clang::CodeGen::CodeGenFunction(*cu->mcgm);
@@ -1727,7 +1732,8 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
     llvm::Module libmod("libcodes", vmctx);
     clang::CodeGenOptions &cgopt = ci.getCodeGenOpts();
     qDebug()<<"heeeeee...";
-    llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    // llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    llvm::DataLayout dlo(ctx.getTargetInfo().getTargetDescription());
     qDebug()<<"heeeeee...";
     clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, mod, dlo, diag);
 
@@ -2155,7 +2161,8 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
     llvm::Module libmod("libcodes", vmctx);
     clang::CodeGenOptions &cgopt = ci.getCodeGenOpts();
 
-    llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    // llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    llvm::DataLayout dlo(ctx.getTargetInfo().getTargetDescription());
 
     clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, mod, dlo, diag);
 

@@ -114,8 +114,8 @@ def test_return()
 end
 
 def test_lookup
-    s = Qt5::QString.new
-    s.length()
+    s = Qt5::QUrl.new
+    # s.length()
 end
 
 

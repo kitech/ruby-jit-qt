@@ -4,11 +4,12 @@ cmake_minimum_required(VERSION 3.0)
 set(CMAKE_VERBOSE_MAKEFILE on)
 
 # add_definitions(-g -O2 -std=c++11) # -std=c++14 -fno-rtti)  # -fno-rtti
+add_definitions(-DQT_MESSAGELOGCONTEXT=1)
 set(CMAKE_C_COMPILER ./myllvm/bin/clang)
 set(CMAKE_CXX_COMPILER ./myllvm/bin/clang++)
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
-set(CMAKE_CXX_FLAGS "-g -O2 -std=c++14") # -std=c++14")
+set(CMAKE_CXX_FLAGS "-g -O2 -std=c++11") # -std=c++14")
 set(CMAKE_SHARED_LINKER_FLAGS "-Wl,-rpath,. -Wl,--export-dynamic -fno-inline")
 #####这个设置虽然在有重复定义的情况下编译成功了，但会导致llvm的一个错误。
 ####CommandLine Error: Option 'load' registered more than once!
@@ -37,6 +38,12 @@ message("clang defs: ${CLANG_CXXFLAGS_OUTPUT}")
 #add_definitions(${CLANG_CXXFLAGS_OUTPUT} )
 #set(COMPILER_FLAGS ${CLANG_CXXFLAGS_OUTPUT})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CLANG_CXXFLAGS_OUTPUT}")
+
+### fix c++11 => c++14
+string(REPLACE "-std=gnu++11" "-std=c++14" NEW_FLAGS ${CMAKE_CXX_FLAGS})
+string(REPLACE "-std=c++11" "-std=c++14" NEW_FLAGS ${CMAKE_CXX_FLAGS})
+set(CMAKE_CXX_FLAGS "${NEW_FLAGS}")
+
 set(LLVM_SRC_DIR2 "./llvm-3.5.0.src")  # maybe a symlink
 set(CLANG_SRC_DIR2 ${LLVM_SRC_DIR2}/tools/clang)
 include_directories(${CLANG_SRC_DIR2}/lib/CodeGen ${CLANG_SRC_DIR2}/lib/)
@@ -46,8 +53,9 @@ set(handby_lib_SRCS
 #  llvm-3.5.0.src/tools/clang/lib/CodeGen/CodeGenFunction.cpp
     ruby_cxx.cpp
     marshallruby.cpp
-    connectruby.cpp    
+    connectruby.cpp
     qtruby.cpp
+    qtregister.cpp    
     qtobjectmanager.cpp
     entry.cpp
     ctrlengine.cpp
@@ -119,6 +127,6 @@ qt5_use_modules(handby Core Gui Widgets Network WebSockets)
 # target_link_libraries(ehandby ruby  ${CLANGLIBS})
 # qt5_use_modules(ehandby Core Gui Widgets Network WebSockets)
 
-add_subdirectory(demos)
+# add_subdirectory(demos)
 #add_subdirectory(uitools/uic)
 #add_subdirectory(uitools/rcc)

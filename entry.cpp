@@ -16,6 +16,7 @@
 
 #include "debugoutput.h"
 
+#include "qtregister.h"
 #include "ruby_cxx.h"
 #include "qtobjectmanager.h"
 
@@ -1418,6 +1419,15 @@ static VALUE x_Qt_Constant_missing(int argc, VALUE* argv, VALUE self)
         }
     }
 
+    // 可能是还没注册的类
+    if (vname.at(0).toLatin1() == 'Q' && vname.at(1).isUpper()) {
+        // TODO confirm it's a qt class, like by gce->hasClass();
+        QtRegister::inst()->registClass(vname);
+        VALUE cQtClass = QtRegister::inst()->getClass(vname);
+        assert(cQtClass != Qnil);
+        return cQtClass;
+    }
+
     // vm exec
     int val = gce->vm_enum(vspace, vname);
     qDebug()<<"enum..."<<val;
@@ -1789,9 +1799,9 @@ extern "C" {
         // test_one();
         // exit(0);
 
-        // init_class_metas();
-
         cModuleQt = rb_define_module("Qt5");
+        QtRegister::inst()->setModuleQt(cModuleQt);
+
         // 对所有的Qt5::someconst常量的调用注册
         rb_define_module_function(cModuleQt, "const_missing", FUNVAL x_Qt_Constant_missing, -1);
         // 对所有的Qt5::somefunc()函数的调用注册

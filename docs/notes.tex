@@ -116,6 +116,12 @@ nil传递到C时是int类型的0。
 怎么获取，获取之后怎么执行。
 使用rb\_block\_given\_p()判断是否外带block语法，如果有，则直接rb\_yield(self)执行。
 
+\section{ruby中动态注册Qt类}
+目前的情况，先使用rb\_define\_class等来声明类，使用rb\_define\_method等声明方法。
+这种需要预先列出所有的qt类，比较麻烦，也不够通用，不够有效率（启动注册上千个类）。
+但是，在不预先注册qt类的情况下，ruby会把这个当作constant处理，
+如Qt5::QStringAbc.new()语句，会执行到x\_Qt\_Constant\_missing函数中。
+在这个函数中，动态注册该Qt类，并返回类对应的VALUE类型的值。
 
 \section{clang与gcc兼容性问题}
 \subsection{/usr/include/string.h:82:1: error: unknown type name '\_\_extern\_always\_inline'}

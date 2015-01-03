@@ -39,7 +39,14 @@ protected:
     static pthread_mutex_t m_mutex;
 
 public:
-    // depcreated
+    virtual ~Singleton()
+    {
+        delete m_inst;
+        m_inst = NULL;
+    }
+    
+public:
+    [[deprecated("")]]
     static T *inst_simple()
     {
         if (Singleton::m_inst == NULL) {

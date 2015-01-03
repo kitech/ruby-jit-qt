@@ -12,15 +12,20 @@ extern "C" {
 
 #include "macrolib.h"
 
+
 /*
   实现ruby.h的C++封装
   auto rbx = RubyCXX::inst();
 */
+// like static call
+class RubyCXX;
+static RubyCXX *rbi = NULL;
 class RubyCXX : public Singleton<RubyCXX>
 {
     // DECL_SINGLETON_CLASS(RubyCXX);
 public:
     // static RubyCXX *inst();
+    RubyCXX() { rbi = this;}
     virtual ~RubyCXX();
 
     inline int type(VALUE v) { return rb_type(v); }

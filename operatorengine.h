@@ -33,7 +33,7 @@ public:
                  QVector<QVariant> uargs, QVector<QVariant> dargs,
                  bool is_static, void *kthis);
     int getClassAllocSize(llvm::Module *mod, QString klass);
-    llvm::DataLayout *getDataLayout();
+    llvm::DataLayout *getDataLayout(llvm::Module *mod);
     
 private:
     // 正确地从 mod 和 mtmod两者中选择合适的类型

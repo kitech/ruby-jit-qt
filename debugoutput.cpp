@@ -8,7 +8,7 @@
 // simple 
 // setenv("QT_MESSAGE_PATTERN", "[%{type}] %{appname} (%{file}:%{line}) T%{threadid} %{function} - %{message} ", 1);
 
-
+// need -DQT_MESSAGELOGCONTEXT=1
 // TODO 优化
 void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
