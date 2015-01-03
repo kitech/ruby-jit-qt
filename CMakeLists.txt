@@ -8,7 +8,7 @@ set(CMAKE_C_COMPILER ./myllvm/bin/clang)
 set(CMAKE_CXX_COMPILER ./myllvm/bin/clang++)
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
-set(CMAKE_CXX_FLAGS "-g -O2 -std=c++11") # -std=c++14")
+set(CMAKE_CXX_FLAGS "-g -O2 -std=c++14") # -std=c++14")
 set(CMAKE_SHARED_LINKER_FLAGS "-Wl,-rpath,. -Wl,--export-dynamic -fno-inline")
 #####这个设置虽然在有重复定义的情况下编译成功了，但会导致llvm的一个错误。
 ####CommandLine Error: Option 'load' registered more than once!
@@ -59,7 +59,7 @@ set(handby_lib_SRCS
     clvm.cpp
     namelookup.cpp
     invokestorage.cpp
-    metalize/metar_qt.cpp
+#   metalize/metar_qt.cpp
 #  metalize/metar_classes_qtcore.cpp
 #  metalize/metar_classes_qtgui.cpp
 #  metalize/metar_classes_qtwidgets.cpp
@@ -68,7 +68,7 @@ set(handby_lib_SRCS
 #  functionize/kitech_qtcore.cpp
 #  metalize/kitech_qtcore.cpp
 #  metalize/kitech_qtnetwork.cpp
-  metalize/metas.cpp
+#  metalize/metas.cpp
   debugoutput.cpp
   macrolib.cpp
 )

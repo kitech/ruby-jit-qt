@@ -13,10 +13,10 @@
 #include <QtWidgets>
 #include <QtNetwork>
 
-#include "metalize/metar_classes_qtcore.h"
-#include "metalize/metar_classes_qtgui.h"
-#include "metalize/metar_classes_qtwidgets.h"
-#include "metalize/metar_classes_qtnetwork.h"
+// #include "metalize/metar_classes_qtcore.h"
+// #include "metalize/metar_classes_qtgui.h"
+// #include "metalize/metar_classes_qtwidgets.h"
+// #include "metalize/metar_classes_qtnetwork.h"
 
 inline void *__jit_main_tmpl()
 {

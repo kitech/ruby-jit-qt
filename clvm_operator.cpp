@@ -8,7 +8,7 @@
 #include "llvm/IR/TypeBuilder.h"
 
 #include "frontengine.h"
-#include "metalize/metas.h"
+// #include "metalize/metas.h"
 #include "clvm_operator.h"
 
 
@@ -232,9 +232,10 @@ QString resolve_mangle_name(QString klass, QString method, QVector<QVariant> arg
 }
 
 // 查找类方法函数的返回值
+[[deprecated("pregen proto not needed now")]]
 QString resolve_return_type(QString klass, QString method, QVector<QVariant> args, QString mangle_name)
 {
-    QHash<QString, QString> &protos = __rq_protos;
+    QHash<QString, QString> protos;// = __rq_protos;
     qDebug()<<"protos count:"<<protos.count()<<mangle_name;
 
     auto demangle = [](QString mname) -> QString {

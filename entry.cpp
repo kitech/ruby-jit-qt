@@ -24,8 +24,8 @@
 
 #include "clvm.h"
 
-#include "metalize/metar_classes_qtcore.h"
-#include "metalize/metas.h"
+// #include "metalize/metar_classes_qtcore.h"
+// #include "metalize/metas.h"
 #include "qtruby.h"
 
 // extern "C" {
@@ -357,6 +357,7 @@ static CtrlEngine *gce = new CtrlEngine();
   统一的to_s方法
   
  */
+[[deprecated("pregen proto not needed now")]]
 VALUE x_Qt_meta_class_to_s(int argc, VALUE *argv, VALUE obj)
 {
     qDebug()<<argc;
@@ -415,6 +416,7 @@ VALUE x_Qt_class_const_missing_jit(int argc, VALUE *argv, VALUE obj)
   TODO:
   使用staticMetaObject检测enum变量。
  */
+[[deprecated("pregen proto not needed now")]]
 VALUE x_Qt_meta_class_const_missing(int argc, VALUE *argv, VALUE obj)
 {
     qDebug()<<argc<<TYPE(obj)<<TYPE(argv[0]);
@@ -469,6 +471,7 @@ VALUE x_Qt_meta_class_const_missing(int argc, VALUE *argv, VALUE obj)
     return Qnil;
 }
 
+[[deprecated("pregen proto not needed now")]]
 static VALUE x_Qt_meta_class_dtor_jit(VALUE id)
 {
     VALUE os = rb_const_get(rb_cModule, rb_intern("ObjectSpace"));
@@ -505,6 +508,7 @@ static VALUE x_Qt_meta_class_dtor_jit(VALUE id)
   TODO:
   使用通用方法之后，宏SAVE_XXX和GET_XXX就可以不需要了。
  */
+[[deprecated("pregen proto not needed now")]]
 static VALUE x_Qt_meta_class_dtor(VALUE id)
 {
     VALUE os = rb_const_get(rb_cModule, rb_intern("ObjectSpace"));
@@ -647,6 +651,7 @@ VALUE x_Qt_class_init_jit(int argc, VALUE *argv, VALUE self)
   TODO:
   处理初始化时的参数。
  */
+[[deprecated("pregen proto not needed now")]]
 VALUE x_Qt_meta_class_init_jit(int argc, VALUE *argv, VALUE self)
 {
     qDebug()<<argc<<TYPE(self);
@@ -706,6 +711,7 @@ VALUE x_Qt_meta_class_init_jit(int argc, VALUE *argv, VALUE self)
     return self;
 }
 
+[[deprecated("pregen proto not needed now")]]
 VALUE x_Qt_meta_class_init(int argc, VALUE *argv, VALUE self)
 {
     qDebug()<<argc<<TYPE(self);
@@ -714,14 +720,14 @@ VALUE x_Qt_meta_class_init(int argc, VALUE *argv, VALUE self)
     QString yklass_name = QString("y%1").arg(klass_name);
     qDebug()<<"class name:"<<klass_name;
     
-    if (!__rq_metas.contains(yklass_name)) {
-        qDebug()<<"not supported class:"<<klass_name;
-        return Qnil;
-    }
+    // if (!__rq_metas.contains(yklass_name)) {
+    //     qDebug()<<"not supported class:"<<klass_name;
+    //     return Qnil;
+    // }
 
-    const QMetaObject *mo = __rq_metas.value(yklass_name);
-    QObject * ci = mo->newInstance();
-    SAVE_CI0(ci);
+    // const QMetaObject *mo = __rq_metas.value(yklass_name);
+    // QObject * ci = mo->newInstance();
+    // SAVE_CI0(ci);
 
     VALUE free_proc = rb_proc_new(FUNVAL x_Qt_meta_class_dtor, 0);
     rb_define_finalizer(self, free_proc);
@@ -891,6 +897,7 @@ VALUE x_Qt_class_singleton_method_missing_jit(int argc, VALUE *argv, VALUE self)
   [3] => arg2
   ...
  */
+[[deprecated("pregen proto not needed now")]]
 VALUE x_Qt_meta_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
 {
     void *jo = Qom::inst()->getObject(self);
@@ -944,6 +951,7 @@ VALUE x_Qt_meta_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
   [3] => arg2
   ...
  */
+[[deprecated("pregen proto not needed now")]]
 VALUE x_Qt_meta_class_method_missing(int argc, VALUE *argv, VALUE self)
 {
     GET_CI0();
@@ -1339,6 +1347,7 @@ static VALUE x_QString_method_missing_test(int argc, VALUE *argv, VALUE self)
 */
 
 // like class's static method
+[[deprecated("pregen proto not needed now")]]
 VALUE x_Qt_meta_class_singleton_method_missing(int argc, VALUE *argv, VALUE obj)
 {
     qDebug()<<argc<<TYPE(argv[0])<<TYPE(obj);
@@ -1833,7 +1842,7 @@ extern "C" {
         // test_one();
         // exit(0);
 
-        init_class_metas();
+        // init_class_metas();
 
         cModuleQt = rb_define_module("Qt5");
         // 对所有的Qt5::someconst常量的调用注册
