@@ -23,7 +23,6 @@ namespace clang {
 };
 
 llvm::GenericValue vm_execute(QString code, QVector<llvm::GenericValue> &envp);
-llvm::GenericValue jit_vm_execute(QString code, QVector<llvm::GenericValue> &envp);
 
 void *jit_vm_new(QString klass, QVector<QVariant> args);
 QVariant jit_vm_call(void *kthis, QString klass, QString method, QVector<QVariant> args);

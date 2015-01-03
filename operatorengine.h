@@ -16,6 +16,7 @@ namespace llvm {
     class Type;
     class Value;
     class Function;
+    class DataLayout;
 };
 
 class EvalType;
@@ -27,27 +28,25 @@ public:
     void init();
 
 public:
-    llvm::Module *mtmod = NULL;
-
-public:
     // 类似std::bind
     QString bind(llvm::Module *mod, QString symbol, QString klass,
                  QVector<QVariant> uargs, QVector<QVariant> dargs,
                  bool is_static, void *kthis);
-    int getClassAllocSize(QString klass);
-
+    int getClassAllocSize(llvm::Module *mod, QString klass);
+    llvm::DataLayout *getDataLayout();
+    
 private:
     // 正确地从 mod 和 mtmod两者中选择合适的类型
     llvm::Type *uniqTy(llvm::Module *mod, QString tystr);
     std::vector<llvm::Value*>
     ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
                       QVector<QVariant> uargs, QVector<QVariant> dargs,
-                      llvm::Module *tymod, llvm::Function *dstfun, bool has_this);
+                      llvm::Function *dstfun, bool has_this);
     bool instcpy();
     // 默认参数临时值生成指令拷贝
     // 假设已经有InsertPoint
     QHash<QString, llvm::Value*>
-    darg_instcpy(llvm::Module *mod, llvm::IRBuilder<> &builder, llvm::Module *tymod);
+    darg_instcpy(llvm::Module *mod, llvm::IRBuilder<> &builder);
 };
 
 #endif /* OPERATORENGINE_H */

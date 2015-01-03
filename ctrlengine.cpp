@@ -77,9 +77,9 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     }    
 
     OperatorEngine oe;
-    void *kthis = calloc(oe.getClassAllocSize(klass), 1);
-    memset(kthis, 0, oe.getClassAllocSize(klass));
-    qDebug()<<oe.getClassAllocSize(klass)<<kthis<<(int64_t)kthis<<dargs.count();
+    void *kthis = calloc(oe.getClassAllocSize(mod, klass), 1);
+    memset(kthis, 0, oe.getClassAllocSize(mod, klass));
+    qDebug()<<oe.getClassAllocSize(mod, klass)<<kthis<<(int64_t)kthis<<dargs.count();
 
     // QString lamsym = oe.bind(mod, "_ZN7QStringC2Ev", kthis, uargs, dargs);
     QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, false, kthis);

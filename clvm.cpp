@@ -130,81 +130,6 @@ llvm::GenericValue jit_execute_func(llvm::Module *mod, llvm::Function *func)
     return gv;
 }
 
-llvm::GenericValue jit_vm_execute(QString code, QVector<llvm::GenericValue> &envp)
-{
-    llvm::GenericValue gv;
-    
-    llvm::LLVMContext &ctx = llvm::getGlobalContext();
-    llvm::Module *module = new llvm::Module("top", ctx);
-    llvm::IRBuilder<> builder(ctx);
-
-    // load module
-    QFile fp("./jit_types.ll");
-    fp.open(QIODevice::ReadOnly);
-    QByteArray asm_data = fp.readAll();
-    fp.close();
-
-    const char *asm_str = strdup(asm_data.data());
-    qDebug()<<"llstrlen:"<<strlen(asm_str);
-
-    llvm::SMDiagnostic smdiag;
-    llvm::Module *rmod = NULL;
-
-    rmod = llvm::ParseAssemblyString(asm_str, NULL, smdiag, ctx);
-    qDebug()<<"rmod="<<rmod;
-    
-    // test new operator
-    llvm::Type *TQString = rmod->getTypeByName("class.YaQString");
-    qDebug()<<"type:"<<TQString;
-    TQString->dump();
-
-    // entry func
-    llvm::Function *entry_func = 
-        llvm::Function::Create(llvm::FunctionType::get(builder.getVoidTy()->getPointerTo(), false),
-                               llvm::Function::ExternalLinkage,
-                               "yamain", module);
-    builder.SetInsertPoint(llvm::BasicBlock::Create(ctx, "eee", entry_func));
-
-    /*
-    // new op
-    std::vector<llvm::Type*> fargs = {TQString->getPointerTo()};
-    llvm::ArrayRef<llvm::Type*> rfargs(fargs);
-    llvm::FunctionType *funt = llvm::FunctionType::get(builder.getVoidTy(), rfargs, false);
-    llvm::Constant *func = module->getOrInsertFunction("_ZN9YaQStringC1Ev", funt);
-
-    // new func
-    std::vector<llvm::Type*> new_fargs = {builder.getInt32Ty()};
-    llvm::ArrayRef<llvm::Type*> new_rfargs(new_fargs);
-    llvm::FunctionType *new_funt = llvm::FunctionType::get(builder.getInt8Ty()->getPointerTo(), new_rfargs, false);
-    llvm::Constant *new_func = module->getOrInsertFunction("_Znwj",new_funt);
-
-    llvm::Value *val = builder.CreateAlloca(TQString->getPointerTo());
-    llvm::Value *mval = builder.CreateCall(new_func, builder.getInt32(1));
-    llvm::Value *cval = builder.CreateBitCast(mval, TQString->getPointerTo());
-    llvm::Value *val2 = builder.CreateStore(cval, val);
-
-    LoadInst *rval = builder.CreateLoad(val);
-    builder.CreateCall(func, rval);
-    // builder.CreateRet(builder.getInt32(123));
-    builder.CreateRet(rval);
-    */
-
-
-    irop_new(ctx, builder, module, "aaa");
-
-    irop_call(ctx, builder, module, 0, "a", "b");
-
-    qDebug()<<"dumppp begin.";
-    module->dump();
-    qDebug()<<"dumppp end.";
-
-    // run it yamain
-    gv = jit_execute_func(module, entry_func);
-
-    return gv;
-}
-
-
 static IROperator *irop = NULL;
 static IROperator *getIROp()
 {
@@ -456,38 +381,10 @@ Clvm::execute(QString &code, std::vector<llvm::GenericValue> &args, QString func
     return rgv;
 }
 
+[[deprecated("ccccc")]]
 llvm::GenericValue 
 Clvm::execute2(llvm::Module *mod, QString func_entry)
 {
-    // 加载额外模块
-    static llvm::Module *jit_types_mod = NULL;
-    auto load_jit_types_module = []() -> llvm::Module* {
-        llvm::LLVMContext *ctx = new llvm::LLVMContext();
-        llvm::Module *module = new llvm::Module("jit_types_in_vme", *ctx);
-
-        // load module
-        QFile fp("./metalize/jit_types.ll");
-        fp.open(QIODevice::ReadOnly);
-        QByteArray asm_data = fp.readAll();
-        fp.close();
-
-        char *asm_str = strdup(asm_data.data());
-        qDebug()<<"llstrlen:"<<strlen(asm_str);
-
-        llvm::SMDiagnostic smdiag;
-        llvm::Module *rmod = NULL;
-
-        rmod = llvm::ParseAssemblyString(asm_str, NULL, smdiag, *ctx);
-        qDebug()<<"rmod="<<rmod;
-        free(asm_str);
-
-        return rmod;
-    };
-
-    if (jit_types_mod == NULL) {
-        jit_types_mod = load_jit_types_module();
-    }
-
     // 只能放在这，run action之后，exeucte function之前
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
@@ -501,7 +398,6 @@ Clvm::execute2(llvm::Module *mod, QString func_entry)
     eb.setUseMCJIT(true);
 
     llvm::ExecutionEngine *EE = eb.create();
-    EE->addModule(jit_types_mod);
 
     //*
     qDebug()<<"before load obj...";

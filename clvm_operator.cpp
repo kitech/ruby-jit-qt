@@ -75,10 +75,11 @@ QString find_mangled_name(QString klass, QString method)
   当前进程的symbol列表怎么动态获取？
   // nm -s ../libhandby.so |grep "YaQ"| awk '{print "\""$3"\","}' > ../jit_symbols.txt
  */
+[[deprecated("pregen proto not needed now...")]]
 QString resolve_mangle_name(QString klass, QString method, QVector<QVariant> args)
 {
     static QVector<QString> symbols2 = {
-        #include "jit_symbols.txt"  // very good
+        // #include "jit_symbols.txt"  // very good
     };
     qDebug()<<symbols2.count();
 
@@ -688,10 +689,11 @@ bool IROperator::call(void *kthis, QString klass, QString method, QVector<QVaria
   当前进程的symbol列表怎么动态获取？
   // nm -s ../libhandby.so |grep "YaQ"| awk '{print "\""$3"\","}' > ../jit_symbols.txt
  */
+[[deprecated("pregen proto not needed now...")]]
 QString IROperator::resolve_mangle_name(QString klass, QString method, QVector<QVariant> args)
 {
     static QVector<QString> symbols2 = {
-        #include "jit_symbols.txt"  // very good
+        // #include "jit_symbols.txt"  // very good
     };
     qDebug()<<symbols2.count();
 

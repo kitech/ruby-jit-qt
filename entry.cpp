@@ -654,60 +654,7 @@ VALUE x_Qt_class_init_jit(int argc, VALUE *argv, VALUE self)
 [[deprecated("pregen proto not needed now")]]
 VALUE x_Qt_meta_class_init_jit(int argc, VALUE *argv, VALUE self)
 {
-    qDebug()<<argc<<TYPE(self);
-    QString klass_name = QString(rb_class2name(RBASIC_CLASS(self)));
-    klass_name = klass_name.split("::").at(1);
-    QString yklass_name = QString("y%1").arg(klass_name);
-    qDebug()<<"class name:"<<klass_name;
-
-    // test_fe();
-    // test_parse_class();
-    // test_parse_ast();
-    test_piece_compiler();
-    exit(-1);
-    
-    auto code_templater = [] () -> QString * {
-        return new QString();
-    };
-
-    QString code_src = QString("#include <stdio.h>\n"
-                               "#include <QtCore>\n"
-                               "%1 * jit_main() {\n"
-                               "%1* ci = new %1(); qDebug()<<\"in jit:\"<<ci; return ci; }")
-        .arg(klass_name);
-    
-    const char *code = "#include <stdio.h>\n"
-        "#include <QtCore>\n"
-        "\nint main() { printf (\"hello IR JIT from re.\"); QString abc; abc.append(\"123\"); qDebug()<<abc; return 56; }"
-        "\nint yamain() { QString abc; abc.append(\"123\"); qDebug()<<abc; return main(); }";
-
-    QVector<QVariant> args;
-    void *jo = jit_vm_new(klass_name, args);
-    qDebug()<<jo;
-    Qom::inst()->addObject(self, jo);
-
-    if (0) {
-        QVector<llvm::GenericValue> envp;
-        // void *vret = vm_execute(QString(code), envp);
-
-        llvm::GenericValue gvret = jit_vm_execute(code_src, envp);
-        void *ci = llvm::GVTOP(gvret);
-        Qom::inst()->addObject(self, ci);
-        qDebug()<<"newed ci:"<<ci;
-    }
-
-    VALUE free_proc = rb_proc_new(FUNVAL x_Qt_meta_class_dtor_jit, 0);
-    // rb_define_finalizer(self, free_proc);
-
-    if (0) {
-        // QString *str = (QString*)llvm::GVTOP(gvret);
-        // str->append("123456");
-    
-        // QString str2(*str);
-        // qDebug()<<code_src<<*str<<str->length();
-        // delete str; str = NULL;
-    }
-
+    assert(1==2);
     return self;
 }
 

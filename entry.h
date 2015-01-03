@@ -41,8 +41,8 @@ VALUE x_Qt_meta_class_method_missing(int argc, VALUE *argv, VALUE self);
 VALUE x_Qt_meta_class_singleton_method_missing(int argc, VALUE *argv, VALUE self);
 
 // 使用预生成YaQxxx类方式
-VALUE x_Qt_meta_class_init_jit(int argc, VALUE *argv, VALUE self);
-VALUE x_Qt_meta_class_method_missing_jit(int argc, VALUE *argv, VALUE self);
+// VALUE x_Qt_meta_class_init_jit(int argc, VALUE *argv, VALUE self);
+// VALUE x_Qt_meta_class_method_missing_jit(int argc, VALUE *argv, VALUE self);
 
 // 使用即时编译方式
 VALUE x_Qt_class_init_jit(int argc, VALUE *argv, VALUE self);

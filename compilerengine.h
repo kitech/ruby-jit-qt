@@ -94,7 +94,7 @@ public:
     clang::CompilerInstance *mcis = NULL;
     clang::CompilerInvocation *mciv = NULL;
     clang::driver::Driver *mdrv = NULL;
-    llvm::Module *mtmod = NULL;
+    // llvm::Module *mtmod = NULL;
     QHash<llvm::Module*, CompilerUnit*> mcus;
     // 动态构造AST语法树所用的ASTUnit/TranslateDecl
     

@@ -83,7 +83,8 @@ CompilerEngine::CompilerEngine()
 
         return rmod;
     };
-    mtmod = load_jit_types_module();
+    // mtmod = load_jit_types_module();
+    // mtmod = NULL;
 }
 
 CompilerEngine::~CompilerEngine()
@@ -338,9 +339,9 @@ void CompilerEngine::decl2def(llvm::Module *mod, clang::ASTContext &ctx,
                               clang::CodeGen::CodeGenModule &cgmod, 
                               clang::Decl *decl, int level, QHash<QString, bool> noinlined)
 {
-    llvm::Module *jit_types_mod = NULL;
-
     QHash<QString, bool> efuns;
+
+    /*llvm::Module *jit_types_mod = NULL;    
     if (jit_types_mod == NULL) {
         jit_types_mod = mtmod;
         // jit_types_mod->dump();
@@ -350,6 +351,45 @@ void CompilerEngine::decl2def(llvm::Module *mod, clang::ASTContext &ctx,
         }
     }
     qDebug()<<"exists funcs:"<<efuns.count()<<efuns;
+    */
+
+    auto llfunc_cpy = []() {
+        // emu empty for compile
+        llvm::Module *jit_types_mod = NULL;            
+        llvm::Module *mod = NULL;
+        QString fname;
+        
+        // copy可能遇到需要递归的指定，如call，或者一些全局变量也需要同时处理。
+        // 还是比较复杂的。
+        auto srcf = jit_types_mod->getFunction(fname.toLatin1().data());
+        auto dstf = mod->getFunction(fname.toLatin1().data());
+            
+        llvm::IRBuilder<> builder(mod->getContext());
+        // llvm::BasicBlock *entry = llvm::BasicBlock::Create(mod->getContext(),
+        //                                                    "clvm_func_entrypoint", dstf);
+        // builder.SetInsertPoint(entry);
+        // qDebug()<<entry<<dstf;
+        for (auto &blk: *srcf) {
+            qDebug()<<","<<blk.getName().data()<<",";
+            llvm::BasicBlock *tb = llvm::BasicBlock::Create(mod->getContext(),
+                                                            blk.getName(), dstf);
+            builder.SetInsertPoint(tb);                
+            for (auto &ins: blk) {
+                auto ni = ins.clone();
+                builder.Insert(ni);
+                qDebug()<<&blk<<&ins<<ins.getName().data()<<"opc:"<<ins.getOpcodeName()<<ins.getOpcode();
+                if (ins.getOpcode() == llvm::Instruction::Call) {
+                    llvm::CallInst *ci = llvm::cast<llvm::CallInst>(ni);
+                    qDebug()<<"call arg num:"<<ci->getNumArgOperands();
+                    auto called_func = ci->getArgOperand(0);
+                    qDebug()<<"afun?"<<called_func->getName().data()
+                            <<llvm::isa<llvm::Function>(called_func);
+                        
+                }
+            }
+        }
+
+    };
 
     int copyed = 0;
     QVector<QString> gfuns;
@@ -370,35 +410,6 @@ void CompilerEngine::decl2def(llvm::Module *mod, clang::ASTContext &ctx,
             qDebug()<<"copying func:"<<fname;
             continue;
 
-            // copy可能遇到需要递归的指定，如call，或者一些全局变量也需要同时处理。
-            // 还是比较复杂的。
-            auto srcf = jit_types_mod->getFunction(fname.toLatin1().data());
-            auto dstf = mod->getFunction(fname.toLatin1().data());
-            
-            llvm::IRBuilder<> builder(mod->getContext());
-            // llvm::BasicBlock *entry = llvm::BasicBlock::Create(mod->getContext(),
-            //                                                    "clvm_func_entrypoint", dstf);
-            // builder.SetInsertPoint(entry);
-            // qDebug()<<entry<<dstf;
-            for (auto &blk: *srcf) {
-                qDebug()<<","<<blk.getName().data()<<",";
-                llvm::BasicBlock *tb = llvm::BasicBlock::Create(mod->getContext(),
-                                                                blk.getName(), dstf);
-                builder.SetInsertPoint(tb);                
-                for (auto &ins: blk) {
-                    auto ni = ins.clone();
-                    builder.Insert(ni);
-                    qDebug()<<&blk<<&ins<<ins.getName().data()<<"opc:"<<ins.getOpcodeName()<<ins.getOpcode();
-                    if (ins.getOpcode() == llvm::Instruction::Call) {
-                        llvm::CallInst *ci = llvm::cast<llvm::CallInst>(ni);
-                        qDebug()<<"call arg num:"<<ci->getNumArgOperands();
-                        auto called_func = ci->getArgOperand(0);
-                        qDebug()<<"afun?"<<called_func->getName().data()
-                                <<llvm::isa<llvm::Function>(called_func);
-                        
-                    }
-                }
-            }
             copyed ++;
             continue;
         }
@@ -456,8 +467,8 @@ void CompilerEngine::decl2def(llvm::Module *mod, clang::ASTContext &ctx,
     //     (%"class.QMetaObject::Connection"* sret, i64, i64, i64, i64, i32) #0
     auto genmth_decl = [](clang::CodeGen::CodeGenModule &cgm,
                           clang::CodeGen::CodeGenFunction &cgf,
-                          clang::CXXMethodDecl *decl,
-                          llvm::Module *mtmod) -> bool {
+                          clang::CXXMethodDecl *decl
+                          ) -> bool {
         clang::CodeGen::CodeGenTypes &cgtypes = cgm.getTypes();
 
         const clang::CodeGen::CGFunctionInfo &FI = 
@@ -498,7 +509,7 @@ void CompilerEngine::decl2def(llvm::Module *mod, clang::ASTContext &ctx,
             if (d1->isInlined()) {
                 genmth(cgmod, cgf, d1);
             } else {
-                genmth_decl(cgmod, cgf, d1, mtmod);                
+                genmth_decl(cgmod, cgf, d1);
             }
         }
         mod->dump();
@@ -679,8 +690,8 @@ llvm::Module* CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMeth
     //     (%"class.QMetaObject::Connection"* sret, i64, i64, i64, i64, i32) #0
     auto genmth_decl = [](clang::CodeGen::CodeGenModule &cgm,
                           clang::CodeGen::CodeGenFunction &cgf,
-                          clang::CXXMethodDecl *decl,
-                          llvm::Module *mtmod) -> bool {
+                          clang::CXXMethodDecl *decl
+                          ) -> bool {
         clang::CodeGen::CodeGenTypes &cgtypes = cgm.getTypes();
 
         const clang::CodeGen::CGFunctionInfo &FI = 
@@ -715,7 +726,7 @@ llvm::Module* CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMeth
     if (mth->isInlined()) {
         genmth(cgmod, *cgf, mth);
     } else {
-        genmth_decl(cgmod, *cgf, mth, mtmod);
+        genmth_decl(cgmod, *cgf, mth);
         noinlined[cgmod.getMangledName(mth).data()] = true;
     }
 
@@ -1101,8 +1112,8 @@ bool CompilerEngine::gen_method_decl(CompilerUnit *cu, clang::CXXMethodDecl *yam
     //     (%"class.QMetaObject::Connection"* sret, i64, i64, i64, i64, i32) #0
     auto genmth_decl = [](clang::CodeGen::CodeGenModule &cgm,
                           clang::CodeGen::CodeGenFunction &cgf,
-                          clang::CXXMethodDecl *decl,
-                          llvm::Module *mtmod) -> bool {
+                          clang::CXXMethodDecl *decl
+                          ) -> bool {
         clang::CodeGen::CodeGenTypes &cgtypes = cgm.getTypes();
 
         const clang::CodeGen::CGFunctionInfo &FI = 
@@ -1138,13 +1149,13 @@ bool CompilerEngine::gen_method_decl(CompilerUnit *cu, clang::CXXMethodDecl *yam
                                      getMangledName(yamth)
                                      .data())]
             = true;
-        return genmth_decl(*cu->mcgm, *cu->mcgf, yamth, mtmod);
+        return genmth_decl(*cu->mcgm, *cu->mcgf, yamth);
     } else {
         cu->mNoinlineSymbols[QString(cu->mcgm->
                                      getMangledName(llvm::cast<clang::CXXMethodDecl>(cu->mbdecl))
                                      .data())]
             = true;
-        return genmth_decl(*cu->mcgm, *cu->mcgf, llvm::cast<clang::CXXMethodDecl>(cu->mbdecl), mtmod);
+        return genmth_decl(*cu->mcgm, *cu->mcgf, llvm::cast<clang::CXXMethodDecl>(cu->mbdecl));
     }
 
     return false;
@@ -1436,7 +1447,8 @@ bool CompilerEngine::find_undef_symbols(CompilerUnit *cu)
 
 bool CompilerEngine::is_in_type_module(QString symbol)
 {
-    return this->mtmod->getFunction(symbol.toLatin1().data()) != NULL;
+    return false;
+    // return this->mtmod->getFunction(symbol.toLatin1().data()) != NULL;
 }
 
 CompilerUnit *
@@ -1460,7 +1472,12 @@ CompilerEngine::createCompilerUnit(clang::ASTUnit *unit, clang::NamedDecl *decl)
     // crash了半天，原来是因为这地方需要一个&类型llvm::DataLayout&
     // llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
     // dlo = *mtmod->getDataLayout();
-    auto &dlo = *mtmod->getDataLayout();
+    static llvm::DataLayout *pdlo = NULL;
+    if (pdlo == NULL) {
+        pdlo = new llvm::DataLayout("e-m:e-i64:64-f80:128-n8:16:32:64-S128");
+    }
+    // auto &dlo = *mtmod->getDataLayout();
+    auto &dlo = *pdlo;
     cu->mcgm = new clang::CodeGen::CodeGenModule(ctx, cgopt, *cu->mmod, dlo, diag);
     cu->mcgf = new clang::CodeGen::CodeGenFunction(*cu->mcgm);
 
