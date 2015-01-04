@@ -314,7 +314,7 @@ bool Uic::rbwrite(DomUI *ui)
         writeCopyrightHeader(ui);
 
     pixFunction = ui->elementPixmapFunction();
-    if (pixFunction == QLatin1String("Qt::Pixmap::fromMimeSource"))
+    if (pixFunction == QLatin1String("Qt5::QPixmap::fromMimeSource"))
         pixFunction = QLatin1String("qPixmapFromMimeSource");
 
     externalPix = ui->elementImages() == 0;
@@ -346,7 +346,7 @@ bool Uic::rbwrite(DomUI *ui)
 			out << option().indent << "KDE::CmdLineArgs.init(ARGV, about)" << endl;
 			out << option().indent << "a = KDE::Application.new" << endl;
 			out << option().indent << "u = " << option().prefix << className << ".new" << endl;
-			parentClass.replace(QRegExp("^Q"), "Qt::");
+			parentClass.replace(QRegExp("^Q"), "Qt5::Q");
 			parentClass.replace(QRegExp("^K"), "KDE::");
 			out << option().indent << "w = " << parentClass << ".new" << endl;
 			out << option().indent << "u.setupUi(w)" << endl;
@@ -356,9 +356,9 @@ bool Uic::rbwrite(DomUI *ui)
 			out << "end" << endl;
 		} else {
 			out << "if $0 == __FILE__" << endl;
-			out << option().indent << "a = Qt::Application.new(ARGV)" << endl;
+			out << option().indent << "a = Qt5::QApplication.new(ARGV.count(), ARGV)" << endl;
 			out << option().indent << "u = " << option().prefix << className << ".new" << endl;
-			parentClass.replace(QRegExp("^Q"), "Qt::");
+			parentClass.replace(QRegExp("^Q"), "Qt5::Q");
 			out << option().indent << "w = " << parentClass << ".new" << endl;
 			out << option().indent << "u.setupUi(w)" << endl;
 			out << option().indent << "w.show" << endl;

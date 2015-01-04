@@ -79,7 +79,7 @@ void WriteIconInitialization::acceptUI(DomUI *node)
     TreeWalker::acceptUI(node);
 
     output << option.indent << option.indent << "else\n";
-    output << option.indent << option.indent << option.indent << "return Qt::Pixmap.new\n";
+    output << option.indent << option.indent << option.indent << "return Qt5::QPixmap.new\n";
 
     output << option.indent << option.indent << "end\n"
            << option.indent << "end\n\n";
@@ -108,14 +108,14 @@ void WriteIconInitialization::acceptImage(DomImage *image)
     output << ind << "when " << imageId << "\n";
 
     if (fmt == QLatin1String("XPM.GZ")) {
-        output << option.indent << option.indent << option.indent << "return " << "Qt::Pixmap.new(" << imageData << ")\n";
+        output << option.indent << option.indent << option.indent << "return " << "Qt5::QPixmap.new(" << imageData << ")\n";
     } else {
         output << option.indent << option.indent << option.indent << 
-                " img = Qt::Image.new\n";
+                " img = Qt5::QImage.new\n";
         output << option.indent << option.indent << option.indent << "img.loadFromData(" << imageData << ", " << 
                 "imageData.length, " << fixString(fmt, ind) << ")\n";
         output << option.indent << option.indent << option.indent << 
-                "return Qt::Pixmap.fromImage(img)\n";
+                "return Qt5::QPixmap.fromImage(img)\n";
     }
 }
 

@@ -4,7 +4,7 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/ruby )
 
 ########### next target ###############
 
-set(rbuic4_bin_SRCS 
+set(rbuic5_bin_SRCS 
    customwidgetsinfo.cpp 
    databaseinfo.cpp 
    driver.cpp 
@@ -20,13 +20,14 @@ set(rbuic4_bin_SRCS
    ruby/rbwriteinitialization.cpp 
    main.cpp )
 
-add_executable(rbuic4_bin ${rbuic4_bin_SRCS})
-set_target_properties(rbuic4_bin PROPERTIES OUTPUT_NAME rbuic4)
-set_target_properties(rbuic4_bin PROPERTIES COMPILE_FLAGS -DQT_UIC_RB_GENERATOR)
+add_executable(rbuic5_bin ${rbuic5_bin_SRCS})
+set_target_properties(rbuic5_bin PROPERTIES OUTPUT_NAME rbuic5)
+set_target_properties(rbuic5_bin PROPERTIES COMPILE_FLAGS -DQT_UIC_RB_GENERATOR)
 
-target_link_libraries(rbuic4_bin  ${QT_QTCORE_LIBRARY} ${QT_QTXML_LIBRARY} )
+target_link_libraries(rbuic5_bin  ${QT_QTCORE_LIBRARY} ${QT_QTXML_LIBRARY} )
+qt5_use_modules(rbuic5_bin Core Xml)
 
-install(TARGETS rbuic4_bin DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+install(TARGETS rbuic5_bin DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 
 
 ########### next target ###############

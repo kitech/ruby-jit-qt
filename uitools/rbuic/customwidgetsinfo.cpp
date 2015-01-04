@@ -89,7 +89,7 @@ bool CustomWidgetsInfo::extends(const QString &className, const QString &baseCla
 QString CustomWidgetsInfo::realClassName(const QString &className) const
 {
     if (className == QLatin1String("Line"))
-        return QLatin1String("Qt::Frame");
+        return QLatin1String("Qt5::QFrame");
 
     return className;
 }
