@@ -1159,6 +1159,7 @@ bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl,
         clang::QualType nrptype = ptype.getNonReferenceType();
         QString tstr = ptype.getAsString().c_str(); // type str 
 
+        qDebug()<<tstr;
         // qDebug()<<uargs.count()<<idx<<pd->hasDefaultArg()
         //         <<ptype->isIntegralOrEnumerationType()<<tstr
         //         <<ptype->isIntegerType()<<ptype->isIntegralType(mrgunit->getASTContext())
@@ -1201,6 +1202,7 @@ bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl,
                 break;
             case QMetaType::QStringList:
                 if (tstr.indexOf("char **") != -1) ok = true;
+                if (tstr.indexOf("QStringList") != 01) ok = true;
                 break;
             default: qDebug()<<"unknown type:"<<uargs.at(idx).type()<<uargs.at(idx)
                              <<ptype.getAsString().data()

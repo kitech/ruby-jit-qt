@@ -301,6 +301,8 @@ static QVector<QVariant> VALUE2Variant2(VALUE v)
         // ary << "a123" << "b3456";
         qDebug()<<RARRAY_LEN(v)<<QT_VERSION;
         for (int i = 0; i < RARRAY_LEN(v); i++) {
+            // FIXME: 也可能是对象数组，如Qt5::QString，但toString方法不好用。
+            // FIXME: 如，[Qt5::QApplication.translate("MainWindow", "acbc", nil), "efgggggg", "hijjjjjjjj"]
             ary << VALUE2Variant(rb_ary_entry(v, i)).toString();
         }
         rv = QVariant(ary);
@@ -833,7 +835,9 @@ VALUE x_Qt_class_singleton_method_missing_jit(int argc, VALUE *argv, VALUE self)
     
     QVariant gv = gce->vm_static_call(klass_name, method_name, args);
     qDebug()<<"vv:"<<gv;
-    
+    if (gv.isValid()) {
+        return gv.toULongLong();
+    }
     return Qnil;
 }
 

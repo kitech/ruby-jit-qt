@@ -159,9 +159,14 @@ QVariant GV2Variant(llvm::GenericValue gv, clang::FunctionDecl *decl, void *kthi
         qDebug()<<"kv:"<<TYPE(clsval)<<",,";
         VALUE retobj = rb_class_new_instance(0, 0, clsval); // 参数个数可能不适用。
         rv = retobj;
+
         qDebug()<<"old ci:"<<Qom::inst()->getObject(retobj);
+        // FIXME: freeit
+        void *oldobj = Qom::inst()->getObject(retobj);
         Qom::inst()->addObject(retobj, llvm::GVTOP(gv));
         qDebug()<<"new ci:"<<Qom::inst()->getObject(retobj);
+        // QString *pstr = (QString*)llvm::GVTOP(gv);
+        // qDebug()<<"real val:"<<(*pstr);
     }
     // 引用类型返回值，如QString &
     else if (rty->isLValueReferenceType()) {
@@ -198,8 +203,9 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     mth_decl->dumpColor();
 
     // test
-    nlu_find_method(mfe, method, rec_decl);
-    exit(-1);
+    qDebug()<<"Ooops...................";
+    // nlu_find_method(mfe, method, rec_decl);
+    // exit(-1);
 
     QVector<QVariant> dargs;
     mfe->get_method_default_params(mth_decl, dargs);
@@ -273,6 +279,10 @@ QVariant CtrlEngine::vm_static_call(QString klass, QString method, QVector<QVari
     auto gv = vm->execute2(mod, lamsym);
     qDebug()<<"gv:"<<llvm::GVTOP(gv)<<gv.IntVal.getZExtValue();
     qDebug()<<"======================";
+
+    QVariant rv = GV2Variant(gv, mth_decl, NULL);
+    qDebug()<<rv;
+    return rv;
     
     return QVariant();
 }

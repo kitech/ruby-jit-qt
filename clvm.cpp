@@ -381,7 +381,6 @@ Clvm::execute(QString &code, std::vector<llvm::GenericValue> &args, QString func
     return rgv;
 }
 
-[[deprecated("ccccc")]]
 llvm::GenericValue 
 Clvm::execute2(llvm::Module *mod, QString func_entry)
 {

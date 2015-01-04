@@ -128,5 +128,5 @@ qt5_use_modules(handby Core Gui Widgets Network WebSockets)
 # qt5_use_modules(ehandby Core Gui Widgets Network WebSockets)
 
 # add_subdirectory(demos)
-#add_subdirectory(uitools/uic)
+# add_subdirectory(uitools/uic)
 #add_subdirectory(uitools/rcc)

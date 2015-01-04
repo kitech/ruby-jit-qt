@@ -27,7 +27,8 @@ llvm::Type *OperatorEngine::uniqTy(llvm::Module *mod, QString tyname)
     assert(mod != NULL);
     llvm::Type *ty1 = mod == NULL ? NULL
         : mod->getTypeByName(tyname.toLatin1().data());
-    assert(ty1 != NULL);
+    assert(ty1 != NULL && ty1 != 0);
+    Q_ASSERT(ty1 != NULL);
     return ty1;
     
     // 现在生成的ll中有重复的类型定义，使用这个试试
@@ -179,13 +180,20 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
             cargs.push_back(lv);
             break;
         case QMetaType::QStringList: {
-            int cnter = 0;
-            for (auto s: mrg_args.at(i).toStringList()) {
-                strcpy(gis2.csval[cnter++], s.toLatin1().data());
+            if (aty == builder.getInt8Ty()->getPointerTo()->getPointerTo()) {
+                int cnter = 0;
+                for (auto s: mrg_args.at(i).toStringList()) {
+                    strcpy(gis2.csval[cnter++], s.toLatin1().data());
+                }
+                lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)gis2.csval);
+                lv = llvm::ConstantExpr::getIntToPtr(lc, aty); // for byval param, 这个正确，但是void*则不正确
+                cargs.push_back(lv);
+            } else {
+                gis2.slval[i] = mrg_args.at(i).toStringList();
+                lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)&gis2.slval[i]);
+                lv = llvm::ConstantExpr::getIntToPtr(lc, aty);
+                cargs.push_back(lv);
             }
-            lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)gis2.csval);
-            lv = llvm::ConstantExpr::getIntToPtr(lc, aty); // for byval param, 这个正确，但是void*则不正确
-            cargs.push_back(lv);
         }; break;
         default:
             if (v.userType() != EvalType::id) {
@@ -318,6 +326,12 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass,
     } else if (kthis == NULL) {
     } else {
         llvm::Type *thisTy = this->uniqTy(mod, QString("class.%1").arg(klass));
+        qDebug()<<klass<<thisTy;
+        assert(thisTy != NULL);
+        // TODO 想办法使用真实的thisTy类型
+        if (thisTy == NULL) {
+            thisTy = builder.getVoidTy()->getPointerTo();
+        }
         // 在32位系统上crash，可能是因为这里直接使用了64位整数。(已验证，果然是这个问题）
         // 应该是在23位系统上不能直接使用int64_t表示指针，而64位系统可以。
         // 一般显示为llvm::TargetLowering::LowerCallTo中crash
