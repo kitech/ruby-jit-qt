@@ -1,43 +1,42 @@
+
 /****************************************************************************
 **
-** Copyright (C) 1992-2008 Trolltech ASA. All rights reserved.
+** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of the tools applications of the Qt Toolkit.
 **
-** This file may be used under the terms of the GNU General Public
-** License versions 2.0 or 3.0 as published by the Free Software
-** Foundation and appearing in the files LICENSE.GPL2 and LICENSE.GPL3
-** included in the packaging of this file.  Alternatively you may (at
-** your option) use any later version of the GNU General Public
-** License if such license has been publicly approved by Trolltech ASA
-** (or its successors, if any) and the KDE Free Qt Foundation. In
-** addition, as a special exception, Trolltech gives you certain
-** additional rights. These rights are described in the Trolltech GPL
-** Exception version 1.2, which can be found at
-** http://www.trolltech.com/products/qt/gplexception/ and in the file
-** GPL_EXCEPTION.txt in this package.
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and Digia.  For licensing terms and
+** conditions see http://qt.digia.com/licensing.  For further information
+** use the contact form at http://qt.digia.com/contact-us.
 **
-** Please review the following information to ensure GNU General
-** Public Licensing requirements will be met:
-** http://trolltech.com/products/qt/licenses/licensing/opensource/. If
-** you are unsure which license is appropriate for your use, please
-** review the following information:
-** http://trolltech.com/products/qt/licenses/licensing/licensingoverview
-** or contact the sales department at sales@trolltech.com.
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 as published by the Free Software
+** Foundation and appearing in the file LICENSE.LGPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU Lesser General Public License version 2.1 requirements
+** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Trolltech, as the sole
-** copyright holder for Qt Designer, grants users of the Qt/Eclipse
-** Integration plug-in the right for the Qt/Eclipse Integration to
-** link to functionality provided by Qt Designer and its related
-** libraries.
+** In addition, as a special exception, Digia gives you certain additional
+** rights.  These rights are described in the Digia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
-** This file is provided "AS IS" with NO WARRANTY OF ANY KIND,
-** INCLUDING THE WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR
-** A PARTICULAR PURPOSE. Trolltech reserves all rights not expressly
-** granted herein.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
-** WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+**
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -46,9 +45,7 @@
 #include "ui4.h"
 #include "utils.h"
 
-#if defined(QT_BEGIN_NAMESPACE)
-  QT_BEGIN_NAMESPACE
-#endif
+QT_BEGIN_NAMESPACE
 
 CustomWidgetsInfo::CustomWidgetsInfo()
 {
@@ -75,14 +72,28 @@ void CustomWidgetsInfo::acceptCustomWidget(DomCustomWidget *node)
     m_customWidgets.insert(node->elementClass(), node);
 }
 
-bool CustomWidgetsInfo::extends(const QString &className, const QString &baseClassName) const
+bool CustomWidgetsInfo::extends(const QString &classNameIn, QLatin1String baseClassName) const
 {
-    if (className == baseClassName)
+    if (classNameIn == baseClassName)
         return true;
 
-    if (DomCustomWidget *c = customWidget(className))
-        return c->elementExtends() == baseClassName;
+    QString className = classNameIn;
+    while (const DomCustomWidget *c = customWidget(className)) {
+        const QString extends = c->elementExtends();
+        if (className == extends) // Faulty legacy custom widget entries exist.
+            return false;
+        if (extends == baseClassName)
+            return true;
+        className = extends;
+    }
+    return false;
+}
 
+bool CustomWidgetsInfo::isCustomWidgetContainer(const QString &className) const
+{
+    if (const DomCustomWidget *dcw = m_customWidgets.value(className, 0))
+        if (dcw->hasElementContainer())
+            return dcw->elementContainer() != 0;
     return false;
 }
 
@@ -94,6 +105,18 @@ QString CustomWidgetsInfo::realClassName(const QString &className) const
     return className;
 }
 
+DomScript *CustomWidgetsInfo::customWidgetScript(const QString &name) const
+{
+    if (m_customWidgets.empty())
+        return 0;
+
+    const NameCustomWidgetMap::const_iterator it = m_customWidgets.constFind(name);
+    if (it == m_customWidgets.constEnd())
+        return 0;
+
+    return it.value()->elementScript();
+}
+
 QString CustomWidgetsInfo::customWidgetAddPageMethod(const QString &name) const
 {
     if (DomCustomWidget *dcw = m_customWidgets.value(name, 0))
@@ -101,6 +124,5 @@ QString CustomWidgetsInfo::customWidgetAddPageMethod(const QString &name) const
     return QString();
 }
 
-#if defined(QT_END_NAMESPACE)
-  QT_END_NAMESPACE
-#endif
+
+QT_END_NAMESPACE

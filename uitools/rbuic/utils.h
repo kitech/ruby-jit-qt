@@ -1,43 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 1992-2008 Trolltech ASA. All rights reserved.
+** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of the tools applications of the Qt Toolkit.
 **
-** This file may be used under the terms of the GNU General Public
-** License versions 2.0 or 3.0 as published by the Free Software
-** Foundation and appearing in the files LICENSE.GPL2 and LICENSE.GPL3
-** included in the packaging of this file.  Alternatively you may (at
-** your option) use any later version of the GNU General Public
-** License if such license has been publicly approved by Trolltech ASA
-** (or its successors, if any) and the KDE Free Qt Foundation. In
-** addition, as a special exception, Trolltech gives you certain
-** additional rights. These rights are described in the Trolltech GPL
-** Exception version 1.2, which can be found at
-** http://www.trolltech.com/products/qt/gplexception/ and in the file
-** GPL_EXCEPTION.txt in this package.
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and Digia.  For licensing terms and
+** conditions see http://qt.digia.com/licensing.  For further information
+** use the contact form at http://qt.digia.com/contact-us.
 **
-** Please review the following information to ensure GNU General
-** Public Licensing requirements will be met:
-** http://trolltech.com/products/qt/licenses/licensing/opensource/. If
-** you are unsure which license is appropriate for your use, please
-** review the following information:
-** http://trolltech.com/products/qt/licenses/licensing/licensingoverview
-** or contact the sales department at sales@trolltech.com.
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 as published by the Free Software
+** Foundation and appearing in the file LICENSE.LGPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU Lesser General Public License version 2.1 requirements
+** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Trolltech, as the sole
-** copyright holder for Qt Designer, grants users of the Qt/Eclipse
-** Integration plug-in the right for the Qt/Eclipse Integration to
-** link to functionality provided by Qt Designer and its related
-** libraries.
+** In addition, as a special exception, Digia gives you certain additional
+** rights.  These rights are described in the Digia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
-** This file is provided "AS IS" with NO WARRANTY OF ANY KIND,
-** INCLUDING THE WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR
-** A PARTICULAR PURPOSE. Trolltech reserves all rights not expressly
-** granted herein.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
-** WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+**
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -45,9 +43,11 @@
 #define UTILS_H
 
 #include "ui4.h"
-#include <QtCore/QString>
-#include <QtCore/QList>
-#include <QtCore/QHash>
+#include <qstring.h>
+#include <qlist.h>
+#include <qhash.h>
+
+QT_BEGIN_NAMESPACE
 
 inline bool toBool(const QString &str)
 { return str.toLower() == QLatin1String("true"); }
@@ -55,17 +55,27 @@ inline bool toBool(const QString &str)
 inline QString toString(const DomString *str)
 { return str ? str->text() : QString(); }
 
-inline QString fixString(const QString &str, const QString &indent)
+enum StringFlags {
+    Utf8String = 0x1,
+    MultiLineString = 0x2
+};
+
+inline QString fixString(const QString &str, const QString &indent,
+                         unsigned *stringFlags = 0)
 {
     QString cursegment;
     QStringList result;
-    uchar cbyte;
-    QByteArray utf8 = str.toUtf8();
+    const QByteArray utf8 = str.toUtf8();
+    const int utf8Length = utf8.length();
 
-    for (int i = 0; i < utf8.length(); ++i) {
-        cbyte = utf8.at(i);
+    unsigned flags = 0;
+
+    for (int i = 0; i < utf8Length; ++i) {
+        const uchar cbyte = utf8.at(i);
         if (cbyte >= 0x80) {
-            cursegment += QLatin1String("\\") + QString::number(cbyte, 8);
+            cursegment += QLatin1Char('\\');
+            cursegment += QString::number(cbyte, 8);
+            flags |= Utf8String;
         } else {
             switch(cbyte) {
             case '\\':
@@ -75,12 +85,13 @@ inline QString fixString(const QString &str, const QString &indent)
             case '\r':
                 break;
             case '\n':
-                cursegment += QLatin1String("\\n\" \\\n\""); break;
+                flags |= MultiLineString;
+                cursegment += QLatin1String("\\n\"\n\""); break;
             default:
-                cursegment += QChar(cbyte);
+                cursegment += QLatin1Char(cbyte);
             }
         }
-        
+
         if (cursegment.length() > 1024) {
             result << cursegment;
             cursegment.clear();
@@ -90,8 +101,36 @@ inline QString fixString(const QString &str, const QString &indent)
     if (!cursegment.isEmpty())
         result << cursegment;
 
-    QString joinstr = QLatin1String("\"\n") + indent + indent + QLatin1Char('\"');
-    return QLatin1String("\"") + result.join(joinstr) + QLatin1String("\"");
+
+    QString joinstr = QLatin1String("\"\n");
+    joinstr += indent;
+    joinstr += indent;
+    joinstr += QLatin1Char('"');
+
+    QString rc(QLatin1Char('"'));
+    rc += result.join(joinstr);
+    rc += QLatin1Char('"');
+
+    if (result.size() > 1)
+        flags |= MultiLineString;
+
+    if (stringFlags)
+        *stringFlags = flags;
+
+    return rc;
+}
+
+inline QString writeString(const QString &s, const QString &indent)
+{
+    unsigned flags = 0;
+    const QString ret = fixString(s, indent, &flags);
+    if (flags & Utf8String)
+        return QLatin1String("QString::fromUtf8(") + ret + QLatin1Char(')');
+    // MSVC cannot concat L"foo" "bar" (C2308: concatenating mismatched strings),
+    // use QLatin1String instead (all platforms to avoid cross-compiling issues).
+    if (flags & MultiLineString)
+        return QLatin1String("QLatin1String(") + ret + QLatin1Char(')');
+    return QLatin1String("QStringLiteral(") + ret + QLatin1Char(')');
 }
 
 inline QHash<QString, DomProperty *> propertyMap(const QList<DomProperty *> &properties)
@@ -121,5 +160,7 @@ inline QString toRubyIdentifier(const QString &id)
     result.prepend("@");
     return result;
 }
+
+QT_END_NAMESPACE
 
 #endif // UTILS_H

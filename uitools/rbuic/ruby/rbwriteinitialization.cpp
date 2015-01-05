@@ -2457,7 +2457,8 @@ DomWidget *WriteInitialization::findWidget(const QString &widgetClass)
     for (int i = m_widgetChain.count() - 1; i >= 0; --i) {
         DomWidget *widget = m_widgetChain.at(i);
 
-        if (widget && m_uic->customWidgetsInfo()->extends(widget->attributeClass(), widgetClass))
+        QLatin1String str(widgetClass.toLatin1());
+        if (widget && m_uic->customWidgetsInfo()->extends(widget->attributeClass(), str))
             return widget;
     }
 

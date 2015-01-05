@@ -1,43 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 1992-2008 Trolltech ASA. All rights reserved.
+** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of the tools applications of the Qt Toolkit.
 **
-** This file may be used under the terms of the GNU General Public
-** License versions 2.0 or 3.0 as published by the Free Software
-** Foundation and appearing in the files LICENSE.GPL2 and LICENSE.GPL3
-** included in the packaging of this file.  Alternatively you may (at
-** your option) use any later version of the GNU General Public
-** License if such license has been publicly approved by Trolltech ASA
-** (or its successors, if any) and the KDE Free Qt Foundation. In
-** addition, as a special exception, Trolltech gives you certain
-** additional rights. These rights are described in the Trolltech GPL
-** Exception version 1.2, which can be found at
-** http://www.trolltech.com/products/qt/gplexception/ and in the file
-** GPL_EXCEPTION.txt in this package.
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and Digia.  For licensing terms and
+** conditions see http://qt.digia.com/licensing.  For further information
+** use the contact form at http://qt.digia.com/contact-us.
 **
-** Please review the following information to ensure GNU General
-** Public Licensing requirements will be met:
-** http://trolltech.com/products/qt/licenses/licensing/opensource/. If
-** you are unsure which license is appropriate for your use, please
-** review the following information:
-** http://trolltech.com/products/qt/licenses/licensing/licensingoverview
-** or contact the sales department at sales@trolltech.com.
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 as published by the Free Software
+** Foundation and appearing in the file LICENSE.LGPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU Lesser General Public License version 2.1 requirements
+** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Trolltech, as the sole
-** copyright holder for Qt Designer, grants users of the Qt/Eclipse
-** Integration plug-in the right for the Qt/Eclipse Integration to
-** link to functionality provided by Qt Designer and its related
-** libraries.
+** In addition, as a special exception, Digia gives you certain additional
+** rights.  These rights are described in the Digia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
-** This file is provided "AS IS" with NO WARRANTY OF ANY KIND,
-** INCLUDING THE WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR
-** A PARTICULAR PURPOSE. Trolltech reserves all rights not expressly
-** granted herein.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
-** WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+**
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -45,13 +43,10 @@
 #include "uic.h"
 #include "ui4.h"
 
-#include <QtCore/QRegExp>
-#include <QtCore/QFileInfo>
-#include <QtCore/QDebug>
+#include <qfileinfo.h>
+#include <qdebug.h>
 
-#if defined(QT_BEGIN_NAMESPACE)
-  QT_BEGIN_NAMESPACE
-#endif
+QT_BEGIN_NAMESPACE
 
 Driver::Driver()
     : m_stdout(stdout, QFile::WriteOnly | QFile::Text)
@@ -74,7 +69,9 @@ QString Driver::findOrInsertWidget(DomWidget *ui_widget)
 QString Driver::findOrInsertSpacer(DomSpacer *ui_spacer)
 {
     if (!m_spacers.contains(ui_spacer)) {
-        const QString name = ui_spacer->hasAttributeName() ? ui_spacer->attributeName() : QString();
+        QString name;
+        if (ui_spacer->hasAttributeName())
+            name = ui_spacer->attributeName();
         m_spacers.insert(ui_spacer, unique(name, QLatin1String("QSpacerItem")));
     }
 
@@ -84,7 +81,9 @@ QString Driver::findOrInsertSpacer(DomSpacer *ui_spacer)
 QString Driver::findOrInsertLayout(DomLayout *ui_layout)
 {
     if (!m_layouts.contains(ui_layout)) {
-        const QString name = ui_layout->hasAttributeName() ? ui_layout->attributeName() : QString();
+        QString name;
+        if (ui_layout->hasAttributeName())
+            name = ui_layout->attributeName();
         m_layouts.insert(ui_layout, unique(name, ui_layout->attributeClass()));
     }
 
@@ -125,6 +124,25 @@ QString Driver::findOrInsertAction(DomAction *ui_action)
     return m_actions.value(ui_action);
 }
 
+QString Driver::findOrInsertButtonGroup(const DomButtonGroup *ui_group)
+{
+    ButtonGroupNameHash::iterator it = m_buttonGroups.find(ui_group);
+    if (it == m_buttonGroups.end())
+        it = m_buttonGroups.insert(ui_group, unique(ui_group->attributeName(), QLatin1String("QButtonGroup")));
+    return it.value();
+}
+
+// Find a group by its non-uniqified name
+const DomButtonGroup *Driver::findButtonGroup(const QString &attributeName) const
+{
+    const ButtonGroupNameHash::const_iterator cend = m_buttonGroups.constEnd();
+    for (ButtonGroupNameHash::const_iterator it = m_buttonGroups.constBegin(); it != cend; ++it)
+        if (it.key()->attributeName() == attributeName)
+            return it.key();
+    return 0;
+}
+
+
 QString Driver::findOrInsertName(const QString &name)
 {
     return unique(name);
@@ -133,7 +151,11 @@ QString Driver::findOrInsertName(const QString &name)
 QString Driver::normalizedName(const QString &name)
 {
     QString result = name;
-    result.replace(QRegExp(QLatin1String("[^a-zA-Z_0-9]")), QString(QLatin1Char('_')));
+    QChar *data = result.data();
+    for (int i = name.size(); --i >= 0; ++data) {
+        if (!data->isLetterOrNumber())
+            *data = QLatin1Char('_');
+    }
     return result;
 }
 
@@ -159,7 +181,10 @@ QString Driver::unique(const QString &instanceName, const QString &className)
     }
 
     if (alreadyUsed && className.size()) {
-        fprintf(stderr, "Warning: name %s is already used\n", qPrintable(instanceName));
+        fprintf(stderr, "%s: Warning: The name '%s' (%s) is already in use, defaulting to '%s'.\n",
+                qPrintable(m_option.messagePrefix()),
+                qPrintable(instanceName), qPrintable(className),
+                qPrintable(name));
     }
 
     m_nameRepository.insert(name, true);
@@ -209,9 +234,9 @@ QString Driver::qtify(const QString &name)
     return qname;
 }
 
-static bool isAnsiCCharacter(const QChar& c)
+static bool isAnsiCCharacter(QChar c)
 {
-    return c.toUpper() >= QLatin1Char('A') && c.toUpper() <= QLatin1Char('Z')
+    return (c.toUpper() >= QLatin1Char('A') && c.toUpper() <= QLatin1Char('Z'))
            || c.isDigit() || c == QLatin1Char('_');
 }
 
@@ -301,8 +326,8 @@ bool Driver::uic(const QString &fileName, QTextStream *out)
     if (out) {
         m_output = out;
     } else {
-#ifdef Q_WS_WIN
-        // As one might also redirect the output to a file on win, 
+#ifdef Q_OS_WIN
+        // As one might also redirect the output to a file on win,
         // we should not create the textstream with QFile::Text flag.
         // The redirected file is opened in TextMode and this will
         // result in broken line endings as writing will replace \n again.
@@ -379,6 +404,4 @@ DomAction *Driver::actionByName(const QString &name) const
     return m_actions.key(name);
 }
 
-#if defined(QT_END_NAMESPACE)
-  QT_END_NAMESPACE
-#endif
+QT_END_NAMESPACE

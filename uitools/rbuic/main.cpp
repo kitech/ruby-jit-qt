@@ -1,160 +1,145 @@
 /****************************************************************************
 **
-** Copyright (C) 1992-2008 Trolltech ASA. All rights reserved.
+** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of the tools applications of the Qt Toolkit.
 **
-** This file may be used under the terms of the GNU General Public
-** License versions 2.0 or 3.0 as published by the Free Software
-** Foundation and appearing in the files LICENSE.GPL2 and LICENSE.GPL3
-** included in the packaging of this file.  Alternatively you may (at
-** your option) use any later version of the GNU General Public
-** License if such license has been publicly approved by Trolltech ASA
-** (or its successors, if any) and the KDE Free Qt Foundation. In
-** addition, as a special exception, Trolltech gives you certain
-** additional rights. These rights are described in the Trolltech GPL
-** Exception version 1.2, which can be found at
-** http://www.trolltech.com/products/qt/gplexception/ and in the file
-** GPL_EXCEPTION.txt in this package.
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and Digia.  For licensing terms and
+** conditions see http://qt.digia.com/licensing.  For further information
+** use the contact form at http://qt.digia.com/contact-us.
 **
-** Please review the following information to ensure GNU General
-** Public Licensing requirements will be met:
-** http://trolltech.com/products/qt/licenses/licensing/opensource/. If
-** you are unsure which license is appropriate for your use, please
-** review the following information:
-** http://trolltech.com/products/qt/licenses/licensing/licensingoverview
-** or contact the sales department at sales@trolltech.com.
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 as published by the Free Software
+** Foundation and appearing in the file LICENSE.LGPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU Lesser General Public License version 2.1 requirements
+** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** In addition, as a special exception, Trolltech, as the sole
-** copyright holder for Qt Designer, grants users of the Qt/Eclipse
-** Integration plug-in the right for the Qt/Eclipse Integration to
-** link to functionality provided by Qt Designer and its related
-** libraries.
+** In addition, as a special exception, Digia gives you certain additional
+** rights.  These rights are described in the Digia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
-** This file is provided "AS IS" with NO WARRANTY OF ANY KIND,
-** INCLUDING THE WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR
-** A PARTICULAR PURPOSE. Trolltech reserves all rights not expressly
-** granted herein.
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
-** WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+**
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
 #include "uic.h"
 #include "option.h"
 #include "driver.h"
-#include <QtCore/QFile>
-#include <QtCore/QDir>
-#include <QtCore/QTextStream>
-#include <QtCore/QTextCodec>
 
-#if defined(QT_BEGIN_NAMESPACE)
-  QT_BEGIN_NAMESPACE
-#endif
+#include <qfile.h>
+#include <qdir.h>
+#include <qtextstream.h>
+#include <qtextcodec.h>
+#include <qcoreapplication.h>
+#include <qcommandlineoption.h>
+#include <qcommandlineparser.h>
 
-static const char *error = 0;
-
-void showHelp(const char *appName)
-{
-    fprintf(stderr, "Qt User Interface Compiler version %s\n", QT_VERSION_STR);
-    if (error)
-        fprintf(stderr, "%s: %s\n", appName, error);
-
-    fprintf(stderr, "Usage: %s [options] <uifile>\n\n"
-            "  -h, -help                 display this help and exit\n"
-            "  -v, -version              display version\n"
-            "  -d, -dependencies         display the dependencies\n"
-            "  -o <file>                 place the output into <file>\n"
-            "  -tr <func>                use func() for i18n\n"
-            "  -p, -no-protection        disable header protection\n"
-            "  -g <name>                 change generator\n"
-            "  -x                        generate extra code to test the class\n"
-            "  -k                        use kde widgets, require 'korundum4' extension\n"
-            "\n", appName);
-}
+QT_BEGIN_NAMESPACE
+extern Q_CORE_EXPORT QBasicAtomicInt qt_qhash_seed;
 
 int runUic(int argc, char *argv[])
 {
+    qt_qhash_seed.testAndSetRelaxed(-1, 0); // set the hash seed to 0 if it wasn't set yet
+
+    QCoreApplication app(argc, argv);
+    QCoreApplication::setApplicationVersion(QString::fromLatin1(QT_VERSION_STR));
+
     Driver driver;
 
-    const char *fileName = 0;
+    // Note that uic isn't translated.
+    // If you use this code as an example for a translated app, make sure to translate the strings.
+    QCommandLineParser parser;
+    parser.setSingleDashWordOptionMode(QCommandLineParser::ParseAsLongOptions);
+    parser.setApplicationDescription(QStringLiteral("Qt User Interface Compiler version %1").arg(QString::fromLatin1(QT_VERSION_STR)));
+    parser.addHelpOption();
+    parser.addVersionOption();
 
-    int arg = 1;
-    while (arg < argc) {
-        QString opt = QString::fromLocal8Bit(argv[arg]);
-        if (opt == QLatin1String("-h") || opt == QLatin1String("-help")) {
-            showHelp(argv[0]);
-            return 0;
-        } else if (opt == QLatin1String("-d") || opt == QLatin1String("-dependencies")) {
-            driver.option().dependencies = true;
-        } else if (opt == QLatin1String("-v") || opt == QLatin1String("-version")) {
-            fprintf(stderr, "Qt User Interface Compiler version %s\n", QT_VERSION_STR);
-            return 0;
-        } else if (opt == QLatin1String("-o") || opt == QLatin1String("-output")) {
-            ++arg;
-            if (!argv[arg]) {
-                showHelp(argv[0]);
-                return 1;
-            }
-            driver.option().outputFile = QFile::decodeName(argv[arg]);
+    QCommandLineOption dependenciesOption(QStringList() << QStringLiteral("d") << QStringLiteral("dependencies"));
+    dependenciesOption.setDescription(QStringLiteral("Display the dependencies."));
+    parser.addOption(dependenciesOption);
+
+    QCommandLineOption outputOption(QStringList() << QStringLiteral("o") << QStringLiteral("output"));
+    outputOption.setDescription(QStringLiteral("Place the output into <file>"));
+    outputOption.setValueName(QStringLiteral("file"));
+    parser.addOption(outputOption);
+
 #ifdef QT_UIC_RUBY_GENERATOR
-        } else if (opt == QLatin1String("-x")) {
-            driver.option().execCode = 1;
-        } else if (opt == QLatin1String("-k") || opt == QLatin1String("-kde")) {
-            driver.option().useKDE = 1;
+    QCommandLineOption execCodeOption(QStringList() << QStringLiteral("x") << QStringLiteral("exec-code"));
+    execCodeOption.setDescription(QStringLiteral("exec code."));
+    parser.addOption(execCodeOption);
+    QCommandLineOption useKDEOption(QStringList() << QStringLiteral("k") << QStringLiteral("use-kde"));
+    useKDEOption.setDescription(QStringLiteral("use kde."));
+    parser.addOption(useKDEOption);
 #endif
-        } else if (opt == QLatin1String("-p") || opt == QLatin1String("-no-protection")) {
-            driver.option().headerProtection = false;
-        } else if (opt == QLatin1String("-postfix")) {
-            ++arg;
-            if (!argv[arg]) {
-                showHelp(argv[0]);
-                return 1;
-            }
-            driver.option().postfix = QLatin1String(argv[arg]);
-        } else if (opt == QLatin1String("-3")) {
-            ++arg;
-            if (!argv[arg]) {
-                showHelp(argv[0]);
-                return 1;
-            }
-            driver.option().uic3 = QFile::decodeName(argv[arg]);
-        } else if (opt == QLatin1String("-tr") || opt == QLatin1String("-translate")) {
-            ++arg;
-            if (!argv[arg]) {
-                showHelp(argv[0]);
-                return 1;
-            }
-            driver.option().translateFunction = QLatin1String(argv[arg]);
-        } else if (opt == QLatin1String("-g") || opt == QLatin1String("-generator")) {
-            ++arg;
-            if (!argv[arg]) {
-                showHelp(argv[0]);
-                return 1;
-            }
-            QString name = QString::fromLocal8Bit(argv[arg]).toLower ();
-            if (name == QLatin1String("java")) {
-                driver.option().generator = Option::JavaGenerator;
-            } else if (name == QLatin1String("ruby")) {
-                driver.option().generator = Option::RubyGenerator;
-            } else {
-                driver.option().generator = Option::CppGenerator;
-            }
-        } else if (!fileName) {
-            fileName = argv[arg];
-        } else {
-            showHelp(argv[0]);
-            return 1;
-        }
 
-        ++arg;
-    }
+    QCommandLineOption noProtOption(QStringList() << QStringLiteral("p") << QStringLiteral("no-protection"));
+    noProtOption.setDescription(QStringLiteral("Disable header protection."));
+    parser.addOption(noProtOption);
+
+    QCommandLineOption noImplicitIncludesOption(QStringList() << QStringLiteral("n") << QStringLiteral("no-implicit-includes"));
+    noImplicitIncludesOption.setDescription(QStringLiteral("Disable generation of #include-directives."));
+    parser.addOption(noImplicitIncludesOption);
+
+    QCommandLineOption postfixOption(QStringLiteral("postfix"));
+    postfixOption.setDescription(QStringLiteral("Postfix to add to all generated classnames."));
+    postfixOption.setValueName(QStringLiteral("postfix"));
+    parser.addOption(postfixOption);
+
+    QCommandLineOption translateOption(QStringList() << QStringLiteral("tr") << QStringLiteral("translate"));
+    translateOption.setDescription(QStringLiteral("Use <function> for i18n."));
+    translateOption.setValueName(QStringLiteral("function"));
+    parser.addOption(translateOption);
+
+    QCommandLineOption includeOption(QStringList() << QStringLiteral("include"));
+    includeOption.setDescription(QStringLiteral("Add #include <include-file> to <file>."));
+    includeOption.setValueName(QStringLiteral("include-file"));
+    parser.addOption(includeOption);
+
+    QCommandLineOption generatorOption(QStringList() << QStringLiteral("g") << QStringLiteral("generator"));
+    generatorOption.setDescription(QStringLiteral("Select generator.Default is ruby."));
+    generatorOption.setValueName(QStringLiteral("java|cpp|ruby"));
+    parser.addOption(generatorOption);
+
+    parser.addPositionalArgument(QStringLiteral("[uifile]"), QStringLiteral("Input file (*.ui), otherwise stdin."));
+
+    parser.process(app);
+
+    driver.option().dependencies = parser.isSet(dependenciesOption);
+    driver.option().outputFile = parser.value(outputOption);
+#ifdef QT_UIC_RUBY_GENERATOR
+    driver.option().execCode = parser.isSet(execCodeOption);
+    driver.option().useKDE = parser.isSet(useKDEOption);
+#endif
+    driver.option().headerProtection = !parser.isSet(noProtOption);
+    driver.option().implicitIncludes = !parser.isSet(noImplicitIncludesOption);
+    driver.option().postfix = parser.value(postfixOption);
+    driver.option().translateFunction = parser.value(translateOption);
+    driver.option().includeFile = parser.value(includeOption);
+    if (!parser.value(generatorOption).isEmpty())
+    driver.option().generator = (parser.value(generatorOption).toLower() == QLatin1String("java")) ? Option::JavaGenerator : Option::CppGenerator;
+    
 
     QString inputFile;
-    if (fileName)
-        inputFile = QString::fromLocal8Bit(fileName);
-    else
+    if (!parser.positionalArguments().isEmpty())
+        inputFile = parser.positionalArguments().first();
+    else // reading from stdin
         driver.option().headerProtection = false;
 
     if (driver.option().dependencies) {
@@ -187,15 +172,9 @@ int runUic(int argc, char *argv[])
     return !rtn;
 }
 
-#if defined(QT_END_NAMESPACE)
-  QT_END_NAMESPACE
-#endif
+QT_END_NAMESPACE
 
 int main(int argc, char *argv[])
 {
-#if defined(QT_PREPEND_NAMESPACE)
     return QT_PREPEND_NAMESPACE(runUic)(argc, argv);
-#else
-    return runUic(argc, argv);
-#endif
 }
