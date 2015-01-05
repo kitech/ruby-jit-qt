@@ -25,79 +25,14 @@
 
 #include "clvm.h"
 
-// #include "metalize/metar_classes_qtcore.h"
-// #include "metalize/metas.h"
+#include "marshallruby.h"
+#include "callargument.h"
+
 #include "qtruby.h"
 
 // extern "C" {
 
 
-/*
-static VALUE x_QString_destructor(VALUE id)
-{
-    // qDebug()<<__FUNCTION__;
-
-    VALUE os = rb_const_get(rb_cModule, rb_intern("ObjectSpace"));
-    VALUE self = rb_funcall(os, rb_intern("_id2ref"), 1, id);
-    // VALUE self = ID2SYM(id);
-    GET_CI3(QString);
-    qDebug()<<__FUNCTION__<<ci<<NUM2ULONG(id)<<QString("%1").arg(TYPE(self));
-    delete ci;
-
-    return Qnil;
-}
-
-static VALUE x_QString_init(VALUE self)
-{
-    yQString *s = NULL;
-    s = new yQString();
-    qDebug()<<s;
-
-    // rb_iv_set(self, "@_ci", (VALUE)s);
-    // Qom::inst()->objs[rb_to_id(self)] = (QObject*)s;
-    SAVE_CI2(QString, s);
-    // qDebug()<<TYPE(self);
-    // rb_hash(self);
-
-    VALUE free_proc = rb_proc_new((VALUE (*) (...)) x_QString_destructor, 0);
-    rb_define_finalizer(self, free_proc);
-
-    return self;
-}
-
-static QString * x_QString_to_q(VALUE self)
-{
-    GET_CI3(QString);
-    return ci;
-}
-
-static VALUE x_QString_to_s(VALUE self)
-{
-    // QString *s = (QString*)rb_iv_get(self, "@_ci");
-    GET_CI3(QString);
-
-    QString to_s;
-    QDebug out(&to_s);
-    out << ci << "<--"<< ci->length();
-
-    return (VALUE)rb_str_new2(to_s.toLatin1().data());
-}
-
-static VALUE x_QString_append(VALUE self, VALUE obj)
-{
-    // QString *ci = (QString*)rb_iv_get(self, "@_ci");
-    GET_CI3(QString);
-    
-    if (TYPE(obj) == RUBY_T_STRING) {
-        ci->append(RSTRING_PTR(obj));
-    } else {
-        qDebug()<<TYPE(obj);
-        ci->append(RSTRING_PTR(x_QString_to_s(obj)));
-    }
-
-    return self;
-}
-*/
 
 // #define VariantOrigValue(v)                         
 #define VOValue(v)                            \
@@ -212,143 +147,6 @@ static QGenericArgument Variant2Arg(int type, QVariant &v, int idx, InvokeStorag
     return valx;
 }
 
-/*
-  数字类型
-  字符串类型
-  对象类型
-  数组类型(元素为数字，字符串，对象）
- */
-static QVariant VALUE2Variant(VALUE v)
-{
-
-    QVariant rv;
-    QString str, str2;
-    void *ci = NULL;
-    QObject *obj = NULL;
-
-    VALUE v1;
-    VALUE v2;
-    VALUE v3;
-    
-    switch (TYPE(v)) {
-    case T_NONE:  rv = QVariant(); break;
-    case T_FIXNUM: rv = (int)FIX2INT(v); break;
-    case T_STRING:  rv = RSTRING_PTR(v); break;
-    case T_FLOAT:  rv = RFLOAT_VALUE(v); break;
-    case T_NIL:   rv = 0; break;
-    case T_TRUE:  rv = true; break;
-    case T_FALSE: rv = false; break;
-    case T_OBJECT:
-        str = QString(rb_class2name(RBASIC_CLASS(v)));
-        ci = Qom::inst()->getObject(v);
-        // obj = dynamic_cast<QObject*>(ci);
-        qDebug()<<"unimpl VALUE:"<<str<<ci<<obj;
-        // rv = QVariant(QMetaType::VoidStar, ci);
-        rv = QVariant::fromValue(ci);
-        break;
-    case T_ARRAY: {
-        QStringList ary;
-        // ary << "a123" << "b3456";
-        qDebug()<<RARRAY_LEN(v)<<QT_VERSION;
-        for (int i = 0; i < RARRAY_LEN(v); i++) {
-            ary << VALUE2Variant(rb_ary_entry(v, i)).toString();
-        }
-        rv = QVariant(ary);
-    }; break;
-    case T_STRUCT:
-        qDebug()<<"use VALUE2Variant2 function.";
-        break;
-    case T_CLASS:
-    default:
-        qDebug()<<"unknown VALUE type:"<<TYPE(v);
-        break;
-    }
-    
-    return rv;
-}
-
-// Range类型支持
-static QVector<QVariant> VALUE2Variant2(VALUE v)
-{
-    QVector<QVariant> rvs(1);
-    QVariant rv;
-    QString str, str2;
-    void *ci = NULL;
-    QObject *obj = NULL;
-
-    VALUE v1;
-    VALUE v2;
-    VALUE v3;
-    
-    switch (TYPE(v)) {
-    case T_NONE:  rv = QVariant(); break;
-    case T_FIXNUM: rv = (int)FIX2INT(v); break;
-    case T_STRING:  rv = RSTRING_PTR(v); break;
-    case T_FLOAT:  rv = RFLOAT_VALUE(v); break;
-    case T_NIL:   rv = 0; break;
-    case T_TRUE:  rv = true; break;
-    case T_FALSE: rv = false; break;
-    case T_OBJECT:
-        str = QString(rb_class2name(RBASIC_CLASS(v)));
-        ci = Qom::inst()->getObject(v);
-        // obj = dynamic_cast<QObject*>(ci);
-        qDebug()<<"unimpl VALUE:"<<str<<ci<<obj;
-        // rv = QVariant(QMetaType::VoidStar, ci);
-        rv = QVariant::fromValue(ci);
-        break;
-    case T_ARRAY: {
-        QStringList ary;
-        // ary << "a123" << "b3456";
-        qDebug()<<RARRAY_LEN(v)<<QT_VERSION;
-        for (int i = 0; i < RARRAY_LEN(v); i++) {
-            // FIXME: 也可能是对象数组，如Qt5::QString，但toString方法不好用。
-            // FIXME: 如，[Qt5::QApplication.translate("MainWindow", "acbc", nil), "efgggggg", "hijjjjjjjj"]
-            ary << VALUE2Variant(rb_ary_entry(v, i)).toString();
-        }
-        rv = QVariant(ary);
-    }; break;
-    case T_STRUCT: {
-        str = rb_class2name(RBASIC_CLASS(v));
-        if (str == "Range") {
-            // qDebug()<<"Range is struct???"<<BUILTIN_TYPE(v)
-            //         <<rb_class2name(RBASIC_CLASS(v))
-            //         <<RSTRUCT_LEN(v);
-            v1 = RSTRUCT_GET(v, 0);
-            v2 = RSTRUCT_GET(v, 1);
-            v3 = RSTRUCT_GET(v, 2);
-            // qDebug()<<TYPE(v1)<<TYPE(v2)<<TYPE(v3);
-            // qDebug()<<FIX2INT(v1)<<FIX2INT(v2);
-
-            rv = QVariant(FIX2INT(v1));
-            rvs.append(QVariant(FIX2INT(v2)));
-        } else {
-            qDebug()<<"unsupported struct type:"<<str;
-        }
-    }; break;
-    case T_CLASS:
-    default:
-        qDebug()<<"unknown VALUE type:"<<TYPE(v);
-        break;
-    }
-    
-    rvs[0] = rv;
-    return rvs;
-}
-
-static QVector<QVariant> ARGV2Variant(int argc, VALUE *argv, int start = 0)
-{
-    QVector<QVariant> args;
-    for (int i = start; i < argc; i ++) {
-        // if (i == 0) continue; // for ctor 0 is arg0
-        if (i >= argc) break;
-        qDebug()<<"i == "<< i << (i<argc) << (i>argc);
-        QVector<QVariant> targs = VALUE2Variant2(argv[i]);
-        for (auto v: targs) args << v;
-        qDebug()<<"i == "<< i << (i<argc) << (i>argc)<<targs;
-    }
-
-    return args;
-}
 
 #include "ctrlengine.h"
 #include "frontengine.h"
@@ -619,8 +417,8 @@ VALUE x_Qt_class_init_jit(int argc, VALUE *argv, VALUE self)
         // if (i == 0) continue; // for ctor 0 is arg0
         if (i >= argc) break;
         qDebug()<<"i == "<< i << (i<argc) << (i>argc);
-        args << VALUE2Variant(argv[i]);
-        qDebug()<<"i == "<< i << (i<argc) << (i>argc)<<VALUE2Variant(argv[i]);
+        args << MarshallRuby::VALUE2Variant(argv[i]);
+        qDebug()<<"i == "<< i << (i<argc) << (i>argc)<<MarshallRuby::VALUE2Variant(argv[i]);
     }
     
     void *jo = gce->vm_new(klass_name, args);
@@ -686,17 +484,6 @@ VALUE x_Qt_meta_class_init(int argc, VALUE *argv, VALUE self)
     return Qnil;
 }
 
-// test method
-/* 
-// good test code for trace llvm ir call 
-QString &test_ir_objref(YaQString *pthis, QString &str)
-{
-    qDebug()<<"pthis:"<<pthis;
-    qDebug()<<"&str:"<<&str;
-    qDebug()<<"str:"<<str;
-    return str;
-}
-*/
 
 /*
   stack structure:
@@ -719,18 +506,8 @@ VALUE x_Qt_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
     assert(argc >= 1);
 
     QVector<QVariant> args;
-    /*
-    for (int i = 0; i < argc; i ++) {
-        if (i == 0) continue;
-        if (i >= argc) break;
-
-        qDebug()<<"i == "<< i << (i<argc) << (i>argc);
-
-        args << VALUE2Variant(argv[i]);
-        qDebug()<<"i == "<< i << (i<argc) << (i>argc)<<VALUE2Variant(argv[i]);
-    }
-    */
-    args = ARGV2Variant(argc, argv, 1);
+    args = MarshallRuby::ARGV2Variant(argc, argv, 1);
+    CallArgument cargs(argc, argv, self);
 
     // fix try_convert(obj) → array or nil
     if (method_name == "to_ary") {
@@ -817,7 +594,7 @@ VALUE x_Qt_class_singleton_method_missing_jit(int argc, VALUE *argv, VALUE self)
     qDebug()<<"calling:"<<rbklass_name<<klass_name<<method_name<<argc<<(argc > 1);        
     
     QVector<QVariant> args;
-    args = ARGV2Variant(argc, argv, 1);
+    args = MarshallRuby::ARGV2Variant(argc, argv, 1);
 
     // fix try_convert(obj) → array or nil
     if (method_name == "to_ary") {
@@ -869,8 +646,8 @@ VALUE x_Qt_meta_class_method_missing_jit(int argc, VALUE *argv, VALUE self)
 
         qDebug()<<"i == "<< i << (i<argc) << (i>argc);
 
-        args << VALUE2Variant(argv[i]);
-        qDebug()<<"i == "<< i << (i<argc) << (i>argc)<<VALUE2Variant(argv[i]);
+        args << MarshallRuby::VALUE2Variant(argv[i]);
+        qDebug()<<"i == "<< i << (i<argc) << (i>argc)<<MarshallRuby::VALUE2Variant(argv[i]);
     }
 
     // fix try_convert(obj) → array or nil
@@ -922,8 +699,8 @@ VALUE x_Qt_meta_class_method_missing(int argc, VALUE *argv, VALUE self)
 
         qDebug()<<"i == "<< i << (i<argc) << (i>argc);
 
-        args << VALUE2Variant(argv[i]);
-        qDebug()<<"i == "<< i << (i<argc) << (i>argc)<<VALUE2Variant(argv[i]);
+        args << MarshallRuby::VALUE2Variant(argv[i]);
+        qDebug()<<"i == "<< i << (i<argc) << (i>argc)<<MarshallRuby::VALUE2Variant(argv[i]);
     }
 
     // fix try_convert(obj) → array or nil
@@ -1032,271 +809,6 @@ VALUE x_Qt_meta_class_method_missing(int argc, VALUE *argv, VALUE self)
     return Qnil;
 }
 
-
-// static VALUE x_QString_method_missing_test(int argc, VALUE *argv, VALUE self);
-/*
-static VALUE x_QString_method_missing(int argc, VALUE *argv, VALUE self)
-{
-    GET_CI3(QString);
-    qDebug()<<ci;
-    
-    QString method_name = QString(rb_id2name(SYM2ID(argv[0])));
-    QString klass_name = "QString"; // TODO, dynamic way
-    qDebug()<<"calling:"<<klass_name<<method_name<<argc<<(argc > 1);
-
-    QVector<QVariant> args;
-    for (int i = 0; i < argc; i ++) {
-        if (i == 0) continue;
-        if (i >= argc) break;
-
-        qDebug()<<"i == "<< i << (i<argc) << (i>argc);
-
-        args << VALUE2Variant(argv[i]);
-        qDebug()<<"i == "<< i << (i<argc) << (i>argc)<<VALUE2Variant(argv[i]);
-    }
-
-    // fix try_convert(obj) → array or nil
-    if (method_name == "to_ary") {
-        return Qnil;
-    }
-
-    if (method_name == "to_s") {
-        return Qnil;
-    }
-
-    // auto meta invoke
-    QString msig;
-    for (QVariant &item : args) {
-        msig.append(item.typeName()).append(',');
-    }
-
-    msig[msig.length()-1] = msig[msig.length()-1] == ',' ? QChar(' ') : msig[msig.length()-1];
-    msig = msig.trimmed();
-    msig = QString("%1(%2)").arg(method_name).arg(msig);
-
-    const QMetaObject *mo = ci->metaObject();
-    int midx = mo->indexOfMethod(msig.toLatin1().data());
-    if (midx == -1) {
-        for (int i = 0; i < mo->methodCount(); i ++) {
-            QMetaMethod mm = mo->method(i);
-            qDebug()<<mm.methodSignature();
-            if (QString(mm.methodSignature()).replace("const ", "") == msig) {
-                midx = i;
-                break;
-            }
-        }
-    } 
-
-    if (midx == -1) {
-        qDebug()<<"method not found:"<<msig;
-    } else {
-        QMetaMethod mm = mo->method(midx);
-        ReturnStorage rs;
-        InvokeStorage is;
-        QGenericReturnArgument retval;
-        QGenericArgument val0, val1, val2, val3, val4, val5, val6, val7, val8, val9;
-        // QVariant retval;
-        int iretval = 1234567;
-        QString sretval;
-        QString sval[10] = {0};
-        int ival[10] = {0};
-        qDebug()<<"retun type:"<<mm.returnType()<<mm.typeName()<<mm.parameterCount();
-
-        if (argc - 1 > mm.parameterCount()) {
-            qDebug()<<"maybe you passed too much parameters:"
-                    <<QString("need %1, given %2.").arg(mm.parameterCount()).arg(argc - 1);
-        }
-
-        retval = makeRetArg(mm.returnType(), rs);
-
-        bool bret = false;
-        switch (argc - 1) {
-        case 0:
-            // ci->append("123");
-            bret = mm.invoke(ci, retval);//Q_RETURN_ARG(int, retval)); 
-            break;
-        case 1:
-            val0 = Variant2Arg(mm.parameterType(0), args[0], 0, is);
-            bret = mm.invoke(ci, retval, val0);
-            break;
-        case 2:
-            val0 = Variant2Arg(mm.parameterType(0), args[0], 0, is);
-            val1 = Variant2Arg(mm.parameterType(1), args[1], 1, is);
-            bret = mm.invoke(ci, retval, val0, val1);
-            break;
-        case 3:
-            val0 = Variant2Arg(mm.parameterType(0), args[0], 0, is);
-            val1 = Variant2Arg(mm.parameterType(1), args[1], 1, is);
-            val2 = Variant2Arg(mm.parameterType(2), args[2], 2, is);
-            bret = mm.invoke(ci, retval, val0, val1, val2);
-            break;
-        case 4:
-            val0 = Variant2Arg(mm.parameterType(0), args[0], 0, is);
-            val1 = Variant2Arg(mm.parameterType(1), args[1], 1, is);
-            val2 = Variant2Arg(mm.parameterType(2), args[2], 2, is);
-            val3 = Variant2Arg(mm.parameterType(3), args[3], 3, is);
-            bret = mm.invoke(ci, retval, val0, val1, val2, val3);
-            break;
-        case 5:
-            val0 = Variant2Arg(mm.parameterType(0), args[0], 0, is);
-            val1 = Variant2Arg(mm.parameterType(1), args[1], 1, is);
-            val2 = Variant2Arg(mm.parameterType(2), args[2], 2, is);
-            val3 = Variant2Arg(mm.parameterType(3), args[3], 3, is);
-            val4 = Variant2Arg(mm.parameterType(4), args[4], 4, is);
-            bret = mm.invoke(ci, retval, val0, val1, val2, val3, val4);
-            break;
-        default:
-            qDebug()<<"not impled"<<argc;
-            break;
-        };
-        qDebug()<<bret<<","<<retval.name()<<retval.data()<<iretval
-                <<((QString*)ci)->toLatin1()<<((QString*)ci)->length();
-
-        VALUE my_retval = retArg2Value(mm.returnType(), retval);
-        return my_retval;
-    }
-
-    // x_QString_method_missing_test(argc, argv, self);    
-    return Qnil; // very importent, no return cause crash
-}
-
-static VALUE x_QString_method_missing_test(int argc, VALUE *argv, VALUE self)
-{
-    GET_CI3(QString);
-    
-    QString method_name = QString(rb_id2name(SYM2ID(argv[0])));
-    QString klass_name = "QString"; // TODO, dynamic way
-    qDebug()<<"calling:"<<klass_name<<method_name;
-
-    QVector<QVariant> args;
-
-    for (int i = 1; i < argc; i++) {
-        args << VALUE2Variant(argv[i]);
-    }
-
-    const QMetaObject * mo = NULL;
-    // YaQString ystr;
-    // mo = ystr.metaObject();
-    // qDebug()<<"ycall:"<<ystr.append("123");
-    
-    QString msig = "append(";
-    for (int i = 1; i < argc; i++) {
-        msig += QString(args[i-1].typeName());
-        if (i < argc - 1) msig += ",";
-    }
-    msig += ")";
-    // no space allowed in msig string. also no ref char &, but have const keyword.but dont need return value
-    msig = "append(const char*)";
-    qDebug()<<"method sig:"<<msig << mo->indexOfMethod(msig.toLatin1().data());
-
-    for (int i = 0; i < mo->methodCount(); i++) {
-        QMetaMethod mi = mo->method(i);
-        qDebug()<< i<< mo->method(i).methodSignature()
-                <<mi.returnType()
-                <<QMetaObject::checkConnectArgs(msig.toLatin1().data(), mi.methodSignature());
-    }
-
-
-    if (method_name == "append") {
-        switch (argc - 1) {
-            // case 1: ci->append(VOValue(args[0])); break;
-            // callrr(ci, method_name.toLatin1().data(), VOValue(args[0]));
-            // case 2: ci->append(VOValue(args[0]), VOValue(args[1])); break;
-        default:
-            break;
-        }
-    }
-
-    
-    if (method_name == "length") {
-        int len = std::bind(&QString::length, ci)();
-        qDebug()<<method_name<<"=>"<<len;
-        return rb_int2inum(len);
-    }
-
-
-    // void **pfun = Qom::inst()->getfp(klass_name, method_name);
-    // assert(pfun != NULL);
-
-    // qDebug()<<pfun;
-
-
-    QString pieceCode = "";
-
-    pieceCode += klass_name+"::"+"append(";
-    for (int i = 1; i < argc; i++) {
-        switch (TYPE(argv[i])) {
-        case T_FIXNUM:
-            pieceCode += "int ";
-            break;
-        case T_STRING:
-            pieceCode += "const char * " + QString(RSTRING_PTR(argv[i])) + ",";
-            break;
-        }
-    }
-    if (pieceCode.at(pieceCode.length() - 1) == ',') 
-        pieceCode = pieceCode.left(pieceCode.length() - 1);
-    pieceCode += ");";
-
-
-    qDebug()<<"auto gen code:" << pieceCode;
-
-    // std::function<void()> ftor = std::bind(*pfun, ci);
-    // ftor();
-    // ci->*(*pfun)();
-    // int (QString::*p)() const = (int (QString::*)())(*pfun);
-
-    for (int i = 0; i < argc; i++) {
-        qDebug()<<__FUNCTION__<<TYPE(argv[i]);
-        switch (TYPE(argv[i])) {
-        case T_STRING:
-            qDebug()<<i<<"is string:"<<RSTRING_PTR(argv[i]);
-            break;
-        case T_SYMBOL:
-            qDebug()<<i<<"is symbol:"<<rb_id2name(SYM2ID(argv[i]));
-            break;
-        case T_FIXNUM:
-            qDebug()<<i<<"is num:"<<FIX2INT(argv[i]);
-            break;
-        default:
-            qDebug()<<__FUNCTION__<<i<<",unknown arg type:"<<TYPE(argv[i]);
-            break;
-        }
-    }
-
-    // typeid(ci);
-
-    qDebug()<<__FUNCTION__<<TYPE(self)<<TYPE(argv[0])<<argc;
-    // qDebug()<<"'"<<rb_id2name(argv[0])<<"'";
-
-    // Qom::inst()->testParser();
-    Qom::inst()->testIR();
-
-    if (0) {
-    QString methodName = "startsWith";
-    QString str = "rubyoo afwefafe";
-
-    QLibrary core("/usr/lib/libQt5Core.so");
-    QFunctionPointer fsym = core.resolve(methodName.toLatin1().data());
-    }
-
-    // bool t = fsym()(&str, "ruby");
-    // qDebug()<<fsym<<t;
-
-
-    if (0) {
-         str.methodName(args);
-         bind(fsym, &str);
-         QVariant ret = std::bind(&QString::methodName, &str, _1, _2, _3 ...)();
-         return ret;
-      }
-    
-
-
-
-    return Qnil;
-}
-*/
 
 // like class's static method
 [[deprecated("pregen proto not needed now")]]
@@ -1487,8 +999,8 @@ static ConnectProxy gcp;
 static VALUE x_Qt_connectrb(int argc, VALUE* argv, VALUE self)
 {
     if (argc == 4) {
-        QVariant vqobj = VALUE2Variant(argv[1]);
-        QVariant vsignal = VALUE2Variant(argv[2]);
+        QVariant vqobj = MarshallRuby::VALUE2Variant(argv[1]);
+        QVariant vsignal = MarshallRuby::VALUE2Variant(argv[2]);
         QString signal = vsignal.toString();
         QString rsignal = QString("2%1").arg(signal); // real signal
         auto qobj = (QObject*)(vqobj.value<void*>());
@@ -1521,8 +1033,8 @@ static VALUE x_Qt_connectrb(int argc, VALUE* argv, VALUE self)
         auto cid = connpxy->addConnection(conn);
     }
     else if (argc == 5) {
-        QVariant vqobj = VALUE2Variant(argv[1]);
-        QVariant vsignal = VALUE2Variant(argv[2]);
+        QVariant vqobj = MarshallRuby::VALUE2Variant(argv[1]);
+        QVariant vsignal = MarshallRuby::VALUE2Variant(argv[2]);
         QString signal = vsignal.toString();
         QString rsignal = QString("2%1").arg(signal); // real signal
         auto qobj = (QObject*)(vqobj.value<void*>());
@@ -1749,7 +1261,7 @@ static VALUE x_Qt_Method_missing(int argc, VALUE* argv, VALUE self)
     qDebug()<<argc<<TYPE(self); // == 3(T_MODULE)
     // RSTRING_PTR(argv[0]);
     for (int i = 0; i < argc; i ++) {
-        qDebug()<<i<<TYPE(argv[i])<<VALUE2Variant(argv[i]);
+        qDebug()<<i<<TYPE(argv[i])<<MarshallRuby::VALUE2Variant(argv[i]);
     }
     // argv[0] is method symbol
     // argv[1] is method arg0
@@ -1813,35 +1325,6 @@ extern "C" {
 
         // 所有Qt类的initialize, method_missing, const_missing函数注册
         register_qtruby_classes(cModuleQt);
-
-        // register_QCoreApplication_methods(cModuleQt);
-        // register_qtcore_methods(cModuleQt);
-        // register_qtnetwork_methods(cModuleQt);
-
-        // cQByteArray = rb_define_class("QByteArray", rb_cObject);
-        // rb_define_method(cQByteArray, "initialize", FUNVAL x_QByteArray_init, 0);
-
-        // cQThread = rb_define_class("QThread", rb_cObject);
-        // rb_define_method(cQThread, "initializer", FUNVAL x_QThread_init, 0);
-
-        // cQWidget = rb_define_class("QWidget", rb_cObject);
-        // rb_define_method(cQWidget, "initialize", FUNVAL x_QWidget_init, 0);
-
-
-        // 
-        /*
-        cQString = rb_define_class("QString", rb_cObject);
-        rb_define_method(cQString, "initialize", (VALUE (*) (...)) x_QString_init, 0);
-        // rb_define_method(cQString, "append", (VALUE (*) (...)) x_QString_append, 1);
-        rb_define_method(cQString, "to_s", (VALUE (*) (...)) x_QString_to_s, 0);
-        rb_define_method(cQString, "method_missing", FUNVAL x_QString_method_missing, -1);
-        */
-
-        // 
-        // cQApplication = rb_define_class("QApplication", rb_cObject);
-        // rb_define_method(cQApplication, "initialize", FUNVAL x_QApplication_init, 0);
-        // rb_define_method(cQApplication, "exec", FUNVAL x_QApplication_exec, 0);
-
     }
 
 };// end extern "C"

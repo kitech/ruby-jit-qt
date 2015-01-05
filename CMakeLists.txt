@@ -66,6 +66,7 @@ set(handby_lib_SRCS
     clvm_operator.cpp
     clvm.cpp
     namelookup.cpp
+    callargument.cpp
     invokestorage.cpp
 #   metalize/metar_qt.cpp
 #  metalize/metar_classes_qtcore.cpp
@@ -128,6 +129,5 @@ qt5_use_modules(handby Core Gui Widgets Network WebSockets)
 # qt5_use_modules(ehandby Core Gui Widgets Network WebSockets)
 
 # add_subdirectory(demos)
-# add_subdirectory(uitools/uic)
 #add_subdirectory(uitools/rcc)
 add_subdirectory(uitools/rbuic)
