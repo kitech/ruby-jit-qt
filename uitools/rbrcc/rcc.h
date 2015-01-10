@@ -1,165 +1,152 @@
 /****************************************************************************
 **
-** Copyright (C) 1992-2006 Trolltech AS. All rights reserved.
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
+** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of the tools applications of the Qt Toolkit.
 **
-** This file may be used under the terms of the GNU General Public
-** License version 2.0 as published by the Free Software Foundation
-** and appearing in the file LICENSE.GPL included in the packaging of
-** this file.  Please review the following information to ensure GNU
-** General Public Licensing requirements will be met:
-** http://www.trolltech.com/products/qt/opensource.html
+** $QT_BEGIN_LICENSE:LGPL21$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and Digia. For licensing terms and
+** conditions see http://qt.digia.com/licensing. For further information
+** use the contact form at http://qt.digia.com/contact-us.
 **
-** If you are unsure which license is appropriate for your use, please
-** review the following information:
-** http://www.trolltech.com/products/qt/licensing.html or contact the
-** sales department at sales@trolltech.com.
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
-** WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+** In addition, as a special exception, Digia gives you certain additional
+** rights. These rights are described in the Digia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
+
+// Note: A copy of this file is used in Qt Designer (qttools/src/designer/src/lib/shared/rcc_p.h)
 
 #ifndef RCC_H
 #define RCC_H
 
-#include <QtCore/QStringList>
-#include <QtCore/QFileInfo>
-#include <QtCore/QLocale>
-#include <QtCore/QHash>
-#include <QtCore/QString>
+#include <qstringlist.h>
+#include <qhash.h>
+#include <qstring.h>
 
-#define TAG_RCC "RCC"
-#define TAG_RESOURCE "qresource"
-#define TAG_FILE "file"
+QT_BEGIN_NAMESPACE
 
-#define ATTRIBUTE_LANG "lang"
-#define ATTRIBUTE_PREFIX "prefix"
-#define ATTRIBUTE_ALIAS "alias"
-#define ATTRIBUTE_THRESHOLD "threshold"
-#define ATTRIBUTE_COMPRESS "compress"
+class RCCFileInfo;
+class QIODevice;
+class QTextStream;
 
-#define CONSTANT_HEADER_SIZE 8
-#define CONSTANT_COMPRESSLEVEL_DEFAULT 0
-#define CONSTANT_COMPRESSTHRESHOLD_DEFAULT 70
-
-struct RCCFileInfo;
 
 class RCCResourceLibrary
 {
+    RCCResourceLibrary(const RCCResourceLibrary &);
+    RCCResourceLibrary &operator=(const RCCResourceLibrary &);
+
 public:
-    inline RCCResourceLibrary();
+    RCCResourceLibrary();
     ~RCCResourceLibrary();
 
-    bool output(FILE *out);
+    bool output(QIODevice &outDevice, QIODevice &tempDevice, QIODevice &errorDevice);
 
-    bool readFiles(bool ignoreErrors=false);
+    bool readFiles(bool ignoreErrors, QIODevice &errorDevice);
 
-    enum Format { Binary, C_Code };
-    inline void setFormat(Format f) { mFormat = f; }
-    inline Format format() const { return mFormat; }
+    enum Format { Binary, C_Code, Pass1, Pass2 };
+    void setFormat(Format f) { m_format = f; }
+    Format format() const { return m_format; }
 
-    inline void setInputFiles(QStringList files) { mFileNames = files; }
-    inline QStringList inputFiles() const { return mFileNames; }
+    void setInputFiles(const QStringList &files) { m_fileNames = files; }
+    QStringList inputFiles() const { return m_fileNames; }
 
     QStringList dataFiles() const;
 
-    inline void setVerbose(bool b) { mVerbose = b; }
-    inline bool verbose() const { return mVerbose; }
+    // Return a map of resource identifier (':/newPrefix/images/p1.png') to file.
+    typedef QHash<QString, QString> ResourceDataFileMap;
+    ResourceDataFileMap resourceDataFileMap() const;
 
-    inline void setInitName(const QString &n) { mInitName = n; }
-    inline QString initName() const { return mInitName; }
+    void setVerbose(bool b) { m_verbose = b; }
+    bool verbose() const { return m_verbose; }
 
-    inline void setCompressLevel(int c) { mCompressLevel = c; }
-    inline int compressLevel() const { return mCompressLevel; }
+    void setInitName(const QString &name) { m_initName = name; }
+    QString initName() const { return m_initName; }
 
-    inline void setCompressThreshold(int t) { mCompressThreshold = t; }
-    inline int compressThreshold() const { return mCompressThreshold; }
+    void setOutputName(const QString &name) { m_outputName = name; }
+    QString outputName() const { return m_outputName; }
 
-    inline void setResourceRoot(QString str) { mResourceRoot = str; }
-    inline QString resourceRoot() const { return mResourceRoot; }
+    void setCompressLevel(int c) { m_compressLevel = c; }
+    int compressLevel() const { return m_compressLevel; }
+
+    void setCompressThreshold(int t) { m_compressThreshold = t; }
+    int compressThreshold() const { return m_compressThreshold; }
+
+    void setResourceRoot(const QString &root) { m_resourceRoot = root; }
+    QString resourceRoot() const { return m_resourceRoot; }
+
+    void setUseNameSpace(bool v) { m_useNameSpace = v; }
+    bool useNameSpace() const { return m_useNameSpace; }
+
+    QStringList failedResources() const { return m_failedResources; }
 
 private:
-    RCCFileInfo *root;
-    bool addFile(const QString &alias, const RCCFileInfo &file);
-    bool interpretResourceFile(QIODevice *inputDevice, QString file, QString currentPath = QString(), bool ignoreErrors = false);
-
-    bool writeHeader(FILE *out);
-    bool writeDataBlobs(FILE *out);
-    bool writeDataNames(FILE *out);
-    bool writeDataStructure(FILE *out);
-    bool writeInitializer(FILE *out);
-
-    QStringList mFileNames;
-    QString mResourceRoot, mInitName;
-    Format mFormat;
-    bool mVerbose;
-    int mCompressLevel;
-    int mCompressThreshold;
-    int mTreeOffset, mNamesOffset, mDataOffset;
-};
-
-inline RCCResourceLibrary::RCCResourceLibrary()
-{
-    root = 0;
-    mVerbose = false;
-    mFormat = C_Code;
-    mCompressLevel = -1;
-    mCompressThreshold = 70;
-    mTreeOffset = mNamesOffset = mDataOffset = 0;
-}
-
-struct RCCFileInfo
-{
-    enum Flags
-    {
-        NoFlags = 0x00,
-        Compressed = 0x01,
-        Directory = 0x02
+    struct Strings {
+        Strings();
+        const QString TAG_RCC;
+        const QString TAG_RESOURCE;
+        const QString TAG_FILE;
+        const QString ATTRIBUTE_LANG;
+        const QString ATTRIBUTE_PREFIX;
+        const QString ATTRIBUTE_ALIAS;
+        const QString ATTRIBUTE_THRESHOLD;
+        const QString ATTRIBUTE_COMPRESS;
     };
+    friend class RCCFileInfo;
+    void reset();
+    bool addFile(const QString &alias, const RCCFileInfo &file);
+    bool interpretResourceFile(QIODevice *inputDevice, const QString &file,
+        QString currentPath = QString(), bool ignoreErrors = false);
+    bool writeHeader();
+    bool writeDataBlobs();
+    bool writeDataNames();
+    bool writeDataStructure();
+    bool writeInitializer();
+    void writeMangleNamespaceFunction(const QByteArray &name);
+    void writeAddNamespaceFunction(const QByteArray &name);
+    void writeHex(quint8 number);
+    void writeNumber2(quint16 number);
+    void writeNumber4(quint32 number);
+    void writeChar(char c) { m_out.append(c); }
+    void writeByteArray(const QByteArray &);
+    void write(const char *, int len);
 
-    inline RCCFileInfo(QString name = QString(), QFileInfo fileInfo = QFileInfo(),
-                       QLocale::Language language = QLocale::C, 
-                       QLocale::Country country = QLocale::AnyCountry,
-                       uint flags = NoFlags,
-                       int compressLevel = CONSTANT_COMPRESSLEVEL_DEFAULT, int compressThreshold = CONSTANT_COMPRESSTHRESHOLD_DEFAULT);
-    ~RCCFileInfo() { qDeleteAll(children); }
-    inline QString resourceName() {
-        QString resource = name;
-        for(RCCFileInfo *p = parent; p; p = p->parent)
-            resource = resource.prepend(p->name + "/");
-        return ":" + resource;
-    }
-
-    int flags;
-    QString name;
-    QLocale::Language language;
-    QLocale::Country country;
-    QFileInfo fileInfo;
-    RCCFileInfo *parent;
-    QHash<QString, RCCFileInfo*> children;
-    int mCompressLevel;
-    int mCompressThreshold;
-
-    qint64 nameOffset, dataOffset, childOffset;
-    qint64 writeDataBlob(FILE *out, qint64 offset, RCCResourceLibrary::Format format);
-    qint64 writeDataName(FILE *out, qint64 offset, RCCResourceLibrary::Format format);
-    bool   writeDataInfo(FILE *out, RCCResourceLibrary::Format format);
+    const Strings m_strings;
+    RCCFileInfo *m_root;
+    QStringList m_fileNames;
+    QString m_resourceRoot;
+    QString m_initName;
+    QString m_outputName;
+    Format m_format;
+    bool m_verbose;
+    int m_compressLevel;
+    int m_compressThreshold;
+    int m_treeOffset;
+    int m_namesOffset;
+    int m_dataOffset;
+    bool m_useNameSpace;
+    QStringList m_failedResources;
+    QIODevice *m_errorDevice;
+    QIODevice *m_outDevice;
+    QByteArray m_out;
 };
 
-inline RCCFileInfo::RCCFileInfo(QString name, QFileInfo fileInfo, QLocale::Language language, QLocale::Country country, uint flags,
-                                int compressLevel, int compressThreshold)
-{
-    this->name = name;
-    this->fileInfo = fileInfo;
-    this->language = language;
-    this->country = country;
-    this->flags = flags;
-    this->parent = 0;
-    this->nameOffset = this->dataOffset = this->childOffset = 0;
-    this->mCompressLevel = compressLevel;
-    this->mCompressThreshold = compressThreshold;
-}
+QT_END_NAMESPACE
 
 #endif // RCC_H
