@@ -7,8 +7,40 @@
 #include <clang/Sema/Sema.h>
 #include <clang/Sema/Lookup.h>
 #include <clang/Frontend/ASTUnit.h>
+#include <clang/Basic/IdentifierTable.h>
 
 #include "frontengine.h"
+
+bool test_code()
+{
+    // 这个函数生成的II能否用于namelookup呢？
+    auto str2ii = [](QString name) -> clang::IdentifierInfo * {
+        std::string xname = name.toStdString();
+        llvm::StringRef rname(xname);
+
+        clang::LangOptions opts;
+        auto *idt = new clang::IdentifierTable(opts);
+        auto &II = idt->getOwn(rname);
+
+        llvm::StringRef sname = II.getName();
+        qDebug()<<sname.str().c_str();
+        idt->PrintStats();
+
+        return &II; // unsafe
+        return NULL;
+    };
+
+    auto str2dn = [&](QString name) -> clang::DeclarationName {
+        clang::IdentifierInfo *II = NULL;
+
+        II = str2ii(name);
+        assert(II->getName().str() == name.toStdString());
+        clang::DeclarationName dn(II);
+        return dn;
+    };
+    
+    return true;
+}
 
 bool nlu_find_method(FrontEngine *fe, QString method, clang::CXXRecordDecl *rd)
 {
@@ -16,6 +48,7 @@ bool nlu_find_method(FrontEngine *fe, QString method, clang::CXXRecordDecl *rd)
     auto unit = fe->getASTUnit();
     auto &sema = unit->getSema();    
 
+    
     //
     method = "arg";
     

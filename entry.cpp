@@ -1307,7 +1307,7 @@ extern "C" {
     // VALUE cQApplication;
     VALUE cModuleQt;
     
-    void Init_handby()
+    void Init_handby000()
     {
         qInstallMessageHandler(myMessageOutput);
 
