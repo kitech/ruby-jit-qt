@@ -52,7 +52,7 @@ set(handby_lib_SRCS
 #  llvm-3.5.0.src/tools/clang/lib/CodeGen/CodeGenModule.cpp
 #  llvm-3.5.0.src/tools/clang/lib/CodeGen/CodeGenFunction.cpp
     extinit.cpp
-    rubyinit.cpp
+    ruby/rubyinit.cpp
     ruby_cxx.cpp
     marshallruby.cpp
     connectruby.cpp
