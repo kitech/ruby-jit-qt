@@ -3,6 +3,7 @@
 #include "ctrlengine.h"
 #include "marshallruby.h"
 #include "callargument.h"
+#include "connectruby.h"
 
 #include "utils.h"
 #include "ruby_cxx.h"
@@ -177,6 +178,10 @@ VALUE RubyInit::Qt_method_missing(int argc, VALUE* argv, VALUE self)
     QString method_name = rb_id2name(SYM2ID(argv[0]));
     qDebug()<<method_name;
 
+    if (method_name.indexOf("connect") >= 0) {
+        ConnectAny *conn = ConnectFactory::create(argc, argv, self);
+        return Qnil;
+    }
     /*
     // Qt5::connectrb    
     if (method_name == "connectrb") {

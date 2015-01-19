@@ -29,7 +29,7 @@ find_package(Qt5WebSockets)
 
 find_package(Ruby)
 message("ruby?? ${RUBY_FOUND}, ${RUBY_INCLUDE_DIRS}, ${RUBY_LIBRARY}")
-include_directories(${RUBY_INCLUDE_DIRS})
+include_directories(${RUBY_INCLUDE_DIRS} ${Qt5Core_PRIVATE_INCLUDE_DIRS})
 
 exec_program(llvm-config ARGS --cxxflags 
   OUTPUT_VARIABLE CLANG_CXXFLAGS_OUTPUT RETURN_VALUE CLANG_CXXFLAGS_VALUE)

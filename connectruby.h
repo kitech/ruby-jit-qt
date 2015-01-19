@@ -10,10 +10,10 @@ class ConnectAny : public QObject
     Q_OBJECT;
 public:
     enum {
-        CONN_QT_TO_QT = 0,
-        CONN_QT_TO_RUBY = 1,
-        CONN_RUBY_TO_RUBY = 2,
-        CONN_RUBY_TO_QT = 3,
+        CONN_QT_TO_QT = 1,
+        CONN_QT_TO_RUBY = 2,
+        CONN_RUBY_TO_RUBY = 3,
+        CONN_RUBY_TO_QT = 4,
     };
 
 public:
@@ -30,6 +30,10 @@ protected:
     QString m_slot_name;
 };
 
+/*
+  使用Qt的QueuedConnection机制，把所有的metacall转换成QEvent::metaCall
+  这样会减慢信号速度，但最好是能很好地解决rb<=>qt间的信号互通问题。
+ */
 class RubyConnectRuby : public ConnectAny
 {
     Q_OBJECT;
@@ -54,6 +58,7 @@ public:
     ID m_slot_id;
 };
 
+class QMetaCallEvent;
 class QtConnectRuby : public ConnectAny
 {
     Q_OBJECT;
@@ -67,6 +72,15 @@ public:
         m_receiver = receiver;
         m_slot = slot;
     }
+
+    QtConnectRuby(QObject *sender, QString signal, VALUE slot)
+        : QtConnectRuby() {
+        m_sender = sender;
+        m_signal = signal;
+        
+        m_slot = slot;
+    }
+    
     virtual void call(int argc, const VALUE *argv);
     
     QObject *m_sender;
@@ -75,6 +89,13 @@ public:
     VALUE m_receiver;
     VALUE m_slot;
     ID m_slot_id;
+    
+    QMetaObject::Connection qtconn;
+    QMetaCallEvent *mcevt = NULL;
+public:
+    virtual bool eventFilter(QObject * watched, QEvent * event);
+public slots:
+    void router();
 };
 
 class RubyConnectQt : public ConnectAny
@@ -122,6 +143,15 @@ public:
 
     //
     QMetaObject::Connection m_qt_conn;
+};
+
+/*
+  根据参数，识别是哪种connect，并且创建适当的xxConnectxx实例
+ */
+class ConnectFactory
+{
+public:
+    static ConnectAny *create(int argc, VALUE *argv, VALUE obj);
 };
 
 #endif /* CONNECTRUBY_H */
