@@ -141,3 +141,31 @@ QVector<QVariant> MarshallRuby::ARGV2Variant(int argc, VALUE *argv, int start)
     return args;
 }
 
+// static
+VALUE MarshallRuby::Variant2VALUE(void *v, int type)
+{
+    VALUE obj = Qom::inst()->getObject(v);
+    if (obj != 0) {
+        return obj;
+    }
+
+    int pty = type;
+    void *arg = v;
+
+    VALUE rv = Qnil;
+    qDebug()<<arg<<pty<<QString(QMetaType::typeName(pty));
+    switch(pty) {
+    case QMetaType::QString: {
+        QString s(*(QString*)arg);
+        qDebug()<<s;
+        qDebug()<<Qom::inst()->getObject(arg)<<Qnil;
+        rv = rb_str_new2(((QString*)arg)->toLatin1().data());
+    } break;
+    default:
+        qDebug()<<"unknown type:"<<pty<<QString(QMetaType::typeName(pty));
+        break;
+    }
+
+    return rv;
+}
+

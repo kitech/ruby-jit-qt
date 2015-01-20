@@ -10,6 +10,7 @@ class ConnectAny : public QObject
     Q_OBJECT;
 public:
     enum {
+        CONN_NONE = 0,
         CONN_QT_TO_QT = 1,
         CONN_QT_TO_RUBY = 2,
         CONN_RUBY_TO_RUBY = 3,
@@ -50,12 +51,12 @@ public:
 
     virtual void call(int argc, const VALUE *argv);    
     
-    VALUE m_sender;
-    VALUE m_signal;
+    VALUE m_sender = 0;
+    VALUE m_signal = 0;
 
-    VALUE m_receiver;
-    VALUE m_slot;
-    ID m_slot_id;
+    VALUE m_receiver = 0;
+    VALUE m_slot = 0;
+    ID m_slot_id = 0;
 };
 
 class QMetaCallEvent;
@@ -70,25 +71,28 @@ public:
         m_signal = signal;
         
         m_receiver = receiver;
+        m_slot_id = SYM2ID(slot);
         m_slot = slot;
     }
 
-    QtConnectRuby(QObject *sender, QString signal, VALUE slot)
+    QtConnectRuby(QObject *sender, QString signal, VALUE lambda)
         : QtConnectRuby() {
         m_sender = sender;
         m_signal = signal;
-        
-        m_slot = slot;
+
+        m_receiver = lambda; // blk,lamba,proc
+        m_slot_id = rb_intern("call");
+        m_slot = ID2SYM(m_slot_id);   
     }
     
     virtual void call(int argc, const VALUE *argv);
     
-    QObject *m_sender;
+    QObject *m_sender = NULL;
     QString m_signal;
 
-    VALUE m_receiver;
-    VALUE m_slot;
-    ID m_slot_id;
+    VALUE m_receiver = 0;
+    VALUE m_slot = 0;
+    ID m_slot_id = 0;
     
     QMetaObject::Connection qtconn;
     QMetaCallEvent *mcevt = NULL;
@@ -113,10 +117,10 @@ public:
     }
     virtual void call(int argc, const VALUE *argv);
     
-    VALUE m_sender;
-    VALUE m_signal;
+    VALUE m_sender = 0;
+    VALUE m_signal = 0;
 
-    QObject *m_receiver;
+    QObject *m_receiver = NULL;
     QString m_slot;
 };
 
@@ -135,10 +139,10 @@ public:
     }
     virtual void call(int argc, const VALUE *argv);
     
-    QObject *m_sender;
+    QObject *m_sender = NULL;
     QString m_signal;
     
-    QObject *m_receiver;
+    QObject *m_receiver = NULL;
     QString m_slot;
 
     //

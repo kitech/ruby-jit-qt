@@ -67,9 +67,13 @@ ret = require "#{a}/test_init.rb"
 def test_qtsignal()
     puts 'aaaaaaaa'
     app = Qt5::QApplication.new(ARGV.count, ARGV)
-    tmer = Qt5::QTimer.new
-    Qt5::qtconnectrb(tmer, 'timeout()', Proc.new{|| puts 'Proc slot invoked....'})
-    tmer.start(2000)
+    #tmer = Qt5::QTimer.new
+    #Qt5::qtconnectrb(tmer, 'timeout()', Proc.new{|| puts 'Proc slot invoked....'})
+    #tmer.start(2000)
+    obj = Qt5::QObject.new
+    Qt5::qtconnectrb(obj, 'objectNameChanged(const QString &)',
+                     Proc.new{|s| puts 'Proc slot invoked....'+s})
+    obj.setObjectName('abcdefg')
 
     app.exec()
 end

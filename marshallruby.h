@@ -26,7 +26,9 @@ public:
     static QVector<QVariant> VALUE2Variant2(VALUE v);
 
     static QVector<QVariant> ARGV2Variant(int argc, VALUE *argv, int start = 0);
-    
+
+    // @param v QMetaCallEvent->args()[n]
+    static VALUE Variant2VALUE(void *v, int type);
 };
 
 
