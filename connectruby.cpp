@@ -96,6 +96,31 @@ void QtConnectQt::call(int argc, const VALUE *argv)
     qDebug()<<argc<<"not impled";
 }
 
+bool QtConnectQt::eventFilter(QObject * watched, QEvent * event)
+{
+    if (event->type() == QEvent::MetaCall) {
+        qDebug()<<"evvvvvvvvvvvvtttt"<<watched<<event;
+        QMetaCallEvent *evt = (QMetaCallEvent*)event;
+        qDebug()<<"meta cal evt:"<<evt<<evt->args();
+        this->mcevt = evt;
+    }
+    return false;
+}
+
+void QtConnectQt::router()
+{
+    qDebug()<<"hereeeeeeee"<<this->mcevt;
+    qDebug()<<this->m_sender<<this->m_signal<<this->m_receiver<<this->m_slot;
+    
+    assert(this->mcevt != NULL);
+    assert(this->m_sender == sender());
+
+    qDebug()<<"meta calling qt slot...";
+    this->mcevt->placeMetaCall(this->m_receiver); // faild
+    // int ret = QMetaObject::metacall(this->m_receiver, QMetaObject::InvokeMetaMethod, mcevt->id(), mcevt->args());
+    // qDebug()<<"meta call:"<<ret;
+}
+
 ////
 // static
 ConnectAny *ConnectFactory::create(int argc, VALUE *argv, VALUE obj)
@@ -121,6 +146,27 @@ ConnectAny *ConnectFactory::create(int argc, VALUE *argv, VALUE obj)
         QMetaObject::Connection qtconn =
             QObject::connect(sender, rsignal.toLatin1().data(), xconn, SLOT(router()), Qt::QueuedConnection);
         xconn->installEventFilter(xconn); // ahaha, niubeee
+
+        xconn->qtconn = qtconn;
+        conn = xconn;
+    }
+
+    else if (method_name == "qtconnectqt") {
+        QObject *sender = (QObject*)Qom::inst()->getObject(argv[1]);
+        QVariant vsignal = MarshallRuby::VALUE2Variant(argv[2]);
+        QString signal = vsignal.toString();
+        QString rsignal = QString("2%1").arg(signal); // real signal
+
+        QObject *receiver = (QObject*)Qom::inst()->getObject(argv[3]);
+        QVariant vslot = MarshallRuby::VALUE2Variant(argv[4]);
+        QString slot = vslot.toString();
+        QString rslot = QString("1%1").arg(slot);
+
+        QtConnectQt *xconn = new QtConnectQt(sender, rsignal, receiver, rslot);
+        QMetaObject::Connection qtconn =
+            // QObject::connect(sender, rsignal.toLatin1().data(), xconn, SLOT(router()), Qt::QueuedConnection);
+            QObject::connect(sender, rsignal.toLatin1().data(), receiver, rslot.toLatin1().data(), Qt::QueuedConnection);
+        xconn->installEventFilter(xconn);
 
         xconn->qtconn = qtconn;
         conn = xconn;

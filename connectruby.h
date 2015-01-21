@@ -147,6 +147,12 @@ public:
 
     //
     QMetaObject::Connection m_qt_conn;
+    QMetaObject::Connection qtconn;
+    QMetaCallEvent *mcevt = NULL;
+public:
+    virtual bool eventFilter(QObject * watched, QEvent * event);
+public slots:
+    void router();
 };
 
 /*
