@@ -46,7 +46,18 @@ public:
         m_signal = signal;
         
         m_receiver = receiver;
+        m_slot_id = SYM2ID(slot);
         m_slot = slot;
+    }
+
+    RubyConnectRuby(VALUE sender, VALUE signal, VALUE receiver)
+        : RubyConnectRuby() {
+        m_sender = sender;
+        m_signal = signal;
+        
+        m_receiver = receiver;
+        m_slot_id = rb_intern("call");
+        m_slot = ID2SYM(m_slot_id);
     }
 
     virtual void call(int argc, const VALUE *argv);    

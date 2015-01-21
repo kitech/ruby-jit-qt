@@ -121,6 +121,7 @@ void QtConnectQt::router()
     // qDebug()<<"meta call:"<<ret;
 }
 
+////////////////////////
 ////
 // static
 ConnectAny *ConnectFactory::create(int argc, VALUE *argv, VALUE obj)
@@ -170,6 +171,14 @@ ConnectAny *ConnectFactory::create(int argc, VALUE *argv, VALUE obj)
 
         xconn->qtconn = qtconn;
         conn = xconn;
+    }
+
+    else if (method_name == "rbconnectrb") {
+        
+    }
+
+    else if (method_name == "rbconnectqt") {
+
     }
     
     /*
