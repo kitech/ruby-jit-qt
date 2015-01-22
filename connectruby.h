@@ -31,6 +31,7 @@ protected:
     QString m_slot_name;
 };
 
+class QMetaCallEvent;
 /*
   使用Qt的QueuedConnection机制，把所有的metacall转换成QEvent::metaCall
   这样会减慢信号速度，但最好是能很好地解决rb<=>qt间的信号互通问题。
@@ -68,9 +69,17 @@ public:
     VALUE m_receiver = 0;
     VALUE m_slot = 0;
     ID m_slot_id = 0;
+
+    QMetaObject::Connection qtconn;
+    QMetaCallEvent *mcevt = NULL;
+public:
+    virtual bool eventFilter(QObject * watched, QEvent * event);
+public slots:
+    void router(int argc, VALUE *argv, VALUE obj);  
+signals:
+    void invoked(int argc, VALUE *argv, VALUE obj);
 };
 
-class QMetaCallEvent;
 class QtConnectRuby : public ConnectAny
 {
     Q_OBJECT;
@@ -173,6 +182,7 @@ class ConnectFactory
 {
 public:
     static ConnectAny *create(int argc, VALUE *argv, VALUE obj);
+    static ConnectAny *create_rbconnectrb(int argc, VALUE *argv, VALUE obj);
 };
 
 #endif /* CONNECTRUBY_H */

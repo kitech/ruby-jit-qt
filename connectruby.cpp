@@ -29,6 +29,24 @@ void RubyConnectRuby::call(int argc, const VALUE *argv)
     this->call_ruby(argc, argv);
 }
 
+bool RubyConnectRuby::eventFilter(QObject * watched, QEvent * event)
+{
+    if (event->type() == QEvent::MetaCall) {
+        qDebug()<<"evvvvvvvvvvvvtttt"<<watched<<event;
+        QMetaCallEvent *evt = (QMetaCallEvent*)event;
+        qDebug()<<"meta cal evt:"<<evt<<evt->args();
+        this->mcevt = evt;
+    }
+    return false;    
+}
+
+void RubyConnectRuby::router(int argc, VALUE *argv, VALUE obj)
+{
+    qDebug()<<"invoked..."<<argc<<argv<<obj;
+    this->call_ruby(argc, argv);
+}
+
+
 void QtConnectRuby::call(int argc, const VALUE *argv)
 {
     this->call_ruby(argc, argv);
@@ -174,7 +192,8 @@ ConnectAny *ConnectFactory::create(int argc, VALUE *argv, VALUE obj)
     }
 
     else if (method_name == "rbconnectrb") {
-        
+        conn = ConnectFactory::create_rbconnectrb(argc, argv, obj);
+        assert(conn != NULL);
     }
 
     else if (method_name == "rbconnectqt") {
@@ -213,3 +232,68 @@ ConnectAny *ConnectFactory::create(int argc, VALUE *argv, VALUE obj)
     return conn;
 }
 
+// for rb signal ==> rb slot
+// signature1 Qt5::rbconnectrb(sobj, signal, robj, slot);
+// signature2 Qt5::rbconnectrb(sobj, signal, Proc|Block|Lambda)
+// TODO signature3 robj.rbconnectrb(sobj, signal, slot)
+ConnectAny *ConnectFactory::create_rbconnectrb(int argc, VALUE *argv, VALUE obj)
+{
+    ConnectAny *conn = NULL;
+
+    QString method_name = rb_id2name(SYM2ID(argv[0]));
+    qDebug()<<method_name<<argc;
+
+    qDebug()<<argc;
+    // QString klass_name = get_rb_class(argv[1]);
+    QString method_signature = RSTRING_PTR(argv[2]);
+    QString signal_name = method_signature.split('(').at(0);
+
+    if (argc < 3 || argc > 5) {
+        qDebug()<<rb_block_given_p();
+        qDebug()<<"parameter not match. need 3 to 5, given:"<<argc;
+        return NULL;
+    }
+
+    // signature 2, block
+    if (argc == 3 && rb_block_given_p()) {
+        VALUE pblk = rb_block_proc(); // ok 
+        VALUE lblk = rb_block_lambda(); // ok
+
+        RubyConnectRuby *xconn = new RubyConnectRuby(argv[1], argv[2], lblk);
+        QMetaObject::Connection qtconn =
+            QObject::connect(xconn, SIGNAL(invoked(int, VALUE*, VALUE)), xconn, SLOT(route(int, VALUE*, VALUE)), Qt::QueuedConnection);
+        xconn->qtconn = qtconn;
+        xconn->installEventFilter(xconn);
+        conn = xconn;
+    } else if (argc == 3 && !rb_block_given_p()) {
+        qDebug()<<"need a block here.";
+        return NULL;
+    }
+    
+    // signature 2, proc,lambda
+    // qDebug()<<argc<<TYPE(argv[3])<<(TYPE(argv[3]) == T_DATA);
+    // qDebug()<<RTYPEDDATA_P(argv[3])<<(RBASIC_CLASS(argv[3]) == rb_cProc);
+    else if (argc == 4 && RBASIC_CLASS(argv[3]) == rb_cProc) {
+        RubyConnectRuby *xconn = new RubyConnectRuby(argv[1], argv[2], argv[3]);
+        QMetaObject::Connection qtconn =
+            QObject::connect(xconn, SIGNAL(invoked(int, VALUE*, VALUE)), xconn, SLOT(route(int, VALUE*, VALUE)), Qt::QueuedConnection);
+        xconn->qtconn = qtconn;
+        xconn->installEventFilter(xconn);
+        conn = xconn;
+    } else if (argc == 4 && RBASIC_CLASS(argv[3]) != rb_cProc) {
+        qDebug()<<"need a proc or lambda here.";
+        return NULL;
+    }
+
+    // else, standard signature 1
+    else {
+        RubyConnectRuby *xconn = new RubyConnectRuby(argv[1], argv[2], argv[3], argv[4]);
+        QMetaObject::Connection qtconn =
+            QObject::connect(xconn, SIGNAL(invoked(int, VALUE*, VALUE)), xconn, SLOT(route(int, VALUE*, VALUE)), Qt::QueuedConnection);
+        xconn->qtconn = qtconn;
+        xconn->installEventFilter(xconn);
+        conn = xconn;
+    }
+
+    return conn;
+}
