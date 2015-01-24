@@ -16,6 +16,7 @@ typedef quint64 RB_ID;
 #endif
 
 // uint qHash(uint128_t key, uint seed = 0) Q_DECL_NOTHROW;
+class ConnectAny;
 
 // Qt Object Manager
 class QtObjectManager : public Singleton<QtObjectManager>
@@ -58,6 +59,7 @@ private:
     QHash<QPair<RB_VALUE, QString>, QVector<RubySlot*> > rbconnections4;
     QHash<RB_VALUE, QHash<QString, QVector<RubySlot*> > > rbconnections3;
     
+    QHash<QPair<RB_VALUE, QString>, QVector<ConnectAny*> > rbconnections5;
     
 public:
     bool addObject(RB_VALUE rbobj, void *qtobj);
@@ -77,6 +79,11 @@ public:
     bool addConnection(RB_VALUE rbobj, QString rbsignal, RubySlot *rbslot);
     QVector<RubySlot*> getConnections(RB_VALUE rbobj, QString rbsignal);
     bool removeConnection(RB_VALUE rbobj, QString rbsignal, const RubySlot *rbslot);
+
+    // 与rbconnectrb方法对应,new
+    bool addConnection(RB_VALUE rbobj, QString rbsignal, ConnectAny *rbslot);
+    QVector<ConnectAny*> getConnections5(RB_VALUE rbobj, QString rbsignal);
+    bool removeConnection(RB_VALUE rbobj, QString rbsignal, ConnectAny *rbslot);
     
 public:
     void testParser();

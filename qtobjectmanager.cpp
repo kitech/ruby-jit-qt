@@ -1,5 +1,5 @@
 
-
+#include "connectruby.h"
 #include "qtobjectmanager.h"
 
 // atomic singleton member
@@ -245,6 +245,63 @@ bool QtObjectManager::removeConnection(RB_VALUE rbobj, QString rbsignal,
     
     return true;
 }
+
+//// new connection
+bool QtObjectManager::addConnection(RB_VALUE rbobj, QString rbsignal, ConnectAny *rbslot)
+{
+    QPair<RB_VALUE, QString> ckey = {rbobj, rbsignal};
+    if (this->rbconnections5.contains(ckey)) {
+        this->rbconnections5[ckey].append(rbslot);
+    } else {
+        QVector<ConnectAny*> slot = {rbslot};
+        this->rbconnections5[ckey] = slot;
+    }
+    
+    return true;
+}
+
+QVector<ConnectAny*>
+QtObjectManager::getConnections5(RB_VALUE rbobj, QString rbsignal)
+{
+    QPair<RB_VALUE, QString> ckey = {rbobj, rbsignal};
+    if (this->rbconnections5.contains(ckey)) {
+        return this->rbconnections5[ckey];
+    }
+
+    return QVector<ConnectAny*>();
+}
+
+bool QtObjectManager::removeConnection(RB_VALUE rbobj, QString rbsignal,
+                                       ConnectAny *rbslot)
+{
+    QVector<ConnectAny*> conns;
+    conns = this->getConnections5(rbobj, rbsignal);
+    if (conns.count() == 0) {
+        qDebug()<<"no rbconn:"<<rbobj<<rbsignal;
+        return true;
+    }
+
+    int rmcnt = 0;    
+    QPair<RB_VALUE, QString> ckey = {rbobj, rbsignal};
+    RB_VALUE ikey = rbobj;
+    for (int i = conns.count()-1; i >= 0; i--) {
+        auto slot = conns.at(i);        
+        if (
+            // 删除该signal所有的slot            
+            rbslot == NULL ||
+            // 删除匹配的slot
+            // (slot->m_receiver == rbslot->m_receiver && slot->m_slot == rbslot->m_slot)) {
+            slot->slotEqual(rbslot)) {
+            this->rbconnections5[ckey].remove(i);
+            delete slot;
+            rmcnt ++;
+        }
+    }
+    qDebug()<<"removed conn5:"<<rmcnt<<rbslot;
+    
+    return true;
+}
+
 
 void QtObjectManager::testParser()
 {

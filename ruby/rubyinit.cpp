@@ -421,8 +421,8 @@ VALUE RubyInit::Qt_class_method_missing(int argc, VALUE *argv, VALUE self)
     if (!signature.isEmpty()) {
         qDebug()<<"handling rbsignal..."<<signature;
         // 查找这个信号连接的所有slots列表，并依次执行。
-        // QVector<Qom::RubySlot*> rbslots = Qom::inst()->getConnections(rbklass_name, method_name);
-        QVector<Qom::RubySlot*> rbslots = Qom::inst()->getConnections(self, method_name);
+        // QVector<Qom::RubySlot*> rbslots = Qom::inst()->getConnections(self, method_name);
+        QVector<ConnectAny*> rbslots = Qom::inst()->getConnections5(self, method_name);
         qDebug()<<rbslots<<rbslots.count();
         if (rbslots.count() == 0) {
             qDebug()<<"no slot connected from signal:"<<rbklass_name<<method_name<<signature;
@@ -432,12 +432,10 @@ VALUE RubyInit::Qt_class_method_missing(int argc, VALUE *argv, VALUE self)
             auto slot = rbslots.at(i);
             // run slot now
             int rargc = argc - 1;
-            VALUE rargv[10] = {0};
-            for (int i = 1; i < argc; i++) {
-                rargv[i-1] = argv[i];
-            }
-            qDebug()<<"invoking..."<<slot->receiver<<slot->slot;
-            VALUE fcret = rb_funcall3(slot->receiver, slot->slot, rargc, rargv);
+            VALUE *rargv = new VALUE[10];
+            for (int i = 1; i < argc; i++) { rargv[i-1] = argv[i]; }
+            qDebug()<<"invoking..."<<slot->toString();
+            slot->acall(rargc, rargv, self);
         }
         return Qnil;
     }

@@ -24,7 +24,7 @@ void ConnectAny::call_qt(int argc, const VALUE *argv)
     
 }
 
-void RubyConnectRuby::call(int argc, const VALUE *argv)
+void RubyConnectRuby::call(int argc, VALUE *argv)
 {
     this->call_ruby(argc, argv);
 }
@@ -44,10 +44,13 @@ void RubyConnectRuby::router(int argc, VALUE *argv, VALUE obj)
 {
     qDebug()<<"invoked..."<<argc<<argv<<obj;
     this->call_ruby(argc, argv);
+
+    // cleanup
+    delete [] argv;
 }
 
 
-void QtConnectRuby::call(int argc, const VALUE *argv)
+void QtConnectRuby::call(int argc, VALUE *argv)
 {
     this->call_ruby(argc, argv);
 }
@@ -104,12 +107,32 @@ void QtConnectRuby::router()
     this->call(argc, argv);
 }
 
-void RubyConnectQt::call(int argc, const VALUE *argv)
+void RubyConnectQt::call(int argc, VALUE *argv)
 {
     qDebug()<<argc<<"not impled";
+    emit invoked(argc, argv, 0);
 }
 
-void QtConnectQt::call(int argc, const VALUE *argv)
+bool RubyConnectQt::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::MetaCall) {
+        qDebug()<<"evvvvvvvvvvvvtttt"<<watched<<event;
+        QMetaCallEvent *evt = (QMetaCallEvent*)event;
+        qDebug()<<"meta cal evt:"<<evt<<evt->args();
+        this->mcevt = evt;
+    }
+    return false;
+}
+
+void RubyConnectQt::router(int argc, VALUE *argv, VALUE obj)
+{
+    
+    // cleanup
+    delete []argv;
+}
+
+////////////// 
+void QtConnectQt::call(int argc, VALUE *argv)
 {
     qDebug()<<argc<<"not impled";
 }
@@ -243,7 +266,6 @@ ConnectAny *ConnectFactory::create_rbconnectrb(int argc, VALUE *argv, VALUE obj)
     QString method_name = rb_id2name(SYM2ID(argv[0]));
     qDebug()<<method_name<<argc;
 
-    qDebug()<<argc;
     // QString klass_name = get_rb_class(argv[1]);
     QString method_signature = RSTRING_PTR(argv[2]);
     QString signal_name = method_signature.split('(').at(0);
@@ -286,7 +308,7 @@ ConnectAny *ConnectFactory::create_rbconnectrb(int argc, VALUE *argv, VALUE obj)
     }
 
     // else, standard signature 1
-    else {
+    else if (argc == 5) {
         RubyConnectRuby *xconn = new RubyConnectRuby(argv[1], argv[2], argv[3], argv[4]);
         QMetaObject::Connection qtconn =
             QObject::connect(xconn, SIGNAL(invoked(int, VALUE*, VALUE)), xconn, SLOT(route(int, VALUE*, VALUE)), Qt::QueuedConnection);
@@ -295,5 +317,50 @@ ConnectAny *ConnectFactory::create_rbconnectrb(int argc, VALUE *argv, VALUE obj)
         conn = xconn;
     }
 
+    else {
+        qDebug()<<"error, invalid call.";
+    }
+    
+    if (conn) {
+        Qom::inst()->addConnection(argv[1], signal_name, (RubyConnectRuby*)conn);
+    }
+
     return conn;
+}
+
+// for rb signal ==> qt slot
+// signature1 Qt5::rbconnectqt(sobj, signal, robj, slot);
+ConnectAny *ConnectFactory::create_rbconnectqt(int argc, VALUE *argv, VALUE obj)
+{
+    ConnectAny *conn = NULL;
+
+    QString method_name = rb_id2name(SYM2ID(argv[0]));
+    qDebug()<<method_name<<argc;
+
+    // QString klass_name = get_rb_class(argv[1]);
+    QString method_signature = RSTRING_PTR(argv[2]);
+    QString signal_name = method_signature.split('(').at(0);
+
+    if (argc != 5) {
+        qDebug()<<"Invalid params count.need 5 params.";
+        assert(argc == 5);        
+        return NULL;
+    }
+
+    QObject *receiver = (QObject*)Qom::inst()->getObject(argv[3]);
+    QVariant vslot = MarshallRuby::VALUE2Variant(argv[4]);
+    QString slot = vslot.toString();
+    QString rslot = QString("1%1").arg(slot);
+
+    RubyConnectQt *xconn = new RubyConnectQt(argv[1], argv[2], receiver, rslot);
+    QMetaObject::Connection qtconn =
+        QObject::connect(xconn, SIGNAL(invoked(int, VALUE *, VALUE)),
+                         xconn, SLOT(router(int, VALUE *, VALUE)), Qt::QueuedConnection);
+    xconn->installEventFilter(xconn);
+    xconn->qtconn = qtconn;
+    conn = xconn;
+    Qom::inst()->addConnection(argv[1], signal_name, xconn);
+
+    return conn;
+    return NULL;
 }

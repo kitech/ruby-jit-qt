@@ -1,6 +1,7 @@
 #ifndef CONNECTRUBY_H
 #define CONNECTRUBY_H
 
+#include <cassert>
 #include <QtCore>
 
 #include "ruby_cxx.h"
@@ -19,7 +20,15 @@ public:
 
 public:
     inline int type() { return m_conn_type;}
-    virtual void call(int argc, const VALUE *argv) = 0;
+    virtual void call(int argc, VALUE *argv) = 0;
+    // 是否两个conn的slot相等
+    virtual bool slotEqual(ConnectAny *other) {
+        assert(1==2); return false;
+    }
+    // 异步调用这个conn的slot
+    virtual void acall(int argc, VALUE *argv, VALUE obj)
+    { assert(1==2); }
+    virtual QString toString() { assert(1==2); return QString(); }
 
 protected:
     void call_ruby(int argc, const VALUE *argv);
@@ -61,7 +70,20 @@ public:
         m_slot = ID2SYM(m_slot_id);
     }
 
-    virtual void call(int argc, const VALUE *argv);    
+    virtual void call(int argc, VALUE *argv);
+    virtual bool slotEqual(ConnectAny *other) {
+        if (other->type() != type()) return false;
+        auto conn = (RubyConnectRuby*)other;
+        return conn->m_receiver == m_receiver && conn->m_slot == m_slot;
+    }
+    
+    virtual void acall(int argc, VALUE *argv, VALUE obj)
+    {
+        emit invoked(argc, argv, obj);
+    }
+    virtual QString toString()
+    { return QString("sender(%1)::signal(%2) => receiver(%3)::slot(%4)")
+            .arg(m_sender).arg(m_signal).arg(m_receiver).arg(m_slot); }    
     
     VALUE m_sender = 0;
     VALUE m_signal = 0;
@@ -105,7 +127,17 @@ public:
         m_slot = ID2SYM(m_slot_id);   
     }
     
-    virtual void call(int argc, const VALUE *argv);
+    virtual void call(int argc, VALUE *argv);
+    virtual bool slotEqual(ConnectAny *other) {
+        if (other->type() != type()) return false;
+        auto conn = (QtConnectRuby*)other;
+        return conn->m_receiver == m_receiver && conn->m_slot == m_slot;
+    }
+    
+    virtual QString toString()
+    { return QString("sender(%1)::signal(%2) => receiver(%3)::slot(%4)")
+            .arg((qint64)m_sender).arg(m_signal).arg(m_receiver).arg(m_slot); }    
+    
     
     QObject *m_sender = NULL;
     QString m_signal;
@@ -135,13 +167,36 @@ public:
         m_receiver = receiver;
         m_slot = slot;
     }
-    virtual void call(int argc, const VALUE *argv);
+    virtual void call(int argc, VALUE *argv);
+    virtual bool slotEqual(ConnectAny *other) {
+        if (other->type() != type()) return false;
+        auto conn = (RubyConnectQt*)other;
+        return conn->m_receiver == m_receiver && conn->m_slot == m_slot;
+    }
+    
+    virtual void acall(int argc, VALUE *argv, VALUE obj)
+    {
+        emit invoked(argc, argv, obj);
+    }
+    virtual QString toString()
+    { return QString("sender(%1)::signal(%2) => receiver(%3)::slot(%4)")
+            .arg(m_sender).arg(m_signal).arg((qint64)m_receiver).arg(m_slot); }    
     
     VALUE m_sender = 0;
     VALUE m_signal = 0;
 
     QObject *m_receiver = NULL;
     QString m_slot;
+    
+    QMetaObject::Connection qtconn;
+    QMetaCallEvent *mcevt = NULL;
+public:
+    virtual bool eventFilter(QObject * watched, QEvent * event);
+public slots:
+    void router(int argc, VALUE *argv, VALUE obj);  
+signals:
+    void invoked(int argc, VALUE *argv, VALUE obj);
+    
 };
 
 class QtConnectQt : public ConnectAny
@@ -157,7 +212,16 @@ public:
         m_receiver = receiver;
         m_slot = slot;
     }
-    virtual void call(int argc, const VALUE *argv);
+    virtual void call(int argc, VALUE *argv);
+    virtual bool slotEqual(ConnectAny *other) {
+        if (other->type() != type()) return false;
+        auto conn = (QtConnectQt*)other;
+        return conn->m_receiver == m_receiver && conn->m_slot == m_slot;
+    }
+    
+    virtual QString toString()
+    { return QString("sender(%1)::signal(%2) => receiver(%3)::slot(%4)")
+            .arg((qint64)m_sender).arg(m_signal).arg((qint64)m_receiver).arg(m_slot); }
     
     QObject *m_sender = NULL;
     QString m_signal;
@@ -183,6 +247,7 @@ class ConnectFactory
 public:
     static ConnectAny *create(int argc, VALUE *argv, VALUE obj);
     static ConnectAny *create_rbconnectrb(int argc, VALUE *argv, VALUE obj);
+    static ConnectAny *create_rbconnectqt(int argc, VALUE *argv, VALUE obj);
 };
 
 #endif /* CONNECTRUBY_H */
