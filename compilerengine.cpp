@@ -169,6 +169,8 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
     }
     
     qDebug()<<"flat expr count:"<<fexpr.count();
+    auto mgctx = bdecl->getASTContext().createMangleContext();    
+    // 查找可能的函数/方法调用列表表达式。
     while (!fexpr.isEmpty()) {
         clang::Stmt *s = fexpr.pop();
         int cnter = 0;
@@ -187,13 +189,14 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
         else if (llvm::isa<clang::ReturnStmt>(s)) {
             // qDebug()<<"do smth."<<s;
             // s->dumpColor();
-        } else {
+            qDebug()<<"do smth."<<s<<s->getStmtClassName();
+        }
+        else {
             qDebug()<<"do smth."<<s<<s->getStmtClassName();
         }
     }
     qDebug()<<bdecl<<"call expr count:"<<cexpr.count();
 
-    auto mgctx = bdecl->getASTContext().createMangleContext();
     for (auto expr: cexpr) {
         qDebug()<<"==========";
         // expr->dumpColor();
@@ -201,7 +204,7 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
         // d->dumpColor();
         std::string str; llvm::raw_string_ostream stm(str);
         mgctx->mangleName(clang::cast<clang::NamedDecl>(d), stm);
-        qDebug()<<"mangle name:"<<stm.str().c_str();
+        qDebug()<<"mangle name:"<<stm.str().c_str()<<",callee symbol:"<<callee_symbol;
         if (stm.str() != callee_symbol.toStdString()) continue;
 
         if (clang::isa<clang::FunctionDecl>(d)) {
@@ -258,7 +261,8 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
 
     qDebug()<<"flat expr count:"<<fexpr.count();
     auto mgctx = bdecl->getASTContext().createMangleContext();
-    
+
+    // 查找可能的函数/方法调用列表表达式。
     while (!fexpr.isEmpty()) {
         clang::Stmt *s = fexpr.pop();
         for (auto expr: s->children()) {
@@ -1076,7 +1080,7 @@ bool CompilerEngine::gen_darg(llvm::Module *mod, QVariant &darg, int idx, clang:
 bool CompilerEngine::gen_method(CompilerUnit *cu, clang::CXXMethodDecl *yamth)
 {
 
-    auto genmth = [](clang::CodeGen::CodeGenModule &cgm,
+    auto genmth = [cu](clang::CodeGen::CodeGenModule &cgm,
                      clang::CodeGen::CodeGenFunction &cgf,
                      clang::CXXMethodDecl *decl) -> bool {
         clang::CodeGen::CodeGenTypes &cgtypes = cgm.getTypes();
@@ -1097,7 +1101,11 @@ bool CompilerEngine::gen_method(CompilerUnit *cu, clang::CXXMethodDecl *yamth)
         // f->viewCFG();
         // clang::Stmt *stmt = decl->getBody();
         clang::CodeGen::FunctionArgList alist;
+        // qDebug()<<"before cgf.GenerateCode...";  // test generate @_ZN9QtPrivate8RefCount3refEv OK
+        // decl->dumpColor();
         cgf.GenerateCode(clang::GlobalDecl(decl), f, FI);
+        // qDebug()<<"end cgf.GenerateCode.";
+        // cu->mmod->dump();
         f->addFnAttr(llvm::Attribute::AlwaysInline);
         cgm.setFunctionLinkage(decl, f);
 
@@ -1310,11 +1318,13 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
                     "_ZNK6QPoint1xEv", "_ZNK6QPoint1yEv", "_ZNK5QRect4sizeEv",
                     "_ZNK5QRect5widthEv",
                     "_ZNK7QWidget13testAttributeEN2Qt15WidgetAttributeE",
+                    "_ZN9QtPrivate8RefCount3refEv",
                 };
                 if (known_syms.contains(tsym)) {
                     auto callee_decl_with_body = 
                         this->get_decl_with_body(llvm::cast<clang::CXXMethodDecl>(callee_decl));
                     if (callee_decl_with_body->isInlined()) {
+                        qDebug()<<"gen... known syms:"<<tsym;
                         this->gen_method(cu, callee_decl_with_body);
                     } else {
                         this->gen_method_decl(cu, callee_decl_with_body);

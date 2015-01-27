@@ -22,6 +22,11 @@ def test_qstring()
   a.append("哈哈哈")
 end
 
+# test generate @_ZN9QtPrivate8RefCount3refEv OK
+def test_qstring2()
+    s = Qt5::QString.new("abcdefg")
+end
+
 def test_qbytearray()
   ba = Qt5::QByteArray.new
   ba.append("yuio");
@@ -121,10 +126,11 @@ end
 
 # test_else;
 # test_qstring
+test_qstring2
 # test_qbytearray # 处理这个类问题还比较多, fixed nowwwwww
 # test_qurl
 # test_signal_slots
 # test_enum
 # test_return;
-test_lookup;
+# test_lookup;
 
