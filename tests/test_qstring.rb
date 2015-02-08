@@ -24,7 +24,8 @@ end
 
 # test generate @_ZN9QtPrivate8RefCount3refEv OK
 def test_qstring2()
-    s = Qt5::QString.new("abcdefg")
+    #s = Qt5::QString.new("abcdefg")
+    s = Qt5::QString.new
 end
 
 def test_qbytearray()

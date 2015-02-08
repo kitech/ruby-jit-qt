@@ -54,6 +54,7 @@ public:
     void decl2def(llvm::Module *mod, clang::ASTContext &ctx,
                   clang::CodeGen::CodeGenModule &cgmod, 
                   clang::Decl *decl, int level, QHash<QString, bool> noinlined);
+    clang::FunctionDecl* find_callee_decl_by_symbol2(clang::Decl *bdecl, QString callee_symbol);    
     clang::FunctionDecl* find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_symbol);
     clang::FunctionDecl* find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_symbol,
                                                     clang::Stmt *bstmt);

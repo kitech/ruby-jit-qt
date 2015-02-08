@@ -44,7 +44,7 @@ string(REPLACE "-std=gnu++11" "-std=c++14" NEW_FLAGS ${CMAKE_CXX_FLAGS})
 string(REPLACE "-std=c++11" "-std=c++14" NEW_FLAGS ${CMAKE_CXX_FLAGS})
 set(CMAKE_CXX_FLAGS "${NEW_FLAGS}")
 
-set(LLVM_SRC_DIR2 "./llvm-3.5.0.src")  # maybe a symlink
+set(LLVM_SRC_DIR2 "./llvm-3.5.1.src")  # maybe a symlink
 set(CLANG_SRC_DIR2 ${LLVM_SRC_DIR2}/tools/clang)
 include_directories(${CLANG_SRC_DIR2}/lib/CodeGen ${CLANG_SRC_DIR2}/lib/)
 

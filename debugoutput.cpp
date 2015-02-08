@@ -8,10 +8,16 @@
 // simple 
 // setenv("QT_MESSAGE_PATTERN", "[%{type}] %{appname} (%{file}:%{line}) T%{threadid} %{function} - %{message} ", 1);
 
+// 关闭输出
+// setevn QT_QUITE_DEBUG=1
 // need -DQT_MESSAGELOGCONTEXT=1
 // TODO 优化
 void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
+    static char *qt_quite_debug = getenv("QT_QUITE_DEBUG");
+    if (qt_quite_debug && qt_quite_debug[0] == '1') {
+        return;
+    }
     int tid = syscall(__NR_gettid);
     QDateTime now = QDateTime::currentDateTime();
     QString time_str = now.toString("yyyy-MM-dd hh:mm:ss"); // now.toString("yyyy-MM-dd hh:mm:ss.zzz");

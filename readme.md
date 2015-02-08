@@ -2,13 +2,14 @@
 A Qt5 binding for Ruby language. Using clang/llvm JIT engine.
 
 ###Why new Qt5 binding for Ruby
-Though it Qt 5.4 now, qtbinding not still support Qt5.  
+Though it Qt 5.4 now, qtbinding still not support Qt5.  
 And so the origin kdebindings-qtruby and kdebindings-smokeqt projects.  
 
 
 ###Features
 Qt5+  
 Bidirector Singal/Slot between Ruby and Qt  
+Support uic/rcc.  
 Easy keep update to version by version  
 
 ###Examples
@@ -29,6 +30,11 @@ Easy keep update to version by version
 ###Install
     git clone git@github.com:kitech/ruby-jit-qt.git
     cd ruby-jit-qt
+    tar xvf /path/to/llvm-3.5.0.src.tar.xz
+    cd llvm-3.5.0.src/tools
+    tar xvf /path/to/cfe-3.5.0.src.tar.xz
+    mv -v cfe-3.5.0.src clang
+    cd ../..
     cmake .
     make
 
@@ -40,7 +46,7 @@ Easy keep update to version by version
     ... more later
 
 ###TechStack
-    clang/llvm/IR
+    clang/llvm/IR/JIT
     Ruby C API
     Qt5
     

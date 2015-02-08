@@ -149,10 +149,117 @@ bool irfunccpy(llvm::Module *smod, llvm::Function *sfun, llvm::Module *dmod, llv
     return false;
 }
 
+void walk_decl(QStack<clang::Stmt*> &fexpr, clang::Stmt *bstmt, int level)
+{
+    clang::Stmt *stmts = bstmt;
+    for (auto expr: stmts->children()) {
+        qDebug()<<"e:"<<expr->getStmtClassName()<<level;
+        // expr->dumpColor();
+        fexpr.push(expr);
+        walk_decl(fexpr, expr, level+1);
+    }
+
+    // initors
+    if (llvm::isa<clang::CXXConstructExpr>(stmts)) {
+        auto ctor_decl = llvm::cast<clang::CXXConstructExpr>(stmts)->getConstructor();
+        for (auto ci: ctor_decl->inits()) {
+            auto e = ci->getInit();
+            qDebug()<<"ctorinit..."<<e;
+            e->dumpColor();
+                
+            fexpr.push(e);
+            walk_decl(fexpr, e, level+1);
+        }
+    }    
+}
+
+// 起始decl，一般是一个函数或者方法的定义
+clang::FunctionDecl*
+CompilerEngine::find_callee_decl_by_symbol2(clang::Decl *bdecl, QString callee_symbol)
+{
+    qDebug()<<callee_symbol;
+    clang::Stmt *stmts = bdecl->getBody();
+    QStack<clang::Stmt*> fexpr; // flat expr
+
+    if (stmts != NULL) {
+        qDebug()<<"Wooooo, no body decl...."<<stmts;
+        int cnter = 0;
+        for (auto expr: stmts->children()) {
+            qDebug()<<"e:"<<cnter++<<expr->getStmtClassName();
+            // expr->dumpColor();
+            fexpr.push(expr);
+        }
+        walk_decl(fexpr, stmts, 1);
+    }
+
+    if (llvm::isa<clang::CXXConstructorDecl>(bdecl)) {
+        auto ctor_decl = llvm::cast<clang::CXXConstructorDecl>(bdecl);
+        for (auto ci: ctor_decl->inits()) {
+            auto e = ci->getInit();
+            qDebug()<<"ctorinit..."<<e;
+            e->dumpColor();
+                
+            fexpr.push(e);
+            walk_decl(fexpr, e, 1);
+        }
+    }
+    
+    qDebug()<<"flat expr count:"<<fexpr.count();
+    // bdecl->dumpColor();
+    
+    auto mgctx = bdecl->getASTContext().createMangleContext();    
+    // 查找可能的函数/方法调用列表表达式。
+    while (!fexpr.isEmpty()) {
+        clang::Stmt *s = fexpr.pop();
+        qDebug()<<"flated..."<<s;
+        s->dumpColor();
+
+        if (llvm::isa<clang::CXXConstructExpr>(s)) {
+            clang::CXXConstructorDecl *d = llvm::cast<clang::CXXConstructExpr>(s)->getConstructor();
+
+            std::string str; llvm::raw_string_ostream stm(str);
+            std::string str2; llvm::raw_string_ostream stm2(str2);
+            mgctx->mangleCXXCtor(d, clang::Ctor_Base, stm);
+            mgctx->mangleCXXCtor(d, clang::Ctor_Complete, stm2);
+            qDebug()<<"mangle name:"<<"base:"<<stm.str().c_str()
+                    <<",complete:"<<stm2.str().c_str()
+                    <<",need:"<<callee_symbol;
+            if (stm.str() == callee_symbol.toStdString()
+                || stm2.str() == callee_symbol.toStdString()) {
+                if (clang::isa<clang::FunctionDecl>(d)) {
+                    return clang::cast<clang::FunctionDecl>(d);
+                }
+            }
+        }
+        else if (llvm::isa<clang::CallExpr>(s)) {
+            auto d = llvm::cast<clang::CallExpr>(s)->getCalleeDecl();
+            // d->dumpColor();
+            std::string str; llvm::raw_string_ostream stm(str);
+            mgctx->mangleName(clang::cast<clang::NamedDecl>(d), stm);
+            qDebug()<<"mangle name:"<<stm.str().c_str()<<",callee symbol:"<<callee_symbol;
+            if (stm.str() != callee_symbol.toStdString()) continue;
+
+            if (clang::isa<clang::FunctionDecl>(d)) {
+                return clang::cast<clang::FunctionDecl>(d);
+            }
+            assert(1==2);
+        }
+        else if (llvm::isa<clang::CXXTemporaryObjectExpr>(s)) {
+            qDebug()<<"not impled.";
+        }
+        else {
+            // qDebug()<<"do smth."<<s<<s->getStmtClassName();
+        }
+    }
+    
+    return NULL;
+}
+
 // 起始decl，一般是一个函数或者方法的定义
 clang::FunctionDecl*
 CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_symbol)
 {
+    qDebug()<<callee_symbol;
     clang::Stmt *stmts = bdecl->getBody();
     QStack<clang::Stmt*> fexpr; // flat expr
     QVector<clang::CallExpr*> cexpr; // call expr
@@ -166,13 +273,16 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
             // expr->dumpColor();
             fexpr.push(expr);
         }
+        walk_decl(fexpr, stmts, 1);
     }
     
     qDebug()<<"flat expr count:"<<fexpr.count();
+    
     auto mgctx = bdecl->getASTContext().createMangleContext();    
     // 查找可能的函数/方法调用列表表达式。
     while (!fexpr.isEmpty()) {
         clang::Stmt *s = fexpr.pop();
+        
         int cnter = 0;
         for (auto expr: s->children()) {
             cnter++;
@@ -255,6 +365,8 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
         // expr->dumpColor();
         fexpr.push(expr);
     }
+    walk_decl(fexpr, bstmt, 1);
+    
     if (fexpr.count() == 0 && llvm::isa<clang::Expr>(bstmt)) {
         fexpr.push(bstmt);
     }
@@ -265,6 +377,7 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
     // 查找可能的函数/方法调用列表表达式。
     while (!fexpr.isEmpty()) {
         clang::Stmt *s = fexpr.pop();
+        
         for (auto expr: s->children()) {
             fexpr.push(expr);
         }
@@ -286,6 +399,23 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
         }
         else if (llvm::isa<clang::CXXConstructExpr>(s)) {
             ctor_expr.append(llvm::cast<clang::CXXConstructExpr>(s));
+        }
+        else if (llvm::isa<clang::CXXDefaultArgExpr>(s)) {
+            auto *daexpr = llvm::cast<clang::CXXDefaultArgExpr>(s);
+            auto *e = daexpr->getExpr();
+            e->dumpColor();
+            if (llvm::isa<clang::CXXConstructExpr>(e)) {
+                ctor_expr.append(llvm::cast<clang::CXXConstructExpr>(e));
+                QStack<clang::Stmt*> texpr; // flat expr
+                walk_decl(texpr, e, 1);
+                qDebug()<<texpr.count();
+                while (!texpr.isEmpty()) {
+                    clang::Stmt *s = texpr.pop();
+                    if (llvm::isa<clang::CXXConstructExpr>(s)) {
+                        ctor_expr.append(llvm::cast<clang::CXXConstructExpr>(s));
+                    }
+                }
+            }
         }
         else {
             qDebug()<<"stmt..."<<s<<s->getStmtClassName();
@@ -323,8 +453,9 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
         std::string str2; llvm::raw_string_ostream stm2(str2);
         mgctx->mangleCXXCtor(cd, clang::Ctor_Base, stm);
         mgctx->mangleCXXCtor(cd, clang::Ctor_Complete, stm2);
-        qDebug()<<"mangle name:"<<stm.str().c_str()<<callee_symbol
-                <<stm2.str().c_str();
+        qDebug()<<"mangle name:"<<"base:"<<stm.str().c_str()
+                <<",complete:"<<stm2.str().c_str()
+                <<",need:"<<callee_symbol;
         if (stm.str() == callee_symbol.toStdString()
             || stm2.str() == callee_symbol.toStdString()) {
             if (clang::isa<clang::FunctionDecl>(cd)) {
@@ -921,6 +1052,10 @@ bool CompilerEngine::gen_ctor(CompilerUnit *cu, clang::CXXConstructorDecl *yacto
             // noinlined[ctor_base_fn->getName().data()] = true;
             cu->mNoinlineSymbols[ctor_base_fn->getName().data()] = true;
         }
+
+        qDebug()<<"ffffffff:"<<ctor_base_fn->getName().data();
+        cu->mmod->dump();
+        qDebug()<<"ffffffff:"<<ctor_base_fn->getName().data();
     }
         
     // 生成base ctor, xxC2Exx
@@ -941,7 +1076,6 @@ bool CompilerEngine::gen_ctor(CompilerUnit *cu, clang::CXXConstructorDecl *yacto
             cu->mNoinlineSymbols[ctor_base_fn->getName().data()] = true;
         }
     }
-
 
     return false;
 }
@@ -1221,9 +1355,13 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
         for (auto sym: cu->mUndefSymbols) {
             clang::FunctionDecl *callee_decl = NULL;
             qDebug()<<"froms:"<<froms;
+                        
             for (auto d: froms) {
                 // 有可能d是没有body的Decl，所以查找不到。
                 callee_decl = this->find_callee_decl_by_symbol(d, sym);
+                if (callee_decl) break;
+
+                callee_decl = this->find_callee_decl_by_symbol2(d, sym);
                 if (callee_decl) break;
             }
             qDebug()<<"callee decl:"<<callee_decl<<sym<<froms.count();
@@ -1238,7 +1376,8 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
                     qDebug()<<"decl dump:"<<d;
                     d->dumpColor();
                 }
-                qFatal("vvvvvvv"); // 在作为ruby模块的情况下，这个方便，不会生成太长的调用桟列表
+                // 在作为ruby模块的情况下，这个方便，不会生成太长的调用桟列表                
+                qFatal(QString("vvvvvvv:%1").arg(sym).toLatin1().data());
                 assert(1==2);
             }
             qDebug()<<"is method:"<<llvm::isa<clang::CXXMethodDecl>(callee_decl)
@@ -1266,9 +1405,12 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
                     "_ZN5QListI7QStringEC1Ev",
                 };
                 if (known_syms.contains(tsym)) {
-                    if (llvm::isa<clang::CXXConstructorDecl>(callee_decl)) {
+                    if (llvm::isa<clang::CXXConstructorDecl>(callee_decl)) {                        
                         this->instantiate_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
                         this->gen_ctor(cu, llvm::cast<clang::CXXConstructorDecl>(callee_decl));
+                        if (tsym == "_ZN6QFlagsIN2Qt13AlignmentFlagEEC1EMNS2_7PrivateEi") {
+                            cu->mmod->dump();
+                        }
                     } else {
                         this->instantiate_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
                         this->gen_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
