@@ -1028,7 +1028,10 @@ bool CompilerEngine::gen_ctor(CompilerUnit *cu, clang::CXXConstructorDecl *yacto
     // 转换到需要的参数类型
     auto ctor = yactor != NULL ? yactor : clang::cast<clang::CXXConstructorDecl>(cu->mbdecl);
     auto &cgmod = *(cu->mcgm);
-    auto cgf = cu->mcgf;
+    // auto *cgf = cu->mcgf;
+    // auto *cgf = new clang::CodeGen::CodeGenFunction(cgmod); // 每次使用一个新的CodeGenFunction能解决这个问题？？？
+    clang::CodeGen::CodeGenFunction lcgf(cgmod); // 每次使用一个新的CodeGenFunction能解决这个问题？？？
+    auto *cgf = &lcgf;
 
     // 
     auto &cgtypes = cgmod.getTypes();
@@ -1409,9 +1412,15 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
                 if (known_syms.contains(tsym)) {
                     if (llvm::isa<clang::CXXConstructorDecl>(callee_decl)) {                        
                         this->instantiate_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
+                        if (tsym == "_ZN6QFlagsIN2Qt13AlignmentFlagEEC1EMNS2_7PrivateEi") {
+                            // 为什么用这个单独的方法能正常生成呢？这个方法区别在于使用空的llvm::Module和CodeGenFunction对象？
+                            // 是不是要用另一种策略，所有的函数都在一个独立的llvm::Module内生成呢？
+                            // 需要使用全新的clang::CodeGen::CodeGenFunction对象。
+                        }
                         this->gen_ctor(cu, llvm::cast<clang::CXXConstructorDecl>(callee_decl));
                         if (tsym == "_ZN6QFlagsIN2Qt13AlignmentFlagEEC1EMNS2_7PrivateEi") {
-                            cu->mmod->dump();
+                            // cu->mmod->dump();
+                            // qFatal("now should be okkkkkkkkkk");
                         }
                     } else if (llvm::isa<clang::CXXMethodDecl>(callee_decl)) {
                         this->instantiate_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
