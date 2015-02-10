@@ -1403,6 +1403,8 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
                     "_ZN6QFlagsIN2Qt13AlignmentFlagEEC1EMNS2_7PrivateEi",
                     "_ZNK14QScopedPointerI11QObjectData21QScopedPointerDeleterIS0_EEptEv",
                     "_ZN5QListI7QStringEC1Ev",
+                    // template function
+                    "_Z6qBoundIiERKT_S2_S2_S2_", "_Z4qMinIiERKT_S2_S2_", "_Z4qMaxIiERKT_S2_S2_",
                 };
                 if (known_syms.contains(tsym)) {
                     if (llvm::isa<clang::CXXConstructorDecl>(callee_decl)) {                        
@@ -1411,9 +1413,12 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
                         if (tsym == "_ZN6QFlagsIN2Qt13AlignmentFlagEEC1EMNS2_7PrivateEi") {
                             cu->mmod->dump();
                         }
-                    } else {
+                    } else if (llvm::isa<clang::CXXMethodDecl>(callee_decl)) {
                         this->instantiate_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
                         this->gen_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
+                    } else {
+                        this->instantiate_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
+                        this->gen_free_function(cu, callee_decl);
                     }
                 } else {
                     qDebug()<<"unsupported tmpl inst..."<<tsym;
@@ -1652,6 +1657,7 @@ bool CompilerEngine::destroyCompilerUnit(CompilerUnit *cu)
 
 // 已经能够支持Ctor
 // instantate时，不需要考虑是Ctor_Base或Ctor_Complete
+// support free template function, not class method
 bool CompilerEngine::instantiate_method(CompilerUnit *cu, clang::CXXMethodDecl *tmpl_mthdecl)
 {
     clang::CXXMethodDecl *mthdecl2 = tmpl_mthdecl;
@@ -1681,6 +1687,7 @@ bool CompilerEngine::instantiate_method(CompilerUnit *cu, clang::CXXMethodDecl *
         // sema.ActOnFinishFunctionBody(mthdecl2, Pattern);
         mthdecl2->setBody(rs.get());
     }
+    qDebug()<<"sema stats...";
     sema.PrintStats();
     
     return false;
