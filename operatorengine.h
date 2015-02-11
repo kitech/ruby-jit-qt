@@ -32,6 +32,9 @@ public:
     QString bind(llvm::Module *mod, QString symbol, QString klass,
                  QVector<QVariant> uargs, QVector<QVariant> dargs,
                  bool is_static, void *kthis);
+    // 针对有些需要返回record类对象的方法，却返回了i32，这时需要做一个后处理。see issue #2。
+    void elem_or_record_post_return();
+    
     int getClassAllocSize(llvm::Module *mod, QString klass);
     llvm::DataLayout *getDataLayout(llvm::Module *mod);
     

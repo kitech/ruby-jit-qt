@@ -429,19 +429,46 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass,
     if (false && symbol.indexOf("_ZN7QWidgetC2EPS_6QFlagsIN2Qt10WindowTypeEE") != -1) {
         cval->addAttribute(3, llvm::Attribute::ByVal);
     }
+
+    // 针对有些需要返回record类对象的方法，却返回了i32，这时需要做一个后处理。see issue #2。
+    auto elem_or_record_post_retval =
+        [](llvm::IRBuilder<> &builder, llvm::Function *dstfun, llvm::Value *cval) {
+        // int to object result
+        // qDebug()<<builder.getInt32Ty()->getPrimitiveSizeInBits();
+        void *ioret = calloc(1, builder.getInt32Ty()->getPrimitiveSizeInBits()/8);
+        memset(ioret, 0, builder.getInt32Ty()->getPrimitiveSizeInBits()/8);
+        llvm::Constant *lcv = builder.getInt64((int64_t)ioret);
+        llvm::Value *lvv = llvm::ConstantExpr::getIntToPtr(lcv, builder.getVoidTy()->getPointerTo());
+        // llvm::Value *unrefv = builder.CreateLoad(lvv);
+        llvm::Value *stv = builder.CreateStore(cval, lvv);
+        builder.CreateRet(lvv);
+    };
     
     if (dstfun->hasStructRetAttr()) {
         builder.CreateRet(callee_arg_values.at(0));
     } else if (dstfun->doesNotReturn() || dstfun->getReturnType() == builder.getVoidTy()) {
         builder.CreateRetVoid();
     } else {
+        // 还有一种方式，在ctrlengine中实现的，目前先不在这实现。
+        // 不过ctrlengine和OperatorEngine两边差不多复杂，只是OperatorEngine还需要传递额外的数据才能处理。
+        // 放在这里处理的好处是只需要改这一个地方，在ctrlengine中所有的Clvm::execute2调用处都需要处理。
+        if (symbol == "_ZNK7QWidget10sizePolicyEv") {
+            // elem_or_record_post_retval(builder, dstfun, cval);
+        } else {
+
+        }
         builder.CreateRet(cval);
     }
 
+    qDebug()<<"operator bind done."<<lamsym;
     mod->dump();
 
     lamsym = QString(lamname);
     return lamsym;
+}
+
+void OperatorEngine::elem_or_record_post_return()
+{
 }
 
 int OperatorEngine::getClassAllocSize(llvm::Module *mod, QString klass)

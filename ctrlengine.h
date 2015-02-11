@@ -9,6 +9,7 @@
 */
 
 #include <QtCore>
+#include <llvm/ExecutionEngine/GenericValue.h>
 
 namespace clang {
     class CompilerInstance;
@@ -39,6 +40,8 @@ public:
     // call _Zls6QDebugRK9QBitArray
     QString vm_qdebug(void *kthis, QString klass);
 
+    // improve
+    
     // hot fix
     QVariant vm_call_hotfix(void *kthis, QString klass, QString method, QVector<QVariant> uargs);
     

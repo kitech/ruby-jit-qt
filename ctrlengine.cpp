@@ -157,14 +157,17 @@ QVariant GV2Variant(llvm::GenericValue gv, clang::FunctionDecl *decl, void *kthi
         // VALUE clsval = rb_const_get(modval, rb_intern("QString"));
         VALUE clsval = rb_const_get(modval, rb_intern(rec_decl->getName().data()));
         qDebug()<<"kv:"<<TYPE(clsval)<<",,";
-        VALUE retobj = rb_class_new_instance(0, 0, clsval); // 参数个数可能不适用。
+        VALUE retobj = rb_class_new_instance((int)0, (VALUE*)0, clsval); // 参数个数可能不适用。
         rv = retobj;
 
         qDebug()<<"old ci:"<<Qom::inst()->getObject(retobj);
         // FIXME: freeit
         void *oldobj = Qom::inst()->getObject(retobj);
         Qom::inst()->addObject(retobj, llvm::GVTOP(gv));
-        qDebug()<<"new ci:"<<Qom::inst()->getObject(retobj);
+        void *shitobj = (void*)0x6550000;
+        qDebug()<<"old ci:"<<oldobj<<",new ci:"<<Qom::inst()->getObject(retobj);
+        qDebug()<<"shit obj:"<<shitobj<<"raw obj:"<<llvm::GVTOP(gv);
+        
         // QString *pstr = (QString*)llvm::GVTOP(gv);
         // qDebug()<<"real val:"<<(*pstr);
     }
@@ -186,6 +189,34 @@ QVariant GV2Variant(llvm::GenericValue gv, clang::FunctionDecl *decl, void *kthi
     return QVariant(rv);
 }
 
+// improve return value
+llvm::GenericValue i32ToRecord(llvm::GenericValue gv, clang::CXXMethodDecl *mthdecl,
+                               llvm::Module *mod, QString symname)
+{
+    clang::QualType rty = mthdecl->getReturnType();
+    if (rty->isRecordType()) {
+        llvm::Function *dstfun = NULL;
+        for (auto &f: mod->getFunctionList()) {
+            QString fname = f.getName().data();
+            qDebug()<<"name:"<<f.getName().data()<<f.size()<<"decl:"<<f.isDeclaration();
+            if (fname == symname) {
+                dstfun = &f;
+                break;
+            }
+        }
+        if (dstfun == NULL) return gv;
+        if (dstfun->getReturnType()->isIntegerTy(sizeof(int32_t)*8)) {
+            void *ioret = calloc(1, dstfun->getReturnType()->getPrimitiveSizeInBits()/8);
+            int32_t itmp = gv.IntVal.getZExtValue();
+            // assert sizeof(void*) == 8
+            memcpy((char*)ioret + sizeof(int32_t), &itmp, sizeof(int32_t));
+            qDebug()<<"i32ToRecord replaced:"<<ioret;
+            return llvm::PTOGV(ioret);
+        }
+    }
+
+    return gv;
+}
 
 QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector<QVariant> uargs)
 {
@@ -246,6 +277,10 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     qDebug()<<"gv:"<<llvm::GVTOP(gv)<<(qlonglong)llvm::GVTOP(gv)<<gv.IntVal.getZExtValue();
     qDebug()<<"======================";
 
+    // impove some method return i32 instead of class object
+    llvm::GenericValue ngv = i32ToRecord(gv, mth_decl, mod, symname);
+    gv = ngv;
+    
     QVariant rv = GV2Variant(gv, mth_decl, kthis);
     return rv;
     return QVariant();
@@ -280,6 +315,10 @@ QVariant CtrlEngine::vm_static_call(QString klass, QString method, QVector<QVari
     qDebug()<<"gv:"<<llvm::GVTOP(gv)<<gv.IntVal.getZExtValue();
     qDebug()<<"======================";
 
+    // impove some method return i32 instead of class object
+    llvm::GenericValue ngv = i32ToRecord(gv, mth_decl, mod, symname);
+    gv = ngv;
+    
     QVariant rv = GV2Variant(gv, mth_decl, NULL);
     qDebug()<<rv;
     return rv;
