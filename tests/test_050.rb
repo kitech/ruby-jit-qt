@@ -12,9 +12,9 @@ def main()
     a = Qt5::QApplication.new(ARGV.count, ARGV)
 
     si = Qt5::QSpacerItem.new(5, 200)
-    #lo = Qt5::QLayoutItem.new()
+    lo = Qt5::QLayoutItem.new()
     
-    a.exec
+    #a.exec
 end
 
 main()

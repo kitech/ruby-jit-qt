@@ -194,8 +194,10 @@ done  # end for module
 ### generator ast file
 ast_file="./data/qthdrsrc.ast"
 # -DQ_NO_TYPESAFE_FLAGS
+# add -fno-exceptions -fno-cxx-exceptions for dynamic CodeGen IR code without exceptions support
 clang++ -x c++ -S -emit-ast "./qthdrsrc.h" -fPIC -I. -I/usr/include/qt -I/usr/include/qt/QtCore \
-    -I/usr/include/qt/QtGui -I/usr/include/qt/QtWidgets -I/usr/include/qt/QtNetwork
+        -I/usr/include/qt/QtGui -I/usr/include/qt/QtWidgets -I/usr/include/qt/QtNetwork \
+        -fno-exceptions -fno-cxx-exceptions
 mv -v "qthdrsrc.ast" "${ast_file}"
 
 ### generator jit_types.ll

@@ -1436,8 +1436,9 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
             else if (llvm::isa<clang::CXXConstructorDecl>(callee_decl)) {
                 // maybe controll
                 QStringList known_syms = {
-                    "_ZN5QSizeC1Eii", "_ZN5QRectC1Eiiii",
+                    "_ZN5QSizeC1Eii", "_ZN5QRectC1Eiiii", "_ZN5QRectC1Ev",
                     "_ZN11QSizePolicyC1ENS_6PolicyES0_NS_11ControlTypeE",
+                    "_ZN11QLayoutItemC1E6QFlagsIN2Qt13AlignmentFlagEE",
                 };
                 if (known_syms.contains(tsym)) {
                     auto callee_decl_with_body = 
@@ -1475,6 +1476,7 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
                     "_ZNK5QRect5widthEv",
                     "_ZNK7QWidget13testAttributeEN2Qt15WidgetAttributeE",
                     "_ZN9QtPrivate8RefCount3refEv",
+                    "_ZN11QSizePolicy14setControlTypeENS_11ControlTypeE",
                 };
                 if (known_syms.contains(tsym)) {
                     auto callee_decl_with_body = 
@@ -1611,6 +1613,13 @@ bool CompilerEngine::find_undef_symbols(CompilerUnit *cu)
             qDebug()<<"copying func:"<<fname;
             continue;
         }
+
+        if (fname == "__gxx_personality_v0") {
+            continue;
+        }
+        if (fname.startsWith("llvm.memcpy.")) {
+            continue;
+        }
         cu->mUndefSymbols.append(fname);
     }
 
@@ -1639,6 +1648,24 @@ CompilerEngine::createCompilerUnit(clang::ASTUnit *unit, clang::NamedDecl *decl)
 
     clang::DiagnosticsEngine &diag = cu->mcis->getDiagnostics();
     clang::CodeGenOptions &cgopt = cu->mcis->getCodeGenOpts();
+    clang::LangOptions langopt = ctx.getLangOpts();
+    qDebug()<<"cxx exceptions:"<<langopt.CXXExceptions;
+    qDebug()<<"exceptions:"<<langopt.Exceptions;
+    // see tools/gen_qt_meta_class.sh
+    // 禁用CodeGenFunction生成代码时的异常，减少生成代码中的__gxx_personality_v0出现，
+    // 同时不要过早涉及到析构函数的生成。因为使用异常时，需要先生成析构函数。
+    assert(langopt.CXXExceptions == 0);
+    assert(langopt.Exceptions == 0);
+    
+    langopt.CXXExceptions = 0;
+    langopt.Exceptions = 0;
+
+    qDebug()<<"cxx exceptions:"<<langopt.CXXExceptions;
+    qDebug()<<"exceptions:"<<langopt.Exceptions;
+    // qFatal("aaaaaaaaaaaaaaaaaaaaaa");
+    
+    clang::ASTContext * nctx = new clang::ASTContext(langopt, ctx.getSourceManager(), ctx.Idents, ctx.Selectors, ctx.BuiltinInfo);
+    clang::ASTContext &lctx = *nctx;
 
     cu->mvmctx = new llvm::LLVMContext();
     cu->mmod = new llvm::Module("piecegen2", *cu->mvmctx);
