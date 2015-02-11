@@ -114,7 +114,7 @@ namespace {
         bool isVspacer = false;
         if (properties.contains(QLatin1String("orientation"))) {
             const QString orientation = properties.value(QLatin1String("orientation"))->elementEnum();
-            if (orientation == QLatin1String("Qt5::QVertical") || orientation == QLatin1String("Vertical"))  isVspacer = true;
+            if (orientation == QLatin1String("Qt5::Vertical") || orientation == QLatin1String("Vertical"))  isVspacer = true;
         }
 
         if (isVspacer)
@@ -785,7 +785,7 @@ void WriteInitialization::acceptLayout(DomLayout *node)
             isGroupBox = true;
             // special case for group box
 
-            m_output << m_option.indent << parent << ".setColumnLayout(0, Qt5::QVertical)\n";
+            m_output << m_option.indent << parent << ".setColumnLayout(0, Qt5::Vertical)\n";
             QString objectName = parent;
             objectName += QLatin1String(".layout");
             int marginType = Use43UiFile;
@@ -1124,7 +1124,7 @@ void WriteInitialization::writeProperties(const QString &varName,
                     && m_uic->customWidgetsInfo()->extends(className, QLatin1String("Line"))) {
             // Line support
             QString shape = QLatin1String("Qt5::QFrame::HLine");
-            if (p->elementEnum() == QLatin1String("Qt5::QVertical"))
+            if (p->elementEnum() == QLatin1String("Qt5::Vertical"))
                 shape = QLatin1String("Qt5::QFrame::VLine");
 
             m_output << m_option.indent << varName << ".setFrameShape(" << shape << ")\n";

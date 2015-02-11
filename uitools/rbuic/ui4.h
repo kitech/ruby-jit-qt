@@ -3072,7 +3072,7 @@ public:
     inline QString elementCursorShape() const { return m_cursorShape; }
     void setElementCursorShape(const QString& a);
 
-    inline QString elementEnum() const { return m_enum; }
+    inline QString elementEnum() const { return QString(m_enum).replace("Qt::", "Qt5::"); }
     void setElementEnum(const QString& a);
 
     inline DomFont* elementFont() const { return m_font; }
