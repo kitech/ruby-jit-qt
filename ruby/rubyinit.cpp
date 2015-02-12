@@ -315,9 +315,13 @@ VALUE RubyInit::Qt_class_dtor(VALUE id)
 
 VALUE RubyInit::Qt_class_to_s(int argc, VALUE *argv, VALUE obj)
 {
-    qDebug()<<argc;
+    qDebug()<<argc<<argv;
+    qDebug()<<RBASIC_CLASS(obj);
+    qDebug()<<rb_class2name(RBASIC_CLASS(obj));
     QString klass_name = QString(rb_class2name(RBASIC_CLASS(obj)));
-    klass_name = klass_name.split("::").at(1);
+    // klass_name = klass_name.split("::").at(1);
+    klass_name = get_qt_class(obj);
+    QString rbklass_name = get_rb_class(obj);
     void *ci = Qom::inst()->getObject(obj);
 
     QString jitstr = gce->vm_qdebug(ci, klass_name);
@@ -325,7 +329,10 @@ VALUE RubyInit::Qt_class_to_s(int argc, VALUE *argv, VALUE obj)
     QString stc; // stream container
     QDebug dm(&stc);
     // dm << "tsed:" << klass_name << "Obj:"<< obj << "Hash:" << rb_hash(obj) << "C:"<< ci;
-    dm << "RBO:"<<obj << "["<< jitstr << "]";
+    jitstr.replace("\"", "");
+    QString inherit_prefix = rbklass_name.length() > 0 ? QString("%1 < ").arg(rbklass_name) : QString();
+    // dm << "RBO:"<< obj << "[" << inhirent_prefix << jitstr << "]";
+    dm << QString("RBO: %1 [ %2 %3 ]").arg(obj).arg(inherit_prefix).arg(jitstr);
     // 怎么能解引用呢 *ci, 当前void*无法解。
     // dm << "hehe has newline???"; // 这种方式要手动换行。
 
@@ -340,7 +347,10 @@ VALUE RubyInit::Qt_class_to_s(int argc, VALUE *argv, VALUE obj)
     */
     
     // qDebug()<<stc;
-    VALUE rv = rb_str_new2(stc.toLatin1().data());
+    QString clean_stc = stc.mid(1, stc.length() - 3); // trim start/end's '"', and also a space char
+    VALUE rv = rb_str_new2(clean_stc.toLatin1().data());
+    // qDebug()<<klass_name<<rbklass_name<<("="+clean_stc+"=")<<("="+stc+"=");
+    // exit(0);
     return rv;
 }
 
