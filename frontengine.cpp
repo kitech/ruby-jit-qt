@@ -1157,14 +1157,44 @@ bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl,
         clang::ParmVarDecl *pd = *it;
         clang::QualType ptype = pd->getType();
         clang::QualType nrptype = ptype.getNonReferenceType();
-        QString tstr = ptype.getAsString().c_str(); // type str 
+        QString tstr = ptype.getAsString().c_str(); // type string
 
         qDebug()<<tstr;
-        // qDebug()<<uargs.count()<<idx<<pd->hasDefaultArg()
-        //         <<ptype->isIntegralOrEnumerationType()<<tstr
-        //         <<ptype->isIntegerType()<<ptype->isIntegralType(mrgunit->getASTContext())
-        //         <<nrptype->isIntegralOrEnumerationType()<<tstr
-        //         <<nrptype->isIntegerType()<<nrptype->isIntegralType(mrgunit->getASTContext());
+        qDebug()<<"grepkey:"<<uargs.count()<<idx<<pd->hasDefaultArg()
+                <<ptype->isIntegralOrEnumerationType()<<tstr
+                <<ptype->isIntegerType()<<ptype->isIntegralType(mrgunit->getASTContext())
+                <<nrptype->isIntegralOrEnumerationType()<<tstr
+                <<nrptype->isIntegerType()<<nrptype->isIntegralType(mrgunit->getASTContext())
+                <<"ot:"<<nrptype->isObjectType()<<",pt"<<nrptype->isPointerType()
+                <<"trivial:"<<ptype.isTrivialType(mrgunit->getASTContext())
+                <<"trivial copy:"<<ptype.isTriviallyCopyableType(mrgunit->getASTContext())
+                <<"rectype:"<<nrptype->isRecordType()
+                <<"template:"<<nrptype->isTemplateTypeParmType();
+
+        // debug void* => i32
+        if (nrptype->isRecordType() && !ptype->isPointerType() && !ptype->isReferenceType()) {
+            auto bret = llvm::isa<clang::RecordType>(nrptype); // why crash randomly???
+            qDebug()<<bret;
+            if (bret) {
+                const clang::RecordType * recty =  llvm::cast<clang::RecordType>(nrptype);
+                qDebug()<<"here :"<<recty<<recty->getDecl()
+                        <<llvm::isa<clang::RecordDecl>(recty->getDecl());
+                const clang::RecordDecl *rec_decl = llvm::cast<clang::RecordDecl>(recty->getDecl());
+                qDebug()<<"kind name:"<<rec_decl->getKindName().str().c_str()
+                        <<rec_decl->getKind()<<clang::Decl::CXXRecord;
+
+                if (rec_decl->getKind() == clang::Decl::CXXRecord) {
+                    const clang::CXXRecordDecl *xrec_decl
+                        = llvm::cast<clang::CXXRecordDecl>(recty->getDecl());
+
+                    qDebug()<<"trivial default ctor:"<<xrec_decl->hasDefaultConstructor();
+                    qDebug()<<"trivial class:"<<xrec_decl->hasTrivialDefaultConstructor();
+                    qDebug()<<"trivial class:"<<xrec_decl->hasTrivialCopyConstructor();
+                    qDebug()<<"trivial class:"<<xrec_decl->isTrivial();
+                    qDebug()<<"trivial class:"<<xrec_decl->isTriviallyCopyable();
+                }
+            }
+        }
         if (idx < uargs.count()) {
             bool ok = false;
             switch ((int)uargs.at(idx).type()) {
@@ -1199,6 +1229,12 @@ bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl,
                 if (ptype->isObjectType() && ptype->isPointerType()) ok = true;
                 // for const QPalette& and similar syntax args
                 if (ptype->isReferenceType() && nrptype->isObjectType()) ok = true;
+                // for void* => class object with copy construct, see #3
+                if (ptype->isObjectType() && ptype.isTriviallyCopyableType(mrgunit->getASTContext())
+                    && !ptype->isPointerType() && !ptype->isReferenceType()) {
+                    qDebug()<<QString("uargs[%1] need convert void* => int32").arg(idx);
+                    ok = true;
+                }
                 break;
             case QMetaType::QStringList:
                 if (tstr.indexOf("char **") != -1) ok = true;
@@ -1231,6 +1267,66 @@ bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl,
     if (match_degree == 1.0 || pless == 0) return true;
     return false;
     return true;
+}
+
+// void* => i32 trivial copy prepare
+int FrontEngine::replace_trivial_copy_params(clang::CXXMethodDecl *decl, QVector<QVariant> &uargs)
+{
+    QVector<QVariant> tricpy_uargs(uargs.size());
+    int idx = 0;
+    for (auto it = decl->param_begin(); it != decl->param_end(); it++, idx++) {
+        clang::ParmVarDecl *pd = *it;
+        clang::QualType ptype = pd->getType();
+        clang::QualType nrptype = ptype.getNonReferenceType();
+        QString tstr = ptype.getAsString().c_str(); // type string
+
+        if (idx < uargs.count()) {
+            switch ((int)uargs.at(idx).type()) {
+            case QMetaType::VoidStar:
+                // for void* => class object with copy construct, see #3
+                if (ptype->isObjectType() && ptype.isTriviallyCopyableType(mrgunit->getASTContext())
+                    && !ptype->isPointerType() && !ptype->isReferenceType()) {
+                    // TODO 怎么把这个写死的改进成动态更准确的检测的方式。
+                    // && tstr.contains("QSizePolicy")) {
+                    qDebug()<<QString("uargs[%1] need convert void* => int32").arg(idx);
+                    int32_t itmp = 0;
+                    int64_t ltmp = 0;
+                    char *vtmp = (char*)uargs.at(idx).value<void*>();
+                    // for x86_64, little endin
+                    if (sizeof(void*) == sizeof(int64_t)) {
+                        memcpy(&itmp, vtmp, sizeof(int32_t));
+                        memcpy(&ltmp, vtmp, sizeof(int64_t));
+                        // itmp = (int64_t)vtmp;  // 为什么这种方式得到错误的结果呢？
+                    } else if (sizeof(void*) == sizeof(int32_t)) {
+                        memcpy(&itmp, vtmp, sizeof(int32_t));
+                        // itmp = (int64_t)vtmp;
+                    } else { assert(1==2); }
+                    tricpy_uargs.replace(idx, QVariant(itmp));
+                    qDebug()<<"replaced:"<<itmp<<(void*)vtmp<<(int32_t)(int64_t)vtmp<<ltmp<<(int32_t)ltmp;
+                }
+                break;
+            default: break;
+            }
+
+        } else {
+            clang::Expr *dae = pd->getDefaultArg();
+            // 在此不考虑其默认值了，只要确定有默认值就可以。
+        }
+    }
+
+    auto orig_args = uargs;
+    int replaced = 0;
+    for (int idx = 0; idx < tricpy_uargs.size(); idx++) {
+        if (tricpy_uargs.at(idx).isValid()) {
+            uargs.replace(idx, tricpy_uargs.at(idx));
+            replaced ++;
+        }
+    }
+    if (replaced > 0) {
+        qDebug()<<"replaced:"<<decl->getName().str().c_str();
+    }
+    qDebug()<<"replaced void* => i32 count:"<<replaced<<tricpy_uargs<<uargs<<orig_args;
+    return replaced;
 }
 
 bool FrontEngine::mangle_method_to_symbol(clang::CXXMethodDecl *decl, 

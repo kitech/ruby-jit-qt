@@ -116,6 +116,10 @@ public:
     
     bool method_match_by_uargs(clang::CXXMethodDecl *decl, 
                                QString klass, QString method, QVector<QVariant> uargs);
+    // void* => i32 trivial copy prepare
+    // 用在OperatorEngine::bind()调用之前
+    // @return replaced count
+    int replace_trivial_copy_params(clang::CXXMethodDecl *decl, QVector<QVariant> &uargs);
     bool mangle_method_to_symbol(clang::CXXMethodDecl *decl, 
                                  QString &symbol_name, QString &proto_str);
     bool mangle_function_to_symbol(clang::FunctionDecl *decl, 

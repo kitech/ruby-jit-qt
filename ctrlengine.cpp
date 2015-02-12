@@ -268,6 +268,9 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     // mod->dump();
     // */
 
+    // replace void* => i32 trivial copy params
+    int replaced = mfe->replace_trivial_copy_params(mth_decl, uargs);
+    
     OperatorEngine oe;
     QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, mth_decl->isStatic(), kthis);
     qDebug()<<lamsym;
