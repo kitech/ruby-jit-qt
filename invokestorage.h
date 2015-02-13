@@ -6,6 +6,7 @@
 #include <QChar>
 #include <QMetaType>
 #include <QStringList>
+#include <QVariant>
 
 namespace llvm {
     class Value;
@@ -37,10 +38,10 @@ struct EvalType {
 };
 Q_DECLARE_METATYPE(EvalType);
 
-constexpr int MAX_IS_COUNT = 10;
 
 class InvokeStorage2 {
 public:
+    static constexpr int MAX_IS_COUNT = 10;    
     InvokeStorage2(){
         pcsval = (char**)calloc(sizeof(char*), MAX_IS_COUNT);
         fval = (QFlag*)calloc(sizeof(QFlag), MAX_IS_COUNT);
@@ -75,6 +76,7 @@ public:
     QStringList slval[10];
     QFlag *fval;  // flag value
     void *fval2[10]; // flags value
+    QVariant qvval[MAX_IS_COUNT]; //
 } ;
 // TODO 多线程支持
 // TODO 更节省内存的存储方式

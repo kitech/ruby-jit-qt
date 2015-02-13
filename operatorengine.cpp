@@ -101,6 +101,14 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
 
         switch ((int)v.type()) {
         case QMetaType::QString:
+            // TODO Fix this shit static handler of QVariant type
+            if (mrg_args.at(i).toString() == "VMCallArgument") {
+                gis2.qvval[i] = QVariant();
+                lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)&gis2.qvval[i]);
+                lv = llvm::ConstantExpr::getIntToPtr(lc, aty);
+                cargs.push_back(lv);
+                break;
+            }
             // if (sty == "i8*") {
             if (aty == builder.getInt8Ty()->getPointerTo()) {
                 ctypes.push_back(aty);
@@ -194,6 +202,12 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
                 lv = llvm::ConstantExpr::getIntToPtr(lc, aty);
                 cargs.push_back(lv);
             }
+        }; break;
+        case QMetaType::QVariant: {
+            gis2.qvval[i] = mrg_args.at(i);
+            lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)&gis2.qvval[i]);
+            lv = llvm::ConstantExpr::getIntToPtr(lc, aty);
+            cargs.push_back(lv);
         }; break;
         default:
             if (v.userType() != EvalType::id) {

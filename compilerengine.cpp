@@ -1439,6 +1439,7 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
                     "_ZN5QSizeC1Eii", "_ZN5QRectC1Eiiii", "_ZN5QRectC1Ev",
                     "_ZN11QSizePolicyC1ENS_6PolicyES0_NS_11ControlTypeE",
                     "_ZN11QLayoutItemC1E6QFlagsIN2Qt13AlignmentFlagEE",
+                    "_ZN5QIconC1Ev",
                 };
                 if (known_syms.contains(tsym)) {
                     auto callee_decl_with_body = 
@@ -1459,7 +1460,7 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
             }
             else if (llvm::isa<clang::CXXDestructorDecl>(callee_decl)) {
                 QStringList known_syms = {
-                    "_ZN10QByteArrayD1Ev",
+                    "_ZN10QByteArrayD1Ev", "_ZN5QIconD1Ev",
                 };
                 qDebug()<<"dtor.........";
                 qFatal("hehhhhhhhhhhh");
@@ -1477,6 +1478,7 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
                     "_ZNK7QWidget13testAttributeEN2Qt15WidgetAttributeE",
                     "_ZN9QtPrivate8RefCount3refEv",
                     "_ZN11QSizePolicy14setControlTypeENS_11ControlTypeE",
+                    "_ZN9QComboBox10insertItemEiRK5QIconRK7QStringRK8QVariant",
                 };
                 if (known_syms.contains(tsym)) {
                     auto callee_decl_with_body = 

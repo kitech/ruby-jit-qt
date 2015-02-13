@@ -1365,6 +1365,20 @@ bool FrontEngine::mangle_function_to_symbol(clang::FunctionDecl *decl,
     return false;
 }
 
+// 本来是为了在ExprWithCleanups中查找CXXTemporaryObjectExpr的
+template <typename T_EXPR>
+T_EXPR *find_expr_by_type(clang::Expr *bexpr)
+{
+    if (llvm::isa<T_EXPR>(bexpr)) return llvm::cast<T_EXPR>(bexpr);
+
+    for (auto se: bexpr->children()) {
+        if (llvm::isa<clang::Expr>(se)) {
+            auto re = find_expr_by_type<T_EXPR>(llvm::cast<clang::Expr>(se));
+            if (re) return re;
+        }
+    }
+    return NULL;
+}
 
 bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<QVariant> &dparams)
 {
@@ -1398,7 +1412,7 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
         return QVariant();
     };
 
-    auto eval_ctor = [&plain_cinit_value](clang::CXXConstructExpr* expr, FrontEngine *tthis) -> QVariant {
+    auto eval_ctor = [&plain_cinit_value](clang::CXXConstructExpr* expr, FrontEngine *that) -> QVariant {
         clang::CXXConstructorDecl *decl = expr->getConstructor();
         clang::CXXRecordDecl *rec_decl = decl->getParent();
         QString klass_name = rec_decl->getName().data();
@@ -1407,8 +1421,8 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
         if (klass_name == "QChar") {
             return QVariant(QChar(' '));
         } else if (klass_name == "QFlags") {
-            qDebug()<<expr->isEvaluatable(tthis->mtrunit->getASTContext()); // false
-            QVariant evlst = plain_cinit_value(expr, tthis);
+            qDebug()<<expr->isEvaluatable(that->mtrunit->getASTContext()); // false
+            QVariant evlst = plain_cinit_value(expr, that);
             // if (evlst.isValid()) return evlst;
 
             QFlags<QUrl::ComponentFormattingOption> *f =
@@ -1424,13 +1438,30 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
             // qDebug()<<pv;
             // return vf;
             return QVariant::fromValue((void*)fw);
+        } else if (klass_name == "QVariant") {
+            // 不能用QVariant存储另一个QVariant，无法传递到OperatorEngine
+            return QVariant("VMCallArgument");
         }
         
         return QVariant(99813721);
     };
 
+    // 
+    auto eval_cleanup_expr =
+        [&eval_ctor](clang::MaterializeTemporaryExpr *expr, FrontEngine *that) -> QVariant {
+
+        clang::CXXTemporaryObjectExpr *toe =
+        find_expr_by_type<clang::CXXTemporaryObjectExpr>(expr);
+        if (toe) {
+            // clang::CXXConstructorDecl* ctor = toe->getConstructor();
+            return QVariant(eval_ctor(toe, that));
+        } else {
+            return QVariant(QString("invalid eval: %1:%2").arg(__FILE__).arg(__LINE__));
+        }
+    };
+
     int cnter = 0;
-    qDebug()<<"============"<<dps.count();
+    qDebug()<<"============"<<dps.count()<<decl->param_size();
     decl->dumpColor();
     for (auto it = decl->param_begin(); it != decl->param_end(); it++, cnter++) {
         clang::ParmVarDecl *pd = *it;
@@ -1469,8 +1500,13 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
                 qDebug()<<"unknown eval result type:";
             }
         }
+        else if (llvm::isa<clang::MaterializeTemporaryExpr>(dae)) {
+            dps << eval_cleanup_expr(llvm::cast<clang::MaterializeTemporaryExpr>(dae), this);
+        }
         else {
-            qDebug()<<cnter<<dae->isCXX11ConstantExpr(mtrunit->getASTContext())
+            qDebug()<<"unknown default param expr:"<<cnter
+                    <<dae->getStmtClassName()
+                    <<dae->isCXX11ConstantExpr(mtrunit->getASTContext())
                     <<dae->isConstantInitializer(mtrunit->getASTContext(), true)
                     <<dae->isEvaluatable(mtrunit->getASTContext());
         }
@@ -1478,6 +1514,7 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
     }
 
     qDebug()<<"dargs:"<<dps<<cnter<<dps.count();
+    assert(dps.count() == decl->param_size());
 
     return true;
 }
