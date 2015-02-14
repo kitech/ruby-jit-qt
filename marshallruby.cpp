@@ -169,3 +169,109 @@ VALUE MarshallRuby::Variant2VALUE(void *v, int type)
     return rv;
 }
 
+/////////////////////
+// static
+QVector<MetaTypeVariant> MarshallRuby::VALUE2MTVariant(VALUE v)
+{
+    QVector<MetaTypeVariant> rvs(1);
+    MetaTypeVariant rv;
+    QString str, str2;
+    void *ci = NULL;
+    QObject *obj = NULL;
+
+    VALUE v1, v2, v3;
+    
+    switch (TYPE(v)) {
+    case T_NONE:  rv = MetaTypeVariant(); break;
+    case T_FIXNUM: {
+        QVariant num = (int)FIX2INT(v);
+        rv = MetaTypeVariant(QMetaType::Int, &num);
+    }; break;
+    case T_STRING: {
+        QVariant str = QString(RSTRING_PTR(v));
+        rv = MetaTypeVariant(QMetaType::QString, &str);
+    }; break;
+    case T_FLOAT: {
+        QVariant num = RFLOAT_VALUE(v);
+        rv = MetaTypeVariant(QMetaType::Double, &num);
+    }; break;
+    case T_NIL: {
+        QVariant  num = 0; rv = MetaTypeVariant(QMetaType::Int, &num);
+    }; break;
+    case T_TRUE: {
+        QVariant ok = true; rv = MetaTypeVariant(QMetaType::Bool, &ok);
+    }; break;
+    case T_FALSE: {
+        QVariant ok = false; rv = MetaTypeVariant(QMetaType::Bool, &ok);
+    }; break;
+    case T_OBJECT: {
+        str = QString(rb_class2name(RBASIC_CLASS(v)));
+        ci = Qom::inst()->getObject(v);
+        // obj = dynamic_cast<QObject*>(ci);
+        qDebug()<<"unimpl VALUE:"<<str<<ci<<obj;
+        // rv = QVariant(QMetaType::VoidStar, ci);
+        // rv = QVariant::fromValue(ci);
+        QVariant vrv = QVariant::fromValue(ci);
+        rv = MetaTypeVariant(QMetaType::VoidStar, &vrv);
+    }; break;
+    case T_ARRAY: {
+        QStringList ary;
+        // ary << "a123" << "b3456";
+        qDebug()<<RARRAY_LEN(v)<<QT_VERSION;
+        for (int i = 0; i < RARRAY_LEN(v); i++) {
+            // FIXME: 也可能是对象数组，如Qt5::QString，但toString方法不好用。
+            // FIXME: 如，[Qt5::QApplication.translate("MainWindow", "acbc", nil), "efgggggg", "hijjjjjjjj"]
+            ary << VALUE2Variant(rb_ary_entry(v, i)).toString();
+        }
+        // rv = QVariant(ary);
+        QVariant vary(ary);
+        rv = MetaTypeVariant(QMetaType::QStringList, &vary);
+    }; break;
+    case T_STRUCT: { // for ruby range
+        str = rb_class2name(RBASIC_CLASS(v));
+        if (str == "Range") {
+            // qDebug()<<"Range is struct???"<<BUILTIN_TYPE(v)
+            //         <<rb_class2name(RBASIC_CLASS(v))
+            //         <<RSTRUCT_LEN(v);
+            v1 = RSTRUCT_GET(v, 0);
+            v2 = RSTRUCT_GET(v, 1);
+            v3 = RSTRUCT_GET(v, 2);
+            // qDebug()<<TYPE(v1)<<TYPE(v2)<<TYPE(v3);
+            // qDebug()<<FIX2INT(v1)<<FIX2INT(v2);
+
+            // rv = QVariant(FIX2INT(v1));
+            // rvs.append(QVariant(FIX2INT(v2)));
+            QVariant num1 = FIX2INT(v1);
+            QVariant num2 = FIX2INT(v2);
+            rv = MetaTypeVariant(QMetaType::Int, &num1);
+            MetaTypeVariant mtv(QMetaType::Int, &num2);
+            rvs.append(mtv);
+        } else {
+            qDebug()<<"unsupported struct type:"<<str;
+        }
+    }; break;
+    case T_CLASS:
+    default:
+        qDebug()<<"unknown VALUE type:"<<TYPE(v);
+        break;
+    }
+    
+    rvs[0] = rv;
+    return rvs;    
+}
+
+// static
+QVector<MetaTypeVariant> MarshallRuby::ARGV2MTVariant(int argc, VALUE *argv, int start)
+{
+    QVector<MetaTypeVariant> args;
+    for (int i = start; i < argc; i ++) {
+        if (i >= argc) break;
+        qDebug()<<"i == "<< i << (i<argc) << (i>argc);
+        QVector<MetaTypeVariant> targs = VALUE2MTVariant(argv[i]);
+        for (auto &v: targs) args << v;
+        qDebug()<<"i == "<< i << (i<argc) << (i>argc)<<targs;
+    }
+
+    return args;
+}
+

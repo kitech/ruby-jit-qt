@@ -14,6 +14,7 @@
 #include "invokestorage.h"
 #include "qtobjectmanager.h"
 #include "ruby_cxx.h"
+#include "callargument.h"
 
 CtrlEngine::CtrlEngine()
 {
@@ -46,7 +47,8 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     ctor_decl->dumpColor();
 
     QVector<QVariant> dargs;
-    mfe->get_method_default_params(ctor_decl, dargs);
+    QVector<MetaTypeVariant> mtdargs;
+    mfe->get_method_default_params(ctor_decl, dargs, mtdargs);
     
     // auto mod = mce->conv_ctor(mfe->getASTContext(), ctor_decl);
     auto mod = mce->conv_ctor2(mfe->getASTUnit(), ctor_decl, dargs);
@@ -239,7 +241,8 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     // exit(-1);
 
     QVector<QVariant> dargs;
-    mfe->get_method_default_params(mth_decl, dargs);
+    QVector<MetaTypeVariant> mtdargs;
+    mfe->get_method_default_params(mth_decl, dargs, mtdargs);
     
     // auto mod = mce->conv_method(mfe->getASTContext(), mth_decl);
     auto mod = mce->conv_method2(mfe->getASTUnit(), mth_decl);
@@ -300,7 +303,8 @@ QVariant CtrlEngine::vm_static_call(QString klass, QString method, QVector<QVari
     mth_decl->dumpColor();
 
     QVector<QVariant> dargs;
-    mfe->get_method_default_params(mth_decl, dargs);
+    QVector<MetaTypeVariant> mtdargs;
+    mfe->get_method_default_params(mth_decl, dargs, mtdargs);
 
     // auto mod = mce->conv_method(mfe->getASTContext(), mth_decl);
     auto mod = mce->conv_method2(mfe->getASTUnit(), mth_decl);

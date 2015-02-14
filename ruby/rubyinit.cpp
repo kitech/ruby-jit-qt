@@ -268,7 +268,9 @@ VALUE RubyInit::Qt_class_init(int argc, VALUE *argv, VALUE self)
         args << MarshallRuby::VALUE2Variant(argv[i]);
         qDebug()<<"i == "<< i << (i<argc) << (i>argc)<<MarshallRuby::VALUE2Variant(argv[i]);
     }
-    
+
+    CallArgument *cargs = new CallArgument(argc, argv, self, 0);
+    qDebug()<<cargs->getArgs();
     void *jo = gce->vm_new(klass_name, args);
     qDebug()<<jo<<self<<rb_hash(self);    
 
@@ -398,7 +400,10 @@ VALUE RubyInit::Qt_class_method_missing(int argc, VALUE *argv, VALUE self)
 
     QVector<QVariant> args;
     args = MarshallRuby::ARGV2Variant(argc, argv, 1);
-    CallArgument cargs(argc, argv, self);
+    qDebug()<<"callarg:"<<args;
+    
+    CallArgument *cargs = new CallArgument(argc, argv, self, 1);
+    qDebug()<<"callarg:"<<cargs->getArgs();
 
     // fix try_convert(obj) → array or nil
     if (method_name == "to_ary") {

@@ -26,6 +26,8 @@ end
 def test_qstring2()
     #s = Qt5::QString.new("abcdefg")
     s = Qt5::QString.new
+    s.append('abcdefg12345678')
+    # s.to_s
 end
 
 def test_qbytearray()

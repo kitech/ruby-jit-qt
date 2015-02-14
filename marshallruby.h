@@ -5,6 +5,7 @@
 #include <QtCore>
 
 #include "ruby_cxx.h"
+#include "callargument.h"
 
 /*
   负责ruby <=> qt的类型转换
@@ -29,6 +30,11 @@ public:
 
     // @param v QMetaCallEvent->args()[n]
     static VALUE Variant2VALUE(void *v, int type);
+
+    
+    /////// 使用MetaElem表示的Variant
+    static QVector<MetaTypeVariant> VALUE2MTVariant(VALUE v);
+    static QVector<MetaTypeVariant> ARGV2MTVariant(int argc, VALUE *argv, int start = 1);
 };
 
 

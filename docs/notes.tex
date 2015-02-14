@@ -1,10 +1,11 @@
 \section{TODO列表}
 
-
+\chapter{LLVM IR}
 \section{默认参数值的传递表达}
 \subsection{普通类型}
 这种类型包括内置类型，int,char,QVariant支持的类。
 这种可以直接使用QVariant表示，并且能够非常容易的检测。
+其中QVariant不能再用QVariant表示，需要第三方XVariant类似类处理，已经设计一个叫CallArgument::MetaElem。
 
 \subsection{表达式参数值}
 这种包括类似QChar(' '), QString("")，QFlags<???>()，
@@ -34,6 +35,8 @@
 这种是一个透明传递的QXxx*类型实例。
 
 \section{模板方法的实例化}
+模板实例化需要用到clang::Sema类。
+
 \subsection{普通方法实例化}
 \subsection{构造函数实例化}
 默认情况下会生成Ctor\_Complete类型的实例。
@@ -100,7 +103,7 @@ nil传递到C时是int类型的0。
 \section{Ruby的层信号定义}
 使用signals 'hit()', 'missed()', 'changed(int)'语法
 处理过程：
-在ruby继续类中，使用该语法定义
+i在ruby继续类中，使用该语法定义
 这个定义会生成一个signals(多维）哈希数组结合存储这些信号。
 这个信号可以连接Qt原始类的slot，也可连接Ruby继承类的slot（自动检测，只要是变通方法即可）
 可以使用Qt5::rbconnect方法，与Qt5::connectrb方法对应，表示信号是在ruby层定义的。
@@ -113,6 +116,7 @@ nil传递到C时是int类型的0。
 而这里slots不需要显式指定，优先检测ruby层类是否有这个方法，如果有则优先使用，如果没有则使用qt层的slot方法。
 
 \section{Ruby中继承Qt类的处理}
+目前能够实现一次继承。
 
 \section{Ruby的Object类已有方法的处理}
 像display方法，如果在Qt类中还有这个方法，则无法正确的调用到Qt类的方法，
@@ -136,10 +140,13 @@ nil传递到C时是int类型的0。
 如Qt5::QStringAbc.new()语句，会执行到x\_Qt\_Constant\_missing函数中。
 在这个函数中，动态注册该Qt类，并返回类对应的VALUE类型的值。
 
+注册类相关统计，包括注册类的个数，注册了哪些类，以及注册时运行时信息。
+
 \section{clang与gcc兼容性问题}
 \subsection{/usr/include/string.h:82:1: error: unknown type name '\_\_extern\_always\_inline'}
 在使用clang编译时报错。
 一种解决方式是使用-O0优化参数，能够避免这个报错。
+另一种解决方式是使用hotfix方案，在代码树中补充定义这一宏，这是目前使用的方案。
 
 \section{Qt库调试}
 可以另行编译出Qt共享库，使用设置LD\_LIBRARY\_PATH方式，
@@ -153,10 +160,36 @@ nil传递到C时是int类型的0。
 
 3:
 
+\chapter{优化}
+优化包括四个方面，一个是速度上的优化，一个是内存的优化，一个是架构上的优化，还有一个是代码上的优化。
+\section{速度优化}
+目前已经基本可用，但速度上已经感觉到非常慢了，需要尽快做优化。
+可能的优化方案，
+*) 保存已生成的IR代码，放在IRmodule中，缓存起来可以多次使用。
+而生成的wrapper调用代码，放在tmpwrapmodule中，每次调用生成新的。
+对于多次出现的wrapper方法，可以放在hotwrapmodule中，可以多次使用。
+wrappermodule与IRmodule中生成的IR代码需要一个动态维护的过程，
+这个过程需要一个执行统计的功能，实现hotcode的相关处理。
+*) AST查找优化，当前是一个树形结构，把每个类的节点查找到后，
+以name=>node哈希形式缓存起来，后续使用的查询速度会快很多。
+*) 在功能稳定后，可以把IR代码再转换成llvm bc格式指令缓存，充分利用MCJIT优化。
+
+
+\section{内存优化}
+这个优先级稍微低一些，但还是要考虑。
+
+\section{代码优化}
+要把代码改的优美些，清晰些。
+
+\section{架构优化}
+这个指的是清晰的模块化，支持多种前端语言，甚至后续支持多种除Qt之外的其他后端C++库，实现一个真正的CLVM。
+
+
 \chapter{C++}
 nm -s libhandby.so 中，符号为'U'的表示什么意思呢？
 执行的时候报错：undefined symbol: \_ZN9SingletonI15QtObjectManagerE6m\_instE
-这个'U'应该就是undefined的意思。
+这个'U'应该就是undefined的意思，指没有找到这个符号的实际代码地址。
+T 表示的符号在代码的Text区域。
 
 C++中的friend友元不能继承。
 
@@ -164,4 +197,8 @@ C++中的friend友元不能继承。
 ROOT/cling
 llvm/vmkit
 Graal/Truffle
+
+\chapter{TODOS}
+P9  rubyqt对象的析构。
+P10 注册类相关统计，包括注册类的个数，注册了哪些类，以及注册时运行时信息。
 

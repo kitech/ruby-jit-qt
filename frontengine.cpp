@@ -550,7 +550,8 @@ bool FrontEngine::get_method_default_args2(QString klass, QString method, QStrin
         return false;
     }
 
-    bool ok = this->get_method_default_params(mthdecl, dargs);
+    QVector<MetaTypeVariant> mtdargs;
+    bool ok = this->get_method_default_params(mthdecl, dargs, mtdargs);
     Q_ASSERT(ok);
     
     return ok;
@@ -1380,11 +1381,12 @@ T_EXPR *find_expr_by_type(clang::Expr *bexpr)
     return NULL;
 }
 
-bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<QVariant> &dparams)
+bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<QVariant> &dparams
+                                            , QVector<MetaTypeVariant> &mtdargs)
 {
     QVector<QVariant> &dps = dparams;
 
-    auto plain_cinit_value = [](clang::Expr *e, FrontEngine *tthis) -> QVariant {
+    auto plain_cinit_value = [](clang::Expr *e, FrontEngine *tthis) -> MetaTypeVariant {
         QStack<clang::Expr*> exps;
         exps.push(e);
         clang::Expr *re = NULL;
@@ -1401,28 +1403,32 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
         re->dumpColor();
         if (llvm::isa<clang::IntegerLiteral>(re)) {
             llvm::APInt v = llvm::cast<clang::IntegerLiteral>(re)->getValue();
-            return QVariant::fromValue(v.getLimitedValue());
+            QVariant tmpv = QVariant::fromValue(v.getLimitedValue());
+            return MetaTypeVariant(QMetaType::Int, &tmpv);
         }
         else if (llvm::isa<clang::CharacterLiteral>(re)) {
             unsigned char c = llvm::cast<clang::CharacterLiteral>(re)->getValue();
-            return QVariant::fromValue(c);
+            QVariant tmpv = QVariant::fromValue(c);
+            return MetaTypeVariant(QMetaType::UChar, &tmpv);
         } else {
             qDebug()<<"unsupported expr:"<<re;
         }
-        return QVariant();
+        return MetaTypeVariant();
     };
 
-    auto eval_ctor = [&plain_cinit_value](clang::CXXConstructExpr* expr, FrontEngine *that) -> QVariant {
+    auto eval_ctor = [&plain_cinit_value](clang::CXXConstructExpr* expr, FrontEngine *that) -> MetaTypeVariant {
         clang::CXXConstructorDecl *decl = expr->getConstructor();
         clang::CXXRecordDecl *rec_decl = decl->getParent();
         QString klass_name = rec_decl->getName().data();
         decl->dumpColor();
         qDebug()<<"param klass name:"<<klass_name<<decl;
         if (klass_name == "QChar") {
-            return QVariant(QChar(' '));
+            QVariant tmpv(QChar(' '));
+            return MetaTypeVariant(QMetaType::QChar, &tmpv);
         } else if (klass_name == "QFlags") {
             qDebug()<<expr->isEvaluatable(that->mtrunit->getASTContext()); // false
-            QVariant evlst = plain_cinit_value(expr, that);
+            // QVariant evlst = plain_cinit_value(expr, that);
+            MetaTypeVariant evlst = plain_cinit_value(expr, that);
             // if (evlst.isValid()) return evlst;
 
             QFlags<QUrl::ComponentFormattingOption> *f =
@@ -1437,26 +1443,31 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
             // QVariant pv = plain_cinit_value(expr, tthis);
             // qDebug()<<pv;
             // return vf;
-            return QVariant::fromValue((void*)fw);
+            QVariant tmpv = QVariant::fromValue((void*)fw);
+            return MetaTypeVariant(QMetaType::VoidStar, &tmpv);
         } else if (klass_name == "QVariant") {
+            QVariant tmpv;
+            return MetaTypeVariant(QMetaType::QVariant, &tmpv);
             // 不能用QVariant存储另一个QVariant，无法传递到OperatorEngine
-            return QVariant("VMCallArgument");
+            // return QVariant("VMCallArgument");
         }
-        
-        return QVariant(99813721);
+
+        QVariant tmpv(99813721);
+        return MetaTypeVariant(QMetaType::Int, &tmpv);
     };
 
     // 
     auto eval_cleanup_expr =
-        [&eval_ctor](clang::MaterializeTemporaryExpr *expr, FrontEngine *that) -> QVariant {
+        [&eval_ctor](clang::MaterializeTemporaryExpr *expr, FrontEngine *that) -> MetaTypeVariant {
 
         clang::CXXTemporaryObjectExpr *toe =
         find_expr_by_type<clang::CXXTemporaryObjectExpr>(expr);
         if (toe) {
             // clang::CXXConstructorDecl* ctor = toe->getConstructor();
-            return QVariant(eval_ctor(toe, that));
+            return eval_ctor(toe, that);
         } else {
-            return QVariant(QString("invalid eval: %1:%2").arg(__FILE__).arg(__LINE__));
+            QVariant tmpv(QString("invalid eval: %1:%2").arg(__FILE__).arg(__LINE__));
+            return MetaTypeVariant(QMetaType::QString, &tmpv);
         }
     };
 
@@ -1466,7 +1477,7 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
     for (auto it = decl->param_begin(); it != decl->param_end(); it++, cnter++) {
         clang::ParmVarDecl *pd = *it;
         qDebug()<<cnter<<dps;
-        if (!pd->hasDefaultArg()) {          
+        if (!pd->hasDefaultArg()) {
             dps << QVariant();
             continue;
         }
@@ -1481,9 +1492,14 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
         clang::Expr::EvalResult eres, eres2;
         if (dae->isIntegerConstantExpr(ival, this->mtrunit->getASTContext())) {
             dps << QVariant((qlonglong)ival.getZExtValue());
+            QVariant tmpv = (qlonglong)ival.getZExtValue();
+            mtdargs << MetaTypeVariant(QMetaType::LongLong, &tmpv);
         } else if (clang::isa<clang::CXXConstructExpr>(dae)) {
             // dps << eval_ctor(clang::cast<clang::CXXConstructExpr>(dae), this);
             dps << QVariant::fromValue(EvalType(dae, 0));
+            QVariant evalty = QVariant::fromValue(EvalType(dae, 0));
+            MetaTypeVariant mtv(qMetaTypeId<EvalType>(), &evalty);
+            
         } else if (dae->isCXX11ConstantExpr(mtrunit->getASTContext())) {
             bret = dae->EvaluateAsRValue(eres, mtrunit->getASTContext());
             qDebug()<<bret;
@@ -1496,12 +1512,16 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
                                                   clang::Expr::NullPointerConstantValueDependence::NPC_NeverValueDependent);
             if (nulltype == clang::Expr::NullPointerConstantKind::NPCK_ZeroLiteral) {
                 dps << QVariant::fromValue((void*)0);
+                QVariant tmpv = QVariant::fromValue((void*)0);
+                mtdargs << MetaTypeVariant(QMetaType::VoidStar, &tmpv);
             } else {
                 qDebug()<<"unknown eval result type:";
             }
         }
         else if (llvm::isa<clang::MaterializeTemporaryExpr>(dae)) {
-            dps << eval_cleanup_expr(llvm::cast<clang::MaterializeTemporaryExpr>(dae), this);
+            MetaTypeVariant mtv = eval_cleanup_expr(llvm::cast<clang::MaterializeTemporaryExpr>(dae), this);
+            dps << mtv.toVariant();
+            mtdargs << mtv;
         }
         else {
             qDebug()<<"unknown default param expr:"<<cnter

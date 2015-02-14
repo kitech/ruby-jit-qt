@@ -3,6 +3,8 @@
 
 #include <QtCore>
 
+#include "callargument.h"
+
 /*
   用于解析头文件，实时提供类的声明原型，类方法的返回值，类方法的默认参数值。
  */
@@ -126,7 +128,8 @@ public:
                                  QString &symbol_name, QString &proto_str);
     
     // 获取方法的默认参数值
-    bool get_method_default_params(clang::CXXMethodDecl *decl, QVector<QVariant> &dparams);
+    bool get_method_default_params(clang::CXXMethodDecl *decl, QVector<QVariant> &dparams
+                                   , QVector<MetaTypeVariant> &mtdargs);
     // 获取一个方法的返回值类型，现在以字符串格式表示，后续可以考虑使用类型标识。
     QVariant get_method_return_type(clang::CXXMethodDecl *decl);
 
