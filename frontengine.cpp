@@ -1207,20 +1207,25 @@ bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl,
                 if (nrptype->isIntegralOrEnumerationType()) ok = true;
                 // sth. like QWidget *p = 0
                 if (uargs.at(idx).toInt() == 0 && ptype->isPointerType()) ok = true;
+                if (tstr.indexOf("QVariant") != -1) ok = true;
                 break;
             case QMetaType::Double: case QMetaType::Float:
                 if (ptype->isRealFloatingType()) ok = true;
                 // qDebug()<<ptype->isRealFloatingType()<<ptype->isBuiltinType();
+                if (tstr.indexOf("QVariant") != -1) ok = true;
                 break;
             case QMetaType::Bool:
                 if (ptype->isBooleanType()) ok = true;
+                if (tstr.indexOf("QVariant") != -1) ok = true;
                 break;
             case QMetaType::QString:
                 if (tstr.indexOf("QString") != -1) ok = true;
                 if (tstr.indexOf("char *") != -1) ok = true;
+                if (tstr.indexOf("QVariant") != -1) ok = true;
                 break;
             case QMetaType::QChar:
                 if (ptype->isCharType()) ok = true;
+                if (tstr.indexOf("QVariant") != -1) ok = true;
                 break;
             case QMetaType::VoidStar:
                 qDebug()<<ptype->isObjectType() << ptype->isPointerType()
@@ -1240,6 +1245,7 @@ bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl,
             case QMetaType::QStringList:
                 if (tstr.indexOf("char **") != -1) ok = true;
                 if (tstr.indexOf("QStringList") != 01) ok = true;
+                if (tstr.indexOf("QVariant") != -1) ok = true;
                 break;
             default: qDebug()<<"unknown type:"<<uargs.at(idx).type()<<uargs.at(idx)
                              <<ptype.getAsString().data()
@@ -1479,6 +1485,7 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
         qDebug()<<cnter<<dps;
         if (!pd->hasDefaultArg()) {
             dps << QVariant();
+            mtdargs << MetaTypeVariant();
             continue;
         }
         clang::Expr *dae = pd->getDefaultArg();
@@ -1533,8 +1540,9 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
 
     }
 
-    qDebug()<<"dargs:"<<dps<<cnter<<dps.count();
+    qDebug()<<"dargs:"<<dps<<cnter<<dps.count()<<mtdargs.count();
     assert(dps.count() == decl->param_size());
+    assert(dps.count() == mtdargs.count());
 
     return true;
 }

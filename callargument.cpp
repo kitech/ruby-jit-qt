@@ -61,9 +61,9 @@ QVariant MetaTypeVariant::toVariant() const
 {
     QByteArray data;
     QDataStream stm(&data, QIODevice::WriteOnly);
-    bool bret = QMetaType::save(stm, mtype, maddr);
+    bool bret = QMetaType::save(stm, QMetaType::QVariant, maddr);
     QDataStream rdstm(&data, QIODevice::ReadOnly);
-    QString rv;
+    QVariant rv;
     rdstm >> rv;
     return rv;
 }

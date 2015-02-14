@@ -11,6 +11,8 @@
 
 #include <llvm/IR/IRBuilder.h>
 
+#include "callargument.h"
+
 namespace llvm {
     class Module;
     class Type;
@@ -31,6 +33,7 @@ public:
     // 类似std::bind
     QString bind(llvm::Module *mod, QString symbol, QString klass,
                  QVector<QVariant> uargs, QVector<QVariant> dargs,
+                 QVector<MetaTypeVariant> mtdargs,
                  bool is_static, void *kthis);
     // 针对有些需要返回record类对象的方法，却返回了i32，这时需要做一个后处理。see issue #2。
     void elem_or_record_post_return();
@@ -44,6 +47,7 @@ private:
     std::vector<llvm::Value*>
     ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
                       QVector<QVariant> uargs, QVector<QVariant> dargs,
+                      QVector<MetaTypeVariant> mtdargs,
                       llvm::Function *dstfun, bool has_this);
     bool instcpy();
     // 默认参数临时值生成指令拷贝

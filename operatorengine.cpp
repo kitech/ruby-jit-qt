@@ -56,6 +56,7 @@ llvm::Type *OperatorEngine::uniqTy(llvm::Module *mod, QString tyname)
 std::vector<llvm::Value*>
 OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
                                   QVector<QVariant> uargs, QVector<QVariant> dargs,
+                                  QVector<MetaTypeVariant> mtdargs,
                                   llvm::Function *dstfun, bool has_this)
 {
     std::vector<llvm::Value*> cargs;
@@ -99,9 +100,24 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
         sty = QString(ostm.str().c_str());
         qDebug()<<"param real type:"<<sty<<aty<<builder.getInt8Ty()->getPointerTo()<<v;
 
+        if (i < mtdargs.count()) {
+            MetaTypeVariant mtv = mtdargs.at(i);
+            if (mtv.type() == QMetaType::QVariant) {
+                // qFatal("heheheeeeeeeeeeeeee");
+                qDebug()<<i<<mtv.toVariant()<<mtdargs<<v;
+                // qFatal("heheheeeeeeeeeeeeee");
+                gis2.qvval[i] = v;
+                lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)&gis2.qvval[i]);
+                lv = llvm::ConstantExpr::getIntToPtr(lc, aty);
+                cargs.push_back(lv);
+                break;
+            }
+        }
+        
         switch ((int)v.type()) {
         case QMetaType::QString:
             // TODO Fix this shit static handler of QVariant type
+            /* depcreated
             if (mrg_args.at(i).toString() == "VMCallArgument") {
                 gis2.qvval[i] = QVariant();
                 lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)&gis2.qvval[i]);
@@ -109,6 +125,7 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
                 cargs.push_back(lv);
                 break;
             }
+            */
             // if (sty == "i8*") {
             if (aty == builder.getInt8Ty()->getPointerTo()) {
                 ctypes.push_back(aty);
@@ -320,6 +337,7 @@ OperatorEngine::darg_instcpy(llvm::Module *mod, llvm::IRBuilder<> &builder)
 // TODO dereferenced return and dereferenced params
 QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass,
                              QVector<QVariant> uargs, QVector<QVariant> dargs,
+                             QVector<MetaTypeVariant> mtdargs,
                              bool is_static, void *kthis)
 {
     QString lamsym;
@@ -340,7 +358,7 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass,
     } else if (kthis == NULL) {
     } else {
         llvm::Type *thisTy = this->uniqTy(mod, QString("class.%1").arg(klass));
-        qDebug()<<klass<<thisTy;
+        qDebug()<<klass<<thisTy << mtdargs;
         assert(thisTy != NULL);
         // TODO 想办法使用真实的thisTy类型
         if (thisTy == NULL) {
@@ -357,7 +375,7 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass,
 
     // Add uarg
     std::vector<llvm::Value*> more_values = 
-        ConvertToCallArgs(mod, builder, uargs, dargs, dstfun, !is_static && kthis != NULL);
+        ConvertToCallArgs(mod, builder, uargs, dargs, mtdargs, dstfun, !is_static && kthis != NULL);
     // std::copy(more_values.begin(), more_values.end(), callee_arg_values.end());// why???
     for (auto v: more_values) callee_arg_values.push_back(v);
 

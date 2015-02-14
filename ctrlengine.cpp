@@ -84,7 +84,7 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     qDebug()<<oe.getClassAllocSize(mod, klass)<<kthis<<(int64_t)kthis<<dargs.count();
 
     // QString lamsym = oe.bind(mod, "_ZN7QStringC2Ev", kthis, uargs, dargs);
-    QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, false, kthis);
+    QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, mtdargs, false, kthis);
     qDebug()<<lamsym;
     
     Clvm *vm = new Clvm;
@@ -273,9 +273,10 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
 
     // replace void* => i32 trivial copy params
     int replaced = mfe->replace_trivial_copy_params(mth_decl, uargs);
-    
+
+    qDebug()<<mtdargs<<method<<dargs.count();
     OperatorEngine oe;
-    QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, mth_decl->isStatic(), kthis);
+    QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, mtdargs, mth_decl->isStatic(), kthis);
     qDebug()<<lamsym;
     
     Clvm *vm = new Clvm;
@@ -314,7 +315,7 @@ QVariant CtrlEngine::vm_static_call(QString klass, QString method, QVector<QVari
     qDebug()<<mod<<symname;
 
     OperatorEngine oe;
-    QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, mth_decl->isStatic(), NULL);
+    QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, mtdargs, mth_decl->isStatic(), NULL);
     qDebug()<<lamsym;
     
     Clvm *vm = new Clvm;
@@ -374,11 +375,12 @@ QString CtrlEngine::vm_qdebug(void *kthis, QString klass)
         QVector<QVariant> dargs;
         // mfe->get_method_default_params(mth_decl, dargs);
         dargs << QVariant() << QVariant();
+        QVector<MetaTypeVariant> mtdargs;
 
         QVector<QVariant> uargs;
         uargs.append(QVariant::fromValue((void*)(&dm)));
         uargs.append(QVariant::fromValue(kthis));
-        
+
         auto mod = mce->conv_function2(mfe->getASTUnit(), fun_decl);
         qDebug()<<mod<<mod->getDataLayout();
         // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
@@ -386,7 +388,7 @@ QString CtrlEngine::vm_qdebug(void *kthis, QString klass)
         qDebug()<<mod<<symname;
 
         OperatorEngine oe;
-        QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, false, NULL);
+        QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, mtdargs, false, NULL);
         qDebug()<<lamsym;
     
         Clvm *vm = new Clvm;
