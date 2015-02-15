@@ -499,6 +499,55 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass,
     return lamsym;
 }
 
+
+QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass, void *kthis)
+{
+    QString lamsym;
+
+    llvm::LLVMContext &vmctx = mod->getContext();
+    llvm::IRBuilder<> builder(vmctx);
+    llvm::Function *dstfun = mod->getFunction(symbol.toLatin1().data());
+    llvm::Function *lamfun = NULL;
+    const char *lamname = "jit_main"; // TODO, rt mangle
+    
+    auto c_lamfun = mod->getOrInsertFunction(lamname, builder.getVoidTy()->getPointerTo(), NULL);
+    lamfun = (decltype(lamfun))(c_lamfun); // cast it
+    builder.SetInsertPoint(llvm::BasicBlock::Create(mod->getContext(), "ddd", lamfun));
+
+    
+    std::vector<llvm::Value*> callee_arg_values;
+    if (kthis == NULL) {
+        qFatal("kthis can not be NULL");
+    } else {
+        llvm::Type *thisTy = this->uniqTy(mod, QString("class.%1").arg(klass));
+        qDebug()<<klass<<thisTy;
+        assert(thisTy != NULL);
+        // TODO 想办法使用真实的thisTy类型
+        if (thisTy == NULL) {
+            thisTy = builder.getVoidTy()->getPointerTo();
+        }
+        // 在32位系统上crash，可能是因为这里直接使用了64位整数。(已验证，果然是这个问题）
+        // 应该是在23位系统上不能直接使用int64_t表示指针，而64位系统可以。
+        // 一般显示为llvm::TargetLowering::LowerCallTo中crash
+        // callee_arg_values.push_back(llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)kthis));
+        llvm::Constant *lc = llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)kthis);
+        llvm::Constant *lv = llvm::ConstantExpr::getIntToPtr(lc, thisTy->getPointerTo());
+        callee_arg_values.push_back(lv);
+    }
+
+    llvm::ArrayRef<llvm::Value*> callee_arg_values_ref(callee_arg_values);
+    llvm::CallInst *cval = builder.CreateCall(dstfun, callee_arg_values_ref);
+    builder.CreateRetVoid();
+
+    qDebug()<<"operator dtor bind done."<<lamsym;
+    mod->dump();
+
+    lamsym = QString(lamname);
+    return lamsym;
+    return QString();
+}
+
+
 void OperatorEngine::elem_or_record_post_return()
 {
 }

@@ -39,7 +39,7 @@
 
 \subsection{普通方法实例化}
 \subsection{构造函数实例化}
-默认情况下会生成Ctor\_Complete类型的实例。
+默认情况下会生成Ctor\_Complete类型的实例，目前是两者同时生成。
 
 \section{调用重载函数的查找确认}
 查找最合适的调用函数。
@@ -93,6 +93,9 @@ qtbinding中实例这个变量的方式是，通过继承出来一个假的Appli
 如果实时生成，则速度太慢，上秒级。
 可以考虑使用增量式的AST生成。
 
+\section{delete操作的实现}
+调用类的析构函数，然后free掉this指针。（这里使用free是因为在new操作时使用的calloc）。
+
 \chapter{Ruby&Qt}
 \section{Ruby nil}
 nil传递到Ruby C API之后会是什么类型的值，怎么表达的。
@@ -114,6 +117,9 @@ i在ruby继续类中，使用该语法定义
 在qtbindings中，也是使用类似的方式，但这些处理完全在ruby层实现的。
 另外qtbindings中，slots需要显式指定，与signals一样。
 而这里slots不需要显式指定，优先检测ruby层类是否有这个方法，如果有则优先使用，如果没有则使用qt层的slot方法。
+
+这里需要注意，从ruby传递过来的方法/符号可能是临时的，可能在信号过来的时候已经被回收，调用失败甚至崩溃。
+请看“ruby对象回收"一节中的详细描述。
 
 \section{Ruby中继承Qt类的处理}
 目前能够实现一次继承。
@@ -153,6 +159,12 @@ rb\_define\_method(aextclass, "initialize", ext\_init, -1);
 
 这样的话ext\_init不会被自动调用，需要使用rb\_obj\_call\_init才能调用到。
 但是，如果去掉rb\_define\_singleton\_method这行，则ext\_init又会被自动调用了。
+
+现在在ext\_new中调用rb\_obj\_alloc，然后再调用rb\_obj\_call\_init可实现不定义new方法相同的效果。
+传递给ext\_init的依旧是一个T\_OBJECT类型的ruby对象。
+
+如果在ext\_new中调用Data\_Wrap\_Struct的话，则传递到ext\_init的是一个T\_DATA类型的ruby对象。
+需要做与T\_OBJECT不同的特殊的方式处理，才能拿到类名信号。
 
 \section{ruby中qt object的回收}
 // 拿到_id2ref之后，相当于这个对象的引用又+1了，就不会继续被回收了。
@@ -234,6 +246,9 @@ llvm/vmkit
 Graal/Truffle
 
 \chapter{TODOS}
-P9  rubyqt对象的析构。
+P7  内存优化。
+P7  IR <=> BC码转换。
+P8  CompilerEngine中查找符号时使用的一些遇到的固定的符号表，这个需要改为全部动态处理的，不保留固定的一些符号表。
+P9  rubyqt对象的析构。 ===> 已经完全实现（2015-02-15)。
 P10 注册类相关统计，包括注册类的个数，注册了哪些类，以及注册时运行时信息。
 

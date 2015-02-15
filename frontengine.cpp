@@ -1276,6 +1276,22 @@ bool FrontEngine::method_match_by_uargs(clang::CXXMethodDecl *decl,
     return true;
 }
 
+clang::CXXDestructorDecl* FrontEngine::find_dtor_decl(clang::CXXRecordDecl *decl, QString klass)
+{
+    clang::CXXDestructorDecl *dtor = NULL;
+
+    for (auto d: decl->methods()) {
+        if (!clang::isa<clang::CXXDestructorDecl>(d)) continue;
+        auto cd = clang::cast<clang::CXXDestructorDecl>(d);
+        dtor = cd;
+        break;
+    }
+    qDebug()<<"dtor:"<<dtor;
+    Q_ASSERT(dtor);
+    
+    return dtor;
+}
+
 // void* => i32 trivial copy prepare
 int FrontEngine::replace_trivial_copy_params(clang::CXXMethodDecl *decl, QVector<QVariant> &uargs)
 {

@@ -24,6 +24,7 @@ namespace clang {
     class CXXMethodDecl;
     class CXXConstructorDecl;
     class ClassTemplateDecl;
+    class CXXDestructorDecl;
 
     namespace driver {
         class Driver;
@@ -118,6 +119,8 @@ public:
     
     bool method_match_by_uargs(clang::CXXMethodDecl *decl, 
                                QString klass, QString method, QVector<QVariant> uargs);
+    clang::CXXDestructorDecl* find_dtor_decl(clang::CXXRecordDecl *decl, QString klass);
+    
     // void* => i32 trivial copy prepare
     // 用在OperatorEngine::bind()调用之前
     // @return replaced count

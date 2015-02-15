@@ -32,7 +32,7 @@ public:
 
     // 可能的方法
     void * vm_new(QString klass, QVector<QVariant> uargs);
-    bool vm_delete();
+    bool vm_delete(void *kthis, QString klass);
     QVariant vm_call(void *kthis, QString klass, QString method, QVector<QVariant> uargs);
     QVariant vm_static_call(QString klass, QString method, QVector<QVariant> uargs);
     // 查找这个类中的enum的值。

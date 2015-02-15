@@ -101,6 +101,52 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     return kthis;
 }
 
+bool CtrlEngine::vm_delete(void *kthis, QString klass)
+{
+    // 处理流程，
+    // 使用fe获取这个类的定义CXXRecordDecl*结构
+    // 使用fe获取这个类的CXXDestructorDecl*结构
+    // 使用ce生成该构造函数的ll代码。
+    // 使用oe生成调用这个构造函数的ll代码。
+    // 获取两段ll代码合并（如果需要的话）
+    // 以module的方式传入vme执行
+
+    mfe->loadPreparedASTFile();
+    clang::CXXRecordDecl *rec_decl = mfe->find_class_decl(klass);
+    qDebug()<<rec_decl;
+    clang::CXXDestructorDecl *dtor_decl = mfe->find_dtor_decl(rec_decl, klass);
+    qDebug()<<dtor_decl;
+    dtor_decl->dumpColor();
+
+    auto mod = mce->conv_dtor(mfe->getASTUnit(), dtor_decl);
+    qDebug()<<mod<<mod->getDataLayout();
+    // mod->dump();
+
+    QString symname = mce->mangle_dtor(mfe->getASTContext(), dtor_decl);
+    qDebug()<<mod<<symname;
+    if (symname.indexOf("LayoutC") != -1) {
+        symname = symname.replace("D2", "D1");
+    }
+
+    // 默认参数编译成IR    
+    clang::FunctionDecl *jmt_decl = mfe->find_free_function("__jit_main_tmpl");
+    qDebug()<<jmt_decl;
+    jmt_decl->dumpColor();
+
+    OperatorEngine oe;
+    QString lamsym = oe.bind(mod, symname, klass, kthis);
+    qDebug()<<lamsym;
+
+    Clvm *vm = new Clvm;
+    if (vm == NULL) qFatal("vm instance can not be NULL.");
+    auto gv = vm->execute2(mod, lamsym);
+    qDebug()<<"gv:"<<llvm::GVTOP(gv)<<gv.IntVal.getZExtValue();
+    qDebug()<<"======================";
+    free(kthis); kthis = NULL; // 真的需要再free一次，对应vm_new中的calloc。
+
+    return false;
+}
+
 // TODO 也许可以放在其他源文件中，专门用作类型转换的marshall中
 QVariant GV2Variant(llvm::GenericValue gv, clang::FunctionDecl *decl, void *kthis)
 {

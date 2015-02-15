@@ -349,6 +349,9 @@ VALUE RubyInit::Qt_class_dtor(VALUE id)
     // void* now, can not delete, need dtor and free
     void *qo = Qom::inst()->getObject(self);
     qDebug()<<qo<<rb_class2name(RBASIC_CLASS(self));
+    QString klass_name = get_qt_class(self);
+    bool bret = gce->vm_delete(qo, klass_name);
+    qDebug()<<klass_name<<bret;
 
     return Qtrue;
     return Qnil;

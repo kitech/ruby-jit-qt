@@ -21,6 +21,7 @@ namespace clang {
     class CXXRecordDecl;
     class CXXMethodDecl;
     class CXXConstructorDecl;
+    class CXXDestructorDecl;
     class ClassTemplateDecl;
     class ASTContext;
     class CompilerInstance;
@@ -47,6 +48,7 @@ public:
     llvm::Module* conv_method(clang::ASTContext &ctx, clang::CXXMethodDecl *mth);
     // bool check_inline_symbol();
     QString mangle_ctor(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor);
+    QString mangle_dtor(clang::ASTContext &ctx, clang::CXXDestructorDecl *dtor);
     QString mangle_method(clang::ASTContext &ctx, clang::CXXMethodDecl *ctor);
 
     // 第一种方式，拿到还未定义的symbol，到ast中查找
@@ -62,10 +64,12 @@ public:
     bool destroyCompilerUnit(CompilerUnit *cu);
 
     llvm::Module* conv_ctor2(clang::ASTUnit *unit, clang::CXXConstructorDecl *ctor, QVector<QVariant> dargs);
+    llvm::Module* conv_dtor(clang::ASTUnit *unit, clang::CXXDestructorDecl *dtor);
     llvm::Module* conv_method2(clang::ASTUnit *unit, clang::CXXMethodDecl *mth);
     llvm::Module* conv_function2(clang::ASTUnit *unit, clang::FunctionDecl *mth);
 
     bool gen_ctor(CompilerUnit *cu, clang::CXXConstructorDecl *yactor = NULL);
+    bool gen_dtor(CompilerUnit *cu, clang::CXXDestructorDecl *yadtor = NULL);
     bool gen_method(CompilerUnit *cu, clang::CXXMethodDecl *yamth = NULL);
     bool gen_method_decl(CompilerUnit *cu, clang::CXXMethodDecl *yamth = NULL);
     bool gen_free_function(CompilerUnit *cu, clang::FunctionDecl *yafun = NULL);

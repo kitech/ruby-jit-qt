@@ -153,6 +153,11 @@ void walk_decl(QStack<clang::Stmt*> &fexpr, clang::Stmt *bstmt, int level)
 {
     clang::Stmt *stmts = bstmt;
     for (auto expr: stmts->children()) {
+        qDebug()<<"e:"<<expr<<level;
+        if (expr == 0) {
+            bstmt->dumpColor();
+            continue;
+        }
         qDebug()<<"e:"<<expr->getStmtClassName()<<level;
         // expr->dumpColor();
         fexpr.push(expr);
@@ -282,7 +287,12 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
     // 查找可能的函数/方法调用列表表达式。
     while (!fexpr.isEmpty()) {
         clang::Stmt *s = fexpr.pop();
-        
+
+        if (s == NULL) {
+            qDebug()<<"Why NULL Stmt???"<<fexpr;
+            // qFatal("Why NULL Stmt???");
+            continue;
+        }
         int cnter = 0;
         for (auto expr: s->children()) {
             cnter++;
@@ -906,6 +916,32 @@ QString CompilerEngine::mangle_ctor(clang::ASTContext &ctx, clang::CXXConstructo
     return symname;
 }
 
+// TODO 使用 MangleContext::MangleCtor 代替当前方式。
+QString CompilerEngine::mangle_dtor(clang::ASTContext &ctx, clang::CXXDestructorDecl *dtor)
+{
+    clang::CompilerInstance ci;
+    // ci.createASTContext();
+    ci.createDiagnostics();
+    ci.createFileManager();
+
+    clang::DiagnosticsEngine &diag = ci.getDiagnostics();
+    clang::CodeGenOptions &cgopt = ci.getCodeGenOpts();
+
+    auto vmctx = new llvm::LLVMContext();
+    auto mod = new llvm::Module("piecegen", *vmctx);
+    mod->setDataLayout(ctx.getTargetInfo().getTargetDescription());
+
+    // llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    llvm::DataLayout dlo(ctx.getTargetInfo().getTargetDescription());
+    clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, *mod, dlo, diag);
+    auto &cgtypes = cgmod.getTypes();
+    auto cgf = new clang::CodeGen::CodeGenFunction(cgmod);
+
+    auto  vm_symname = cgmod.getMangledName(clang::GlobalDecl(dtor, clang::Dtor_Base));
+    QString symname = vm_symname.data();
+    return symname;
+}
+
 QString CompilerEngine::mangle_method(clang::ASTContext &ctx, clang::CXXMethodDecl *mth)
 {
     
@@ -942,6 +978,20 @@ CompilerEngine::conv_ctor2(clang::ASTUnit *unit, clang::CXXConstructorDecl *ctor
     this->mcus.insert(cu->mmod, cu);
     
     this->gen_ctor(cu);
+
+    this->gen_undefs(cu);
+
+    return cu->mmod;
+    return 0;
+}
+
+llvm::Module* CompilerEngine::conv_dtor(clang::ASTUnit *unit, clang::CXXDestructorDecl *dtor)
+{
+    auto cu = this->createCompilerUnit(unit, dtor);
+    // cu->mdargs = dargs;
+    this->mcus.insert(cu->mmod, cu);
+    
+    this->gen_dtor(cu);
 
     this->gen_undefs(cu);
 
@@ -1077,6 +1127,66 @@ bool CompilerEngine::gen_ctor(CompilerUnit *cu, clang::CXXConstructorDecl *yacto
             // QHash<QString, bool> noinlined; // 不需要生成define的symbol，在decl2def中使用。
             // noinlined[ctor_base_fn->getName().data()] = true;
             cu->mNoinlineSymbols[ctor_base_fn->getName().data()] = true;
+        }
+    }
+
+    return false;
+}
+
+bool CompilerEngine::gen_dtor(CompilerUnit *cu, clang::CXXDestructorDecl *yadtor)
+{
+    // 转换到需要的参数类型
+    auto dtor = yadtor != NULL ? yadtor : clang::cast<clang::CXXDestructorDecl>(cu->mbdecl);
+    auto &cgmod = *(cu->mcgm);
+    // auto *cgf = cu->mcgf;
+    // auto *cgf = new clang::CodeGen::CodeGenFunction(cgmod); // 每次使用一个新的CodeGenFunction能解决这个问题？？？
+    clang::CodeGen::CodeGenFunction lcgf(cgmod); // 每次使用一个新的CodeGenFunction能解决这个问题？？？
+    auto *cgf = &lcgf;
+
+    // 
+    auto &cgtypes = cgmod.getTypes();
+    // try dtor base , 能生成正确的Base代码了
+
+    // 生成complete dtor, xxD1Exx
+    {
+        const clang::CodeGen::CGFunctionInfo &FIB = 
+            cgtypes.arrangeCXXDestructor(dtor, clang::Dtor_Complete);
+        llvm::FunctionType *FTyB = cgtypes.GetFunctionType(FIB);
+        llvm::Constant *dtor_base_val = 
+            cgmod.GetAddrOfCXXDestructor(dtor, clang::Dtor_Complete, &FIB, FTyB, true);
+        llvm::Function *dtor_base_fn = clang::cast<llvm::Function>(dtor_base_val);
+        clang::CodeGen::FunctionArgList alist;
+        
+        if (dtor->isInlined()) {
+            cgmod.setFunctionLinkage(clang::GlobalDecl(dtor, clang::Dtor_Complete), dtor_base_fn);
+            cgf->GenerateCode(clang::GlobalDecl(dtor, clang::Dtor_Complete), dtor_base_fn, FIB);
+        } else {
+            // QHash<QString, bool> noinlined; // 不需要生成define的symbol，在decl2def中使用。
+            // noinlined[ctor_base_fn->getName().data()] = true;
+            cu->mNoinlineSymbols[dtor_base_fn->getName().data()] = true;
+        }
+
+        qDebug()<<"ffffffff:"<<dtor_base_fn->getName().data();
+        cu->mmod->dump();
+        qDebug()<<"ffffffff:"<<dtor_base_fn->getName().data();
+    }
+        
+    // 生成base dtor, xxD2Exx
+    {
+        const clang::CodeGen::CGFunctionInfo &FIB = 
+            cgtypes.arrangeCXXDestructor(dtor, clang::Dtor_Base);
+        llvm::FunctionType *FTyB = cgtypes.GetFunctionType(FIB);
+        llvm::Constant *dtor_base_val = 
+            cgmod.GetAddrOfCXXDestructor(dtor, clang::Dtor_Base, &FIB, FTyB, true);
+        llvm::Function *dtor_base_fn = clang::cast<llvm::Function>(dtor_base_val);
+        clang::CodeGen::FunctionArgList alist;
+        if (dtor->isInlined()) {
+            cgmod.setFunctionLinkage(clang::GlobalDecl(dtor, clang::Dtor_Base), dtor_base_fn);
+            cgf->GenerateCode(clang::GlobalDecl(dtor, clang::Dtor_Base), dtor_base_fn, FIB);
+        } else {
+            // QHash<QString, bool> noinlined; // 不需要生成define的symbol，在decl2def中使用。
+            // noinlined[ctor_base_fn->getName().data()] = true;
+            cu->mNoinlineSymbols[dtor_base_fn->getName().data()] = true;
         }
     }
 
@@ -1383,12 +1493,14 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
                 qFatal(QString("vvvvvvv:%1").arg(sym).toLatin1().data());
                 assert(1==2);
             }
-            qDebug()<<"is method:"<<llvm::isa<clang::CXXMethodDecl>(callee_decl)
-                    <<", is ctor:"<<llvm::isa<clang::CXXConstructorDecl>(callee_decl)
-                    <<", is tmpl inst:"<<callee_decl->isTemplateInstantiation()
-                    <<", is func tmpl spec:"<<callee_decl->isFunctionTemplateSpecialization()
-                    <<", is global:"<<callee_decl->isGlobal()
-                    <<", end";
+            qDebug().nospace()
+                <<"is method:"<<llvm::isa<clang::CXXMethodDecl>(callee_decl)
+                <<", is ctor:"<<llvm::isa<clang::CXXConstructorDecl>(callee_decl)
+                <<", is dtor:"<<llvm::isa<clang::CXXDestructorDecl>(callee_decl)
+                <<", is tmpl inst:"<<callee_decl->isTemplateInstantiation()
+                <<", is func tmpl spec:"<<callee_decl->isFunctionTemplateSpecialization()
+                <<", is global:"<<callee_decl->isGlobal()
+                <<", end";
             /*
               可以分为四种情况，
               第一种是函数的Qt函数，第二种是普通类方法，第三种是模板类的方法，第四种是模板函数（少）,
@@ -1399,12 +1511,16 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
             if (callee_decl->isTemplateInstantiation()) {
                 // maybe controll
                 QStringList known_syms = {
+                    "_ZN19QBasicAtomicIntegerIiE5derefEv", "_ZN15QBasicAtomicOpsILi4EE5derefIiEEbRT_",
+                    "_ZNK19QBasicAtomicIntegerIiE4loadEv",
+                    "_ZN17QGenericAtomicOpsI15QBasicAtomicOpsILi4EEE4loadIiEET_RKS4_",
                     "_ZN15QTypedArrayDataIcE10sharedNullEv",
                     "_ZN15QTypedArrayDataItE10sharedNullEv",
                     "_ZN15QTypedArrayDataIcE4dataEv", "_ZN15QTypedArrayDataItE4dataEv",
                     "_ZN6QFlagsIN2Qt10WindowTypeEEC1EMNS2_7PrivateEi", // ctor
                     "_ZN6QFlagsIN2Qt13AlignmentFlagEEC1EMNS2_7PrivateEi",
                     "_ZNK14QScopedPointerI11QObjectData21QScopedPointerDeleterIS0_EEptEv",
+                    "_ZN15QTypedArrayDataItE10deallocateEP10QArrayData",
                     "_ZN5QListI7QStringEC1Ev",
                     // template function
                     "_Z6qBoundIiERKT_S2_S2_S2_", "_Z4qMinIiERKT_S2_S2_", "_Z4qMaxIiERKT_S2_S2_",
@@ -1472,6 +1588,7 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
                     "_ZNK10QByteArray6lengthEv", "_ZNK10QByteArray9constDataEv",
                     "_ZNK7QString6toUtf8Ev",
                     "_ZN10QArrayData4dataEv", "_ZN7QWidget6resizeERK5QSize",
+                    "_ZN10QArrayData10deallocateEPS_mm", "_ZN9QtPrivate8RefCount5derefEv",
                     "_ZN7QWidget11setGeometryERK5QRect", "_ZNK5QRect6heightEv",
                     "_ZNK6QPoint1xEv", "_ZNK6QPoint1yEv", "_ZNK5QRect4sizeEv",
                     "_ZNK5QRect5widthEv",
