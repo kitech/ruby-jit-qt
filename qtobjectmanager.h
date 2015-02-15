@@ -27,6 +27,7 @@ public:
         qint64 objid = 0;
         RB_VALUE rbobj = 0;  // VALUE type
         void *qtobj = NULL;  // Qxxx type
+        RB_VALUE rbid = 0;   // ruby object's id
     };
     
     struct RubySlot {
@@ -48,6 +49,7 @@ private:
     QHash<RB_VALUE, void *> jdobjs; // jit'ed objects
 private:
     QHash<void *, ObjectInfo*> qobjs; // qtobject => ObjectInfo
+    QHash<RB_VALUE, RB_VALUE> idobjs; // rbid => rbobject
     QHash<RB_VALUE, ObjectInfo*> robjs; // rb_object => ObjectInfo
     // QHash<classname, QHash<signame, signature> >
     QHash<QString, QHash<QString, QString> > rbsignals;
@@ -66,6 +68,8 @@ public:
     bool delObject(RB_VALUE rbobj);
     void *getObject(RB_VALUE rbobj);
     RB_VALUE getObject(void *qtobj);
+    // 使用ruby object id 获取 ruby object
+    RB_VALUE getObjectById(RB_VALUE rbid);
 
     // 与class.signals()对应
     bool addSignals(QString rbklass, QVector<QVariant> sigs);

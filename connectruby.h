@@ -58,6 +58,10 @@ public:
         m_receiver = receiver;
         m_slot_id = SYM2ID(slot);
         m_slot = slot;
+
+        // 等价的，把这个变量设置为不能被gc的
+        // rb_global_variable(&m_receiver);
+        rb_gc_register_address(&m_receiver); 
     }
 
     RubyConnectRuby(VALUE sender, VALUE signal, VALUE receiver)
@@ -68,8 +72,16 @@ public:
         m_receiver = receiver;
         m_slot_id = rb_intern("call");
         m_slot = ID2SYM(m_slot_id);
-    }
 
+        // 等价的，把这个变量设置为不能被gc的
+        // rb_global_variable(&m_receiver);
+        rb_gc_register_address(&m_receiver); 
+    }
+    ~RubyConnectRuby()
+    {
+        rb_gc_unregister_address(&m_receiver);
+    }
+    
     virtual void call(int argc, VALUE *argv);
     virtual bool slotEqual(ConnectAny *other) {
         if (other->type() != type()) return false;
@@ -115,6 +127,10 @@ public:
         m_receiver = receiver;
         m_slot_id = SYM2ID(slot);
         m_slot = slot;
+
+        // 等价的，把这个变量设置为不能被gc的
+        // rb_global_variable(&m_receiver);
+        rb_gc_register_address(&m_receiver);
     }
 
     QtConnectRuby(QObject *sender, QString signal, VALUE lambda)
@@ -124,7 +140,15 @@ public:
 
         m_receiver = lambda; // blk,lamba,proc
         m_slot_id = rb_intern("call");
-        m_slot = ID2SYM(m_slot_id);   
+        m_slot = ID2SYM(m_slot_id);
+
+        // 等价的，把这个变量设置为不能被gc的
+        // rb_global_variable(&m_receiver);
+        rb_gc_register_address(&m_receiver); 
+    }
+    ~QtConnectRuby()
+    {
+        rb_gc_unregister_address(&m_receiver);
     }
     
     virtual void call(int argc, VALUE *argv);

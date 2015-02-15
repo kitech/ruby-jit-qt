@@ -1,4 +1,5 @@
 
+#include "ruby_cxx.h"
 #include "connectruby.h"
 #include "qtobjectmanager.h"
 
@@ -35,6 +36,8 @@ bool QtObjectManager::addObject(RB_VALUE rbobj, void *qtobj)
     this->qobjs[qtobj] = oi;
 
     this->jdobjs[rbobj] = qtobj;
+
+    this->idobjs[rb_obj_id(rbobj)] = rbobj;
     
     return false;
 }
@@ -55,6 +58,11 @@ bool QtObjectManager::delObject(RB_VALUE rbobj)
         free(oi->qtobj);
         delete oi;
         return true;
+    }
+
+    RB_VALUE rbid = rb_obj_id(rbobj);
+    if (this->idobjs.contains(rbid)) {
+        this->idobjs.remove(rbid);
     }
     
     return false;
@@ -77,6 +85,14 @@ RB_VALUE QtObjectManager::getObject(void *qtobj)
             RB_VALUE rv = it.key();
             return rv;
         }
+    }
+    return 0;
+}
+
+RB_VALUE QtObjectManager::getObjectById(RB_VALUE rbid)
+{
+    if (this->idobjs.contains(rbid)) {
+        return this->idobjs.value(rbid);
     }
     return 0;
 }

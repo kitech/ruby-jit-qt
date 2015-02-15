@@ -9,6 +9,8 @@
 #include "ruby_cxx.h"
 #include "rubyinit.h"
 
+
+// 扩展入口函数Init_extname
 static RubyInit *rbinit = NULL;
 extern "C" void Init_handby()
 {
@@ -30,6 +32,9 @@ static VALUE nx_Qt_global_variable_get(ID id, VALUE *data, struct global_entry *
 
 static void nx_Qt_global_variable_set(VALUE value, ID id, VALUE *data, struct global_entry *entry)
 { rbinit->Qt_global_variable_set(value, id, data, entry); }
+
+static VALUE nx_Qt_class_new(int argc, VALUE *argv, VALUE self)
+{ return rbinit->Qt_class_new(argc, argv, self); }
 
 static VALUE nx_Qt_class_init(int argc, VALUE *argv, VALUE self)
 { return rbinit->Qt_class_init(argc, argv, self); }
@@ -236,6 +241,21 @@ void RubyInit::Qt_global_variable_set(VALUE value, ID id, VALUE *data, struct gl
     return;    
 }
 
+VALUE RubyInit::Qt_class_new(int argc, VALUE *argv, VALUE rb_cKlass)
+{
+    // qDebug()<<argc<<TYPE(rb_cKlass);
+    // 不需要这么搞啊
+    // VALUE data_obj = Data_Wrap_Struct(rb_cKlass, NULL, NULL, NULL);
+    VALUE basic_obj = rb_obj_alloc(rb_cKlass);
+    
+    rb_obj_call_init(basic_obj, argc, argv);
+
+    VALUE free_proc = rb_proc_new(FUNVAL nx_Qt_class_dtor, 0);
+    rb_define_finalizer(basic_obj, free_proc);
+
+    return basic_obj;
+}
+
 /*
   通过Qt类的初始化函数
   获取要实例化的类名，从staticMetaObject加载类信息，
@@ -276,8 +296,10 @@ VALUE RubyInit::Qt_class_init(int argc, VALUE *argv, VALUE self)
 
     Qom::inst()->addObject(self, jo);
 
+    /* 不能在这儿调用，否则还是会在程序结束时才调用
     VALUE free_proc = rb_proc_new(FUNVAL nx_Qt_class_dtor, 0);
     rb_define_finalizer(self, free_proc);
+    */
 
     // Qxxx.new() do {|i| }
     if (rb_block_given_p()) {
@@ -302,9 +324,25 @@ VALUE RubyInit::Qt_class_init(int argc, VALUE *argv, VALUE self)
  */
 VALUE RubyInit::Qt_class_dtor(VALUE id)
 {
-    VALUE os = rb_const_get(rb_cModule, rb_intern("ObjectSpace"));
-    VALUE self = rb_funcall(os, rb_intern("_id2ref"), 1, id);
 
+    VALUE os = rb_const_get(rb_cModule, rb_intern("ObjectSpace"));
+    // 拿到_id2ref之后，相当于这个对象的引用又+1了，就不会继续被回收了。
+    // VALUE self = rb_funcall(os, rb_intern("_id2ref"), 1, id);
+    
+    // 以下一个破解式的使用方式，会受ruby实现的影响。
+    // 一个object的id值是该object+1
+    VALUE self = id - 1;
+    // 另一种实现方式，在ObjectManager中生成一个对应关系id => obj
+    VALUE self_from_qom = Qom::inst()->getObjectById(id);
+    // qDebug()<<id<<self<<self_from_qom;
+    
+    if (self != self_from_qom) {
+        assert(self == self_from_qom);
+        qFatal("object dtor error");
+    }
+
+    // sleep(1);
+    // return Qnil;
     // GET_CI0();
     // delete ci;
 
@@ -312,6 +350,7 @@ VALUE RubyInit::Qt_class_dtor(VALUE id)
     void *qo = Qom::inst()->getObject(self);
     qDebug()<<qo<<rb_class2name(RBASIC_CLASS(self));
 
+    return Qtrue;
     return Qnil;
 }
 
@@ -524,6 +563,7 @@ bool RubyInit::registClass(QString klass)
     VALUE module = this->m_cModuleQt;
 
     VALUE cQtClass = rb_define_class_under(module, cname, rb_cObject);
+    rb_define_singleton_method(cQtClass, "new", (VALUE (*) (...)) nx_Qt_class_new, -1);
     rb_define_method(cQtClass, "initialize", (VALUE (*) (...)) nx_Qt_class_init, -1);
     rb_define_method(cQtClass, "to_s", (VALUE (*) (...)) nx_Qt_class_to_s, -1);
     rb_define_method(cQtClass, "method_missing", (VALUE (*) (...)) nx_Qt_class_method_missing, -1);

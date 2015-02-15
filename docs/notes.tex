@@ -142,6 +142,32 @@ i在ruby继续类中，使用该语法定义
 
 注册类相关统计，包括注册类的个数，注册了哪些类，以及注册时运行时信息。
 
+\section{ruby扩展类方法调用的选择与顺序}
+ruby扩展类会有类方法new
+ruby扩展类会有实例的initialize方法
+但是，在定义的类方法new后，则扩展中注册的initialize方法不会被自动调用。
+如：
+VALUE aextclass = rb\_define\_class("aextclass", rb\_cObject);
+rb\_define\_singleton\_method(aextclass, "new", ext\_new, -1);
+rb\_define\_method(aextclass, "initialize", ext\_init, -1);
+
+这样的话ext\_init不会被自动调用，需要使用rb\_obj\_call\_init才能调用到。
+但是，如果去掉rb\_define\_singleton\_method这行，则ext\_init又会被自动调用了。
+
+\section{ruby中qt object的回收}
+// 拿到_id2ref之后，相当于这个对象的引用又+1了，就不会继续被回收了。
+// VALUE self = rb_funcall(os, rb_intern("_id2ref"), 1, id);
+// 这是一个破解式的应用，会受ruby实现的影响。
+// 一个object的id值是该object+1
+// VALUE self = id - 1;
+// VALUE id = self + 1;
+// 另一种实现方式，在ObjectManager中生成一个对应关系id => obj
+// 还有一种方式，使用Data\_Wrap\_Struct，用qt类的代理结构体实现。
+代理结构体可能形式：
+struct QtObjectWrap {
+    void *ptr;
+};
+
 \section{clang与gcc兼容性问题}
 \subsection{/usr/include/string.h:82:1: error: unknown type name '\_\_extern\_always\_inline'}
 在使用clang编译时报错。

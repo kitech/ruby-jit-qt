@@ -26,6 +26,7 @@ public:
     VALUE Qt_global_variable_get(ID id, VALUE *data, struct global_entry *entry);
     void Qt_global_variable_set(VALUE value, ID id, VALUE *data, struct global_entry *entry);
 
+    VALUE Qt_class_new(int argc, VALUE *argv, VALUE rb_cKlass);
     VALUE Qt_class_init(int argc, VALUE *argv, VALUE self);
     VALUE Qt_class_dtor(VALUE id);
     VALUE Qt_class_to_s(int argc, VALUE *argv, VALUE self);
