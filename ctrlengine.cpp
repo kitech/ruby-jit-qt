@@ -4,6 +4,7 @@
 #include <clang/AST/DeclCXX.h>
 #include <llvm/IR/Module.h>
 
+
 #include "frontengine.h"
 #include "namelookup.h"
 #include "compilerengine.h"
@@ -273,7 +274,7 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
         && (method == "addWidget" || method == "addLayout")) {
         // return this->vm_call_hotfix(kthis, klass, method, uargs);
     }
-    
+
     // mfe->loadPreparedASTFile();
     clang::CXXRecordDecl *rec_decl = mfe->find_class_decl(klass);
     qDebug()<<rec_decl;
@@ -335,6 +336,7 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     gv = ngv;
     
     QVariant rv = GV2Variant(gv, mth_decl, kthis);
+
     return rv;
     return QVariant();
 }

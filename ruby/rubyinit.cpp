@@ -9,11 +9,13 @@
 #include "ruby_cxx.h"
 #include "rubyinit.h"
 
+#include <gperftools/profiler.h>
 
 // 扩展入口函数Init_extname
 static RubyInit *rbinit = NULL;
 extern "C" void Init_handby()
 {
+    ProfilerStart("iqtruby.perf");
     RubyInit *init = new RubyInit();
     init->initialize();
     rbinit = init;
@@ -289,7 +291,7 @@ VALUE RubyInit::Qt_class_init(int argc, VALUE *argv, VALUE self)
         qDebug()<<"i == "<< i << (i<argc) << (i>argc)<<MarshallRuby::VALUE2Variant(argv[i]);
     }
 
-    CallArgument *cargs = new CallArgument(argc, argv, self, 0);
+    QSharedPointer<CallArgument> cargs(new CallArgument(argc, argv, self, 0));
     qDebug()<<cargs->getArgs();
     void *jo = gce->vm_new(klass_name, args);
     qDebug()<<jo<<self<<rb_hash(self);    
@@ -350,8 +352,8 @@ VALUE RubyInit::Qt_class_dtor(VALUE id)
     void *qo = Qom::inst()->getObject(self);
     qDebug()<<qo<<rb_class2name(RBASIC_CLASS(self));
     QString klass_name = get_qt_class(self);
-    bool bret = gce->vm_delete(qo, klass_name);
-    qDebug()<<klass_name<<bret;
+    // bool bret = gce->vm_delete(qo, klass_name);
+    // qDebug()<<klass_name<<bret;
 
     return Qtrue;
     return Qnil;
@@ -444,7 +446,7 @@ VALUE RubyInit::Qt_class_method_missing(int argc, VALUE *argv, VALUE self)
     args = MarshallRuby::ARGV2Variant(argc, argv, 1);
     qDebug()<<"callarg:"<<args;
     
-    CallArgument *cargs = new CallArgument(argc, argv, self, 1);
+    QSharedPointer<CallArgument> cargs(new CallArgument(argc, argv, self, 1));
     qDebug()<<"callarg:"<<cargs->getArgs();
 
     // fix try_convert(obj) → array or nil

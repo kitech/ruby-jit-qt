@@ -80,7 +80,7 @@ public:
     int m_offset = 1; // 有些像.new的时候是0
 
     QVector<QVariant> m_vargv2;    
-    QVector<MetaTypeVariant> m_vargv;
+    QVector<QSharedPointer<MetaTypeVariant> > m_vargv;
 
 public:
     CallArgument(int argc, VALUE *argv, VALUE obj, int offset = 1)
@@ -100,8 +100,8 @@ public:
     // 获取参数，位置从offset之后开始计算
     const QVector<QVariant> &getArgs2();
     const QVariant &getArg2(int idx);    
-    const QVector<MetaTypeVariant> &getArgs();
-    const MetaTypeVariant &getArg(int idx);
+    const QVector<QSharedPointer<MetaTypeVariant> > &getArgs();
+    const QSharedPointer<MetaTypeVariant> getArg(int idx);
 };
 
 /////////// for ruby

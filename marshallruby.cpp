@@ -55,7 +55,7 @@ QVariant MarshallRuby::VALUE2Variant(VALUE v)
         break;
     }
     
-    return rv;
+    return (rv);
 }
 
 // Range类型支持
@@ -123,7 +123,7 @@ QVector<QVariant> MarshallRuby::VALUE2Variant2(VALUE v)
     }
     
     rvs[0] = rv;
-    return rvs;
+    return (rvs);
 }
 
 QVector<QVariant> MarshallRuby::ARGV2Variant(int argc, VALUE *argv, int start)
@@ -138,7 +138,7 @@ QVector<QVariant> MarshallRuby::ARGV2Variant(int argc, VALUE *argv, int start)
         qDebug()<<"i == "<< i << (i<argc) << (i>argc)<<targs;
     }
 
-    return args;
+    return (args);
 }
 
 // static
@@ -171,10 +171,11 @@ VALUE MarshallRuby::Variant2VALUE(void *v, int type)
 
 /////////////////////
 // static
-QVector<MetaTypeVariant> MarshallRuby::VALUE2MTVariant(VALUE v)
+QVector<QSharedPointer<MetaTypeVariant> >
+MarshallRuby::VALUE2MTVariant(VALUE v)
 {
-    QVector<MetaTypeVariant> rvs(1);
-    MetaTypeVariant rv;
+    QVector<QSharedPointer<MetaTypeVariant> > rvs(1);
+    QSharedPointer<MetaTypeVariant> rv;
     QString str, str2;
     void *ci = NULL;
     QObject *obj = NULL;
@@ -182,27 +183,30 @@ QVector<MetaTypeVariant> MarshallRuby::VALUE2MTVariant(VALUE v)
     VALUE v1, v2, v3;
     
     switch (TYPE(v)) {
-    case T_NONE:  rv = MetaTypeVariant(); break;
+    case T_NONE:  rv = QSharedPointer<MetaTypeVariant>(new MetaTypeVariant()); break;
     case T_FIXNUM: {
         QVariant num = (int)FIX2INT(v);
-        rv = MetaTypeVariant(QMetaType::Int, &num);
+        rv = QSharedPointer<MetaTypeVariant>(new MetaTypeVariant(QMetaType::Int, &num));
     }; break;
     case T_STRING: {
         QVariant str = QString(RSTRING_PTR(v));
-        rv = MetaTypeVariant(QMetaType::QString, &str);
+        rv = QSharedPointer<MetaTypeVariant>(new MetaTypeVariant(QMetaType::QString, &str));
     }; break;
     case T_FLOAT: {
         QVariant num = RFLOAT_VALUE(v);
-        rv = MetaTypeVariant(QMetaType::Double, &num);
+        rv = QSharedPointer<MetaTypeVariant>(new MetaTypeVariant(QMetaType::Double, &num));
     }; break;
     case T_NIL: {
-        QVariant  num = 0; rv = MetaTypeVariant(QMetaType::Int, &num);
+        QVariant  num = 0;
+        rv = QSharedPointer<MetaTypeVariant>(new MetaTypeVariant(QMetaType::Int, &num));
     }; break;
     case T_TRUE: {
-        QVariant ok = true; rv = MetaTypeVariant(QMetaType::Bool, &ok);
+        QVariant ok = true;
+        rv = QSharedPointer<MetaTypeVariant>(new MetaTypeVariant(QMetaType::Bool, &ok));
     }; break;
     case T_FALSE: {
-        QVariant ok = false; rv = MetaTypeVariant(QMetaType::Bool, &ok);
+        QVariant ok = false;
+        rv = QSharedPointer<MetaTypeVariant>(new MetaTypeVariant(QMetaType::Bool, &ok));
     }; break;
     case T_OBJECT: {
         str = QString(rb_class2name(RBASIC_CLASS(v)));
@@ -212,7 +216,7 @@ QVector<MetaTypeVariant> MarshallRuby::VALUE2MTVariant(VALUE v)
         // rv = QVariant(QMetaType::VoidStar, ci);
         // rv = QVariant::fromValue(ci);
         QVariant vrv = QVariant::fromValue(ci);
-        rv = MetaTypeVariant(QMetaType::VoidStar, &vrv);
+        rv = QSharedPointer<MetaTypeVariant>(new MetaTypeVariant(QMetaType::VoidStar, &vrv));
     }; break;
     case T_ARRAY: {
         QStringList ary;
@@ -225,7 +229,7 @@ QVector<MetaTypeVariant> MarshallRuby::VALUE2MTVariant(VALUE v)
         }
         // rv = QVariant(ary);
         QVariant vary(ary);
-        rv = MetaTypeVariant(QMetaType::QStringList, &vary);
+        rv = QSharedPointer<MetaTypeVariant>(new MetaTypeVariant(QMetaType::QStringList, &vary));
     }; break;
     case T_STRUCT: { // for ruby range
         str = rb_class2name(RBASIC_CLASS(v));
@@ -243,8 +247,8 @@ QVector<MetaTypeVariant> MarshallRuby::VALUE2MTVariant(VALUE v)
             // rvs.append(QVariant(FIX2INT(v2)));
             QVariant num1 = FIX2INT(v1);
             QVariant num2 = FIX2INT(v2);
-            rv = MetaTypeVariant(QMetaType::Int, &num1);
-            MetaTypeVariant mtv(QMetaType::Int, &num2);
+            rv = QSharedPointer<MetaTypeVariant>(new MetaTypeVariant(QMetaType::Int, &num1));
+            QSharedPointer<MetaTypeVariant> mtv(new MetaTypeVariant(QMetaType::Int, &num2));
             rvs.append(mtv);
         } else {
             qDebug()<<"unsupported struct type:"<<str;
@@ -257,21 +261,22 @@ QVector<MetaTypeVariant> MarshallRuby::VALUE2MTVariant(VALUE v)
     }
     
     rvs[0] = rv;
-    return rvs;    
+    return (rvs);
 }
 
 // static
-QVector<MetaTypeVariant> MarshallRuby::ARGV2MTVariant(int argc, VALUE *argv, int start)
+QVector<QSharedPointer<MetaTypeVariant> >
+MarshallRuby::ARGV2MTVariant(int argc, VALUE *argv, int start)
 {
-    QVector<MetaTypeVariant> args;
+    QVector<QSharedPointer<MetaTypeVariant> > args;
     for (int i = start; i < argc; i ++) {
         if (i >= argc) break;
         qDebug()<<"i == "<< i << (i<argc) << (i>argc);
-        QVector<MetaTypeVariant> targs = VALUE2MTVariant(argv[i]);
+        QVector<QSharedPointer<MetaTypeVariant> > targs = VALUE2MTVariant(argv[i]);
         for (auto &v: targs) args << v;
         qDebug()<<"i == "<< i << (i<argc) << (i>argc)<<targs;
     }
-
-    return args;
+    
+    return (args);
 }
 

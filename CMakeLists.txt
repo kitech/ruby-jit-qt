@@ -114,7 +114,7 @@ set(CLANGLIBS  -lclang -lLLVM-3.5
 )
 
 add_library(handby SHARED ${handby_lib_SRCS})
-target_link_libraries(handby ruby  ${CLANGLIBS})
+target_link_libraries(handby profiler ruby  ${CLANGLIBS})
 # target_link_libraries(handby ruby -L./myllvm/lib  ${CLANGLIBS})
 qt5_use_modules(handby Core Gui Widgets Network WebSockets)
 #set_target_properties(handby PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "hdrsrc.h")

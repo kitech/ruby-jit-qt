@@ -33,9 +33,19 @@ public:
 
     
     /////// 使用MetaElem表示的Variant
-    static QVector<MetaTypeVariant> VALUE2MTVariant(VALUE v);
-    static QVector<MetaTypeVariant> ARGV2MTVariant(int argc, VALUE *argv, int start = 1);
+    static QVector<QSharedPointer<MetaTypeVariant> > VALUE2MTVariant(VALUE v);
+    static QVector<QSharedPointer<MetaTypeVariant> > ARGV2MTVariant(int argc, VALUE *argv, int start = 1);
 };
 
 
 #endif /* MARSHALLRUBY_H */
+
+
+
+
+
+
+
+
+
+

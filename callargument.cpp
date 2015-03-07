@@ -21,7 +21,7 @@ const QVariant &CallArgument::getArg2(int idx)
     return m_vargv2[idx];
 }
 
-const QVector<MetaTypeVariant> &CallArgument::getArgs()
+const QVector<QSharedPointer<MetaTypeVariant> > &CallArgument::getArgs()
 {
     qDebug()<<"callarg:"<<m_argc<<m_offset<<m_vargv.count();
     if (m_argc - m_offset >= m_vargv.count()) {
@@ -32,7 +32,7 @@ const QVector<MetaTypeVariant> &CallArgument::getArgs()
     return m_vargv;
 }
 
-const MetaTypeVariant &CallArgument::getArg(int idx)
+const QSharedPointer<MetaTypeVariant> CallArgument::getArg(int idx)
 {
     if (m_argc - m_offset < m_vargv.count()) {
         m_vargv = MarshallRuby::ARGV2MTVariant(m_argc, m_argv, m_offset);
@@ -65,6 +65,6 @@ QVariant MetaTypeVariant::toVariant() const
     QDataStream rdstm(&data, QIODevice::ReadOnly);
     QVariant rv;
     rdstm >> rv;
-    return rv;
+    return (rv);
 }
 
