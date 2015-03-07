@@ -12,7 +12,7 @@
 #include "llvm/ExecutionEngine/Interpreter.h"
 // #include "llvm/ExecutionEngine/JIT.h" // depcreated
 #include "llvm/ExecutionEngine/JITEventListener.h"
-#include "llvm/ExecutionEngine/JITMemoryManager.h"
+// #include "llvm/ExecutionEngine/JITMemoryManager.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/ExecutionEngine/ObjectCache.h"
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
@@ -98,9 +98,10 @@ static void run_module(llvm::Module *mod, llvm::GenericValue &gv, QVector<llvm::
     llvm::ExecutionEngine *EE = NULL;
     qDebug()<<"222222222";
     std::string Error;
-    llvm::EngineBuilder builder(mod);
+    std::unique_ptr<llvm::Module> tmod(mod);
+    llvm::EngineBuilder builder(std::move(tmod));
     qDebug()<<EE<<"aaa is sym search disabled:";
-    builder.setUseMCJIT(true);
+    // builder.setUseMCJIT(true);
     // builder.setMArch("core2"); // 这种强制设置可能引起问题，使用三个InitailzeNativexxx函数初始化。
 
     EE = builder.create();
@@ -361,7 +362,7 @@ static llvm::Module *compile_string(int argc, char **argv, const char *code,
     clang::driver::Compilation *C = theDriver.BuildCompilation(Args);
 
     const clang::driver::JobList &Jobs = C->getJobs();
-    const clang::driver::Command *Cmd = llvm::cast<clang::driver::Command>(*Jobs.begin());
+    const clang::driver::Command *Cmd = llvm::cast<clang::driver::Command>(&(*Jobs.begin()));
     const clang::driver::ArgStringList &CCArgs = Cmd->getArguments();
 
     civ = new clang::CompilerInvocation();
@@ -382,21 +383,21 @@ static llvm::Module *compile_string(int argc, char **argv, const char *code,
             <<"cpu:"<<tgopt.CPU.c_str()
             <<"abi:"<<tgopt.ABI.c_str();
 
-    llvm::MemoryBuffer *mbuf = llvm::MemoryBuffer::getMemBuffer(code);
+    std::unique_ptr<llvm::MemoryBuffer> mbuf = llvm::MemoryBuffer::getMemBuffer(code);
     clang::PreprocessorOptions &ppopt = cis.getPreprocessorOpts();
     //    ppopt.addRemappedFile("flycode.cxx", code);
-    ppopt.addRemappedFile("flycode.cxx", mbuf);
+    ppopt.addRemappedFile("flycode.cxx", mbuf.release());
 
     
 
     clang::EmitLLVMOnlyAction llvm_only_action;
     bret = cis.ExecuteAction(llvm_only_action);
     qDebug()<<bret;
-    llvm::Module *mod = llvm_only_action.takeModule();
-    qDebug()<<"comipiled mod:"<<mod;
+    std::unique_ptr<llvm::Module> mod = llvm_only_action.takeModule();
+    qDebug()<<"comipiled mod:"<<mod.get();
     // mod->dump();
     
-    run_module(mod, gv, args);
+    run_module(mod.get(), gv, args);
     qDebug()<<"compile code done";
     return ccm;
 }
@@ -424,11 +425,11 @@ int intern_main(int argc, char **argv, llvm::GenericValue &gv, QVector<llvm::Gen
     llvm::LLVMContext &gctx = llvm::getGlobalContext();
     llvm::SMDiagnostic smdiag;
     llvm::Module *pmod = NULL;
-    llvm::Module *rmod = NULL;
+    std::unique_ptr<llvm::Module> rmod;
 
-    rmod = llvm::ParseAssemblyString(asm_str, pmod, smdiag, gctx);
-    qDebug()<<rmod<<pmod;
-    debug_module(rmod);
+    rmod = llvm::parseAssemblyString(asm_str, /*pmod,*/ smdiag, gctx);
+    qDebug()<<rmod.get()<<pmod;
+    debug_module(rmod.get());
 
     // run_module(rmod);
 

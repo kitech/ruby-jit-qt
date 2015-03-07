@@ -61,7 +61,7 @@ CompilerEngine::CompilerEngine()
     this->initCompiler();
 
     // static llvm::Module *jit_types_mod = NULL;
-    auto load_jit_types_module = []() -> llvm::Module* {
+    auto load_jit_types_module = []() -> std::unique_ptr<llvm::Module> {
         llvm::LLVMContext *ctx = new llvm::LLVMContext();
         llvm::Module *module = new llvm::Module("jit_types_in_ce", *ctx);
 
@@ -75,10 +75,10 @@ CompilerEngine::CompilerEngine()
         qDebug()<<"llstrlen:"<<strlen(asm_str);
 
         llvm::SMDiagnostic smdiag;
-        llvm::Module *rmod = NULL;
+        std::unique_ptr<llvm::Module> rmod;
 
-        rmod = llvm::ParseAssemblyString(asm_str, NULL, smdiag, *ctx);
-        qDebug()<<"rmod="<<rmod;
+        rmod = llvm::parseAssemblyString(asm_str, smdiag, *ctx);
+        qDebug()<<"rmod="<<rmod.get();
         free(asm_str);
 
         return rmod;
@@ -128,7 +128,7 @@ bool CompilerEngine::initCompiler()
     clang::driver::Compilation *C = drv->BuildCompilation(drv_args);
 
     const clang::driver::JobList &Jobs = C->getJobs();
-    const clang::driver::Command *Cmd = llvm::cast<clang::driver::Command>(*Jobs.begin());
+    const clang::driver::Command *Cmd = llvm::cast<clang::driver::Command>(&(*Jobs.begin()));
     const clang::driver::ArgStringList &CCArgs = Cmd->getArguments();
 
     // clang::CompilerInvocation *civ = new clang::CompilerInvocation();
@@ -707,10 +707,10 @@ llvm::Module* CompilerEngine::conv_ctor(clang::ASTContext &ctx, clang::CXXConstr
     
     // try ctor base , 能生成正确的Base代码了
     const clang::CodeGen::CGFunctionInfo &FIB = 
-        cgtypes.arrangeCXXConstructorDeclaration(ctor, clang::Ctor_Base);
+        cgtypes.arrangeCXXStructorDeclaration(ctor, clang::CodeGen::StructorType::Base);
     llvm::FunctionType *FTyB = cgtypes.GetFunctionType(FIB);
     llvm::Constant *ctor_base_val = 
-        cgmod.GetAddrOfCXXConstructor(ctor, clang::Ctor_Base, &FIB, true);
+        cgmod.getAddrOfCXXStructor(ctor, clang::CodeGen::StructorType::Base, &FIB, FTyB, true);
     llvm::Function *ctor_base_fn = clang::cast<llvm::Function>(ctor_base_val);
     clang::CodeGen::FunctionArgList alist;
 
@@ -1090,10 +1090,10 @@ bool CompilerEngine::gen_ctor(CompilerUnit *cu, clang::CXXConstructorDecl *yacto
     // 生成complete ctor, xxC1Exx
     {
         const clang::CodeGen::CGFunctionInfo &FIB = 
-            cgtypes.arrangeCXXConstructorDeclaration(ctor, clang::Ctor_Complete);
+            cgtypes.arrangeCXXStructorDeclaration(ctor, clang::CodeGen::StructorType::Complete);
         llvm::FunctionType *FTyB = cgtypes.GetFunctionType(FIB);
         llvm::Constant *ctor_base_val = 
-            cgmod.GetAddrOfCXXConstructor(ctor, clang::Ctor_Complete, &FIB, true);
+            cgmod.getAddrOfCXXStructor(ctor, clang::CodeGen::StructorType::Complete, &FIB, FTyB, true);
         llvm::Function *ctor_base_fn = clang::cast<llvm::Function>(ctor_base_val);
         clang::CodeGen::FunctionArgList alist;
         
@@ -1114,10 +1114,10 @@ bool CompilerEngine::gen_ctor(CompilerUnit *cu, clang::CXXConstructorDecl *yacto
     // 生成base ctor, xxC2Exx
     {
         const clang::CodeGen::CGFunctionInfo &FIB = 
-            cgtypes.arrangeCXXConstructorDeclaration(ctor, clang::Ctor_Base);
+            cgtypes.arrangeCXXStructorDeclaration(ctor, clang::CodeGen::StructorType::Base);
         llvm::FunctionType *FTyB = cgtypes.GetFunctionType(FIB);
         llvm::Constant *ctor_base_val = 
-            cgmod.GetAddrOfCXXConstructor(ctor, clang::Ctor_Base, &FIB, true);
+            cgmod.getAddrOfCXXStructor(ctor,clang::CodeGen::StructorType::Base, &FIB, FTyB, true);
         llvm::Function *ctor_base_fn = clang::cast<llvm::Function>(ctor_base_val);
         clang::CodeGen::FunctionArgList alist;
         if (ctor->isInlined()) {
@@ -1150,10 +1150,10 @@ bool CompilerEngine::gen_dtor(CompilerUnit *cu, clang::CXXDestructorDecl *yadtor
     // 生成complete dtor, xxD1Exx
     {
         const clang::CodeGen::CGFunctionInfo &FIB = 
-            cgtypes.arrangeCXXDestructor(dtor, clang::Dtor_Complete);
+            cgtypes.arrangeCXXStructorDeclaration(dtor, clang::CodeGen::StructorType::Complete);
         llvm::FunctionType *FTyB = cgtypes.GetFunctionType(FIB);
         llvm::Constant *dtor_base_val = 
-            cgmod.GetAddrOfCXXDestructor(dtor, clang::Dtor_Complete, &FIB, FTyB, true);
+            cgmod.getAddrOfCXXStructor(dtor, clang::CodeGen::StructorType::Complete, &FIB, FTyB, true);
         llvm::Function *dtor_base_fn = clang::cast<llvm::Function>(dtor_base_val);
         clang::CodeGen::FunctionArgList alist;
         
@@ -1174,10 +1174,10 @@ bool CompilerEngine::gen_dtor(CompilerUnit *cu, clang::CXXDestructorDecl *yadtor
     // 生成base dtor, xxD2Exx
     {
         const clang::CodeGen::CGFunctionInfo &FIB = 
-            cgtypes.arrangeCXXDestructor(dtor, clang::Dtor_Base);
+            cgtypes.arrangeCXXStructorDeclaration(dtor, clang::CodeGen::StructorType::Base);
         llvm::FunctionType *FTyB = cgtypes.GetFunctionType(FIB);
         llvm::Constant *dtor_base_val = 
-            cgmod.GetAddrOfCXXDestructor(dtor, clang::Dtor_Base, &FIB, FTyB, true);
+            cgmod.getAddrOfCXXStructor(dtor, clang::CodeGen::StructorType::Base, &FIB, FTyB, true);
         llvm::Function *dtor_base_fn = clang::cast<llvm::Function>(dtor_base_val);
         clang::CodeGen::FunctionArgList alist;
         if (dtor->isInlined()) {
@@ -1909,9 +1909,9 @@ bool CompilerEngine::tryCompile3(clang::CXXRecordDecl *decl, clang::ASTContext &
     // this->mcis->setSema(&unit->getSema());
     // const char *pcode = strdup(code.toLatin1().data());
     const char *pcode = strdup("\n void abc() { QString(\"abcefg\").length(); } ");
-    llvm::MemoryBuffer *mbuf = llvm::MemoryBuffer::getMemBuffer(pcode);
+    std::unique_ptr<llvm::MemoryBuffer> mbuf = llvm::MemoryBuffer::getMemBuffer(pcode);
     clang::PreprocessorOptions &ppOpt = this->mcis->getPreprocessorOpts();
-    ppOpt.addRemappedFile("flycode.cxx", mbuf);
+    ppOpt.addRemappedFile("flycode.cxx", mbuf.release());
     // 解析这段代码，结合已有的astfile查找标识符号。???
 
     clang::ParseAST(unit->getSema());
@@ -1923,9 +1923,9 @@ bool CompilerEngine::tryCompile3(clang::CXXRecordDecl *decl, clang::ASTContext &
     qDebug()<<"what ctx:"<<&this->mcis->getASTContext()<<&ctx;
 
     bret = mcis->ExecuteAction(llvm_only_action);
-    llvm::Module *mod = llvm_only_action.takeModule();
+    std::unique_ptr<llvm::Module> mod = llvm_only_action.takeModule();
     QDateTime etime = QDateTime::currentDateTime();
-    qDebug()<<"compile code done."<<bret<<mod<<btime.msecsTo(etime);
+    qDebug()<<"compile code done."<<bret<<mod.get()<<btime.msecsTo(etime);
 
     mod->dump();
 
@@ -1975,7 +1975,7 @@ bool CompilerEngine::tryCompile4(clang::CXXRecordDecl *decl, clang::ASTContext &
     clang::driver::Compilation *C = drv->BuildCompilation(drv_args);
 
     const clang::driver::JobList &Jobs = C->getJobs();
-    const clang::driver::Command *Cmd = llvm::cast<clang::driver::Command>(*Jobs.begin());
+    const clang::driver::Command *Cmd = llvm::cast<clang::driver::Command>(&(*Jobs.begin()));
     const clang::driver::ArgStringList &CCArgs = Cmd->getArguments();
 
 
@@ -2003,9 +2003,9 @@ bool CompilerEngine::tryCompile4(clang::CXXRecordDecl *decl, clang::ASTContext &
     // const char *pcode = strdup(code.toLatin1().data());
     // const char *pcode = strdup("\n void abc() { QString(\"abcefg\").length(); } "); // ok
     const char *pcode = strdup("/*#include \"qthdrsrc.h\"*/\n void abc() { QString(\"abcefg\").length(); } ");
-    llvm::MemoryBuffer *mbuf = llvm::MemoryBuffer::getMemBuffer(pcode);
+    std::unique_ptr<llvm::MemoryBuffer> mbuf = llvm::MemoryBuffer::getMemBuffer(pcode);
     clang::PreprocessorOptions &ppOpt = cis->getPreprocessorOpts();
-    ppOpt.addRemappedFile("flycode.cxx", mbuf);
+    ppOpt.addRemappedFile("flycode.cxx", mbuf.release());
     // 解析这段代码，结合已有的astfile查找标识符号。???
     // clang::ParseAST(unit->getSema());
 
@@ -2021,9 +2021,9 @@ bool CompilerEngine::tryCompile4(clang::CXXRecordDecl *decl, clang::ASTContext &
     qDebug()<<ctx.getExternalSource();
 
     bret = cis->ExecuteAction(llvm_only_action);
-    llvm::Module *mod = llvm_only_action.takeModule();
+    std::unique_ptr<llvm::Module> mod = llvm_only_action.takeModule();
     QDateTime etime = QDateTime::currentDateTime();
-    qDebug()<<"compile code done."<<bret<<mod<<btime.msecsTo(etime);
+    qDebug()<<"compile code done."<<bret<<mod.get()<<btime.msecsTo(etime);
 
     mod->dump();
 
@@ -2111,11 +2111,11 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
 
             // try ctor base , 不能生成正确的Base代码
             const clang::CodeGen::CGFunctionInfo &FIB = 
-                cgtypes.arrangeCXXConstructorDeclaration(ctor, clang::Ctor_Base);
+                cgtypes.arrangeCXXStructorDeclaration(ctor, clang::CodeGen::StructorType::Base);
             llvm::FunctionType *FTyB = cgtypes.GetFunctionType(FIB);
             llvm::Constant *ctor_base_val = 
                 // cgm.GetAddrOfFunction(clang::GlobalDecl(ctor, clang::Ctor_Base), FTyB, false, false);
-                cgmod.GetAddrOfCXXConstructor(ctor, clang::Ctor_Base, &FIB, true);
+                cgmod.getAddrOfCXXStructor(ctor, clang::CodeGen::StructorType::Base, &FIB, FTyB, true);
             llvm::Function *ctor_base_fn = clang::cast<llvm::Function>(ctor_base_val);
             clang::CodeGen::FunctionArgList alist;
 
@@ -2143,7 +2143,7 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
             clang::CXXConstructorDecl *ctor = clang::cast<clang::CXXConstructorDecl>(mthdecl);
             qDebug()<<cgmod.getMangledName(mthdecl).data();
             qDebug()<<cgmod.getMangledName(clang::GlobalDecl(ctor, clang::Ctor_Base)).data();
-            qDebug()<<cgmod.getMangledName(clang::GlobalDecl(ctor, clang::Ctor_CompleteAllocating)).data();
+            qDebug()<<cgmod.getMangledName(clang::GlobalDecl(ctor, clang::Ctor_Complete)).data();
             for (auto it = ctor->init_begin(); it != ctor->init_end(); it ++) {
                 clang::CXXCtorInitializer *cti = *it;
                 clang::Expr *ctie = cti->getInit();
@@ -2172,7 +2172,7 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
                     clang::CodeGen::CodeGenTypes &cgtypes = cgm.getTypes();
 
                     const clang::CodeGen::CGFunctionInfo &FI = 
-                    cgtypes.arrangeCXXConstructorDeclaration(ctor, clang::Ctor_Complete);
+                    cgtypes.arrangeCXXStructorDeclaration(ctor, clang::CodeGen::StructorType::Complete);
                     
                     llvm::FunctionType *FTy = cgtypes.GetFunctionType(FI);
 
@@ -2192,11 +2192,11 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
                     // cgm.EmitCXXConstructor(ctor, clang::Ctor_Base);
                     // try ctor base , 不能生成正确的Base代码
                     const clang::CodeGen::CGFunctionInfo &FIB = 
-                    cgtypes.arrangeCXXConstructorDeclaration(ctor, clang::Ctor_Base);
+                    cgtypes.arrangeCXXStructorDeclaration(ctor, clang::CodeGen::StructorType::Base);
                     llvm::FunctionType *FTyB = cgtypes.GetFunctionType(FIB);
                     llvm::Constant *ctor_base_val = 
                     // cgm.GetAddrOfFunction(clang::GlobalDecl(ctor, clang::Ctor_Base), FTyB, false, false);
-                    cgm.GetAddrOfCXXConstructor(ctor, clang::Ctor_Base, &FIB, true);
+                    cgm.getAddrOfCXXStructor(ctor, clang::CodeGen::StructorType::Base, &FIB, FTyB, true);
                     llvm::Function *ctor_base_fn = clang::cast<llvm::Function>(ctor_base_val);
                     // cgf.EmitCtorPrologue(ctor, clang::Ctor_Base, alist);
                     cgm.setFunctionLinkage(clang::GlobalDecl(ctor, clang::Ctor_Base), ctor_base_fn);

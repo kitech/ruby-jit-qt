@@ -13,7 +13,7 @@
 #include "llvm/ExecutionEngine/Interpreter.h"
 // #include "llvm/ExecutionEngine/JIT.h" // depcreated 
 #include "llvm/ExecutionEngine/JITEventListener.h"
-#include "llvm/ExecutionEngine/JITMemoryManager.h"
+// #include "llvm/ExecutionEngine/JITMemoryManager.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/ExecutionEngine/ObjectCache.h"
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
@@ -102,9 +102,10 @@ llvm::GenericValue jit_execute_func(llvm::Module *mod, llvm::Function *func)
     llvm::ExecutionEngine *EE = NULL;
     qDebug()<<"222222222";
     std::string Error;
-    llvm::EngineBuilder builder(mod);
+    std::unique_ptr<llvm::Module> tmod(mod);
+    llvm::EngineBuilder builder(std::move(tmod));
     qDebug()<<EE<<"aaa is sym search disabled:";
-    builder.setUseMCJIT(true);
+    // builder.setUseMCJIT(true);
     // builder.setMArch("core2"); // 这种强制设置可能引起问题，使用三个InitailzeNativexxx函数初始化。
 
     EE = builder.create();
@@ -338,7 +339,7 @@ bool Clvm::initCompiler()
     clang::driver::Compilation *C = drv->BuildCompilation(drv_args);
 
     const clang::driver::JobList &Jobs = C->getJobs();
-    const clang::driver::Command *Cmd = llvm::cast<clang::driver::Command>(*Jobs.begin());
+    const clang::driver::Command *Cmd = llvm::cast<clang::driver::Command>(&(*Jobs.begin()));
     const clang::driver::ArgStringList &CCArgs = Cmd->getArguments();
 
     // clang::CompilerInvocation *civ = new clang::CompilerInvocation();
@@ -364,18 +365,18 @@ Clvm::execute(QString &code, std::vector<llvm::GenericValue> &args, QString func
     bool bret;
 
     const char *pcode = strdup(code.toLatin1().data());
-    llvm::MemoryBuffer *mbuf = llvm::MemoryBuffer::getMemBuffer(pcode);
+    std::unique_ptr<llvm::MemoryBuffer> mbuf = llvm::MemoryBuffer::getMemBuffer(pcode);
     clang::PreprocessorOptions &ppOpt = this->mcis->getPreprocessorOpts();
-    ppOpt.addRemappedFile("flycode.cxx", mbuf);
+    ppOpt.addRemappedFile("flycode.cxx", mbuf.release());
 
     clang::EmitLLVMOnlyAction llvm_only_action;
     bret = mcis->ExecuteAction(llvm_only_action);
-    llvm::Module *mod = llvm_only_action.takeModule();
-    qDebug()<<"compile code done."<<mod;
+    std::unique_ptr<llvm::Module> mod = llvm_only_action.takeModule();
+    qDebug()<<"compile code done."<<mod.get();
 
     if (mod == NULL) {
     } else {
-        rgv = run_module_func(mod, args, func_entry);
+        rgv = run_module_func(mod.get(), args, func_entry);
     }
 
     return rgv;
@@ -392,15 +393,16 @@ Clvm::execute2(llvm::Module *mod, QString func_entry)
 
     // run module
     std::string errstr;
-    llvm::EngineBuilder eb(mod);
+    std::unique_ptr<llvm::Module> tmod(mod);
+    llvm::EngineBuilder eb(std::move(tmod));
     eb.setErrorStr(&errstr);
-    eb.setUseMCJIT(true);
+    // eb.setUseMCJIT(true);
 
     llvm::ExecutionEngine *EE = eb.create();
 
     //*
     qDebug()<<"before load obj...";
-    llvm::ErrorOr<llvm::object::ObjectFile *> obj = 
+    llvm::ErrorOr<llvm::object::OwningBinary<llvm::object::ObjectFile> > obj = 
         llvm::object::ObjectFile::createObjectFile("/usr/lib/libQt5Sql.so");
     if (!obj) {
         qDebug()<<"create obj file error.";
@@ -459,14 +461,15 @@ Clvm::run_module_func(llvm::Module *mod, std::vector<llvm::GenericValue> &args, 
     // llvm::InitializeNativeTargetDisassembler();
 
     // run module
-    llvm::EngineBuilder eb(mod);
-    eb.setUseMCJIT(true);
+    std::unique_ptr<llvm::Module> tmod(mod);
+    llvm::EngineBuilder eb(std::move(tmod));
+    // eb.setUseMCJIT(true);
 
     llvm::ExecutionEngine *EE = eb.create();
 
     //*
     qDebug()<<"before load obj...";
-    llvm::ErrorOr<llvm::object::ObjectFile *> obj = 
+    llvm::ErrorOr<llvm::object::OwningBinary<llvm::object::ObjectFile> > obj = 
         llvm::object::ObjectFile::createObjectFile("/usr/lib/libQt5Sql.so");
     if (!obj) {
         qDebug()<<"create obj file error.";

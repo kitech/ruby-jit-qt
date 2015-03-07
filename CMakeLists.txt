@@ -90,7 +90,7 @@ set(handby_exe_SRCS
     block.cpp
 )
 
-set(CLANGLIBS  -lclang -lLLVM-3.5
+set(CLANGLIBS  -lclang -lLLVM-3.6
 		 -lclangTooling
 		-lclangFrontendTool  
 		-lclangFrontend

@@ -72,7 +72,7 @@ bool FrontEngine::initCompiler()
     clang::driver::Compilation *C = drv->BuildCompilation(drv_args);
 
     const clang::driver::JobList &Jobs = C->getJobs();
-    const clang::driver::Command *Cmd = llvm::cast<clang::driver::Command>(*Jobs.begin());
+    const clang::driver::Command *Cmd = llvm::cast<clang::driver::Command>(&(*Jobs.begin()));
     const clang::driver::ArgStringList &CCArgs = Cmd->getArguments();
 
     // clang::CompilerInvocation *civ = new clang::CompilerInvocation();
@@ -135,7 +135,7 @@ bool FrontEngine::loadPreparedASTFile()
     clang::FileSystemOptions fsopts;
 
     QDateTime btime = QDateTime::currentDateTime();
-    clang::ASTUnit *unit = clang::ASTUnit::LoadFromASTFile(astfile, mydiag, fsopts);
+    std::unique_ptr<clang::ASTUnit> unit = clang::ASTUnit::LoadFromASTFile(astfile, mydiag, fsopts);
         // clang::ASTUnit::LoadFromASTFile(const std::string &Filename, 
         //                                 IntrusiveRefCntPtr<clang::DiagnosticsEngine> Diags, 
         //                                 const clang::FileSystemOptions &FileSystemOpts, 
@@ -156,7 +156,7 @@ bool FrontEngine::loadPreparedASTFile()
 
     qDebug()<<"has sema:"<<unit->hasSema();
 
-    mrgunit = unit;
+    mrgunit = unit.release();
     mtrunit = trud;
     mgctx = tctx.createMangleContext();
 
@@ -225,7 +225,7 @@ bool FrontEngine::parseHeader()
     clang::FileSystemOptions fsopts;
 
     QDateTime btime = QDateTime::currentDateTime();
-    clang::ASTUnit *unit = clang::ASTUnit::LoadFromASTFile(astfile, mydiag, fsopts);
+    std::unique_ptr<clang::ASTUnit> unit = clang::ASTUnit::LoadFromASTFile(astfile, mydiag, fsopts);
         // clang::ASTUnit::LoadFromASTFile(const std::string &Filename, 
         //                                 IntrusiveRefCntPtr<clang::DiagnosticsEngine> Diags, 
         //                                 const clang::FileSystemOptions &FileSystemOpts, 
@@ -276,7 +276,7 @@ bool FrontEngine::parseHeader()
             <<tctx.getASTAllocatedMemory()
             <<tctx.getSideTableAllocatedMemory();
 
-    qDebug()<<unit<<unit->isMainFileAST()<<unit->getOriginalSourceFileName().data()
+    qDebug()<<unit.get()<<unit->isMainFileAST()<<unit->getOriginalSourceFileName().data()
             <<unit->getASTFileName().data()
             <<unit->getMainFileName().data()
             <<unit->top_level_size()
@@ -300,9 +300,9 @@ bool FrontEngine::parseHeader(QString path)
     fp.close();
 
     const char *pcode = strdup(ba.data());
-    llvm::MemoryBuffer *mbuf = llvm::MemoryBuffer::getMemBuffer(pcode);
+    std::unique_ptr<llvm::MemoryBuffer> mbuf = llvm::MemoryBuffer::getMemBuffer(pcode);
     clang::PreprocessorOptions &ppopt = mcis->getPreprocessorOpts();
-    ppopt.addRemappedFile("flycode.cxx", mbuf);
+    ppopt.addRemappedFile("flycode.cxx", mbuf.release());
 
     QDateTime btime = QDateTime::currentDateTime();
     clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> mydiag;

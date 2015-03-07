@@ -246,6 +246,37 @@ T 表示的符号在代码的Text区域。
 
 C++中的friend友元不能继承。
 
+\chapter{libclang}
+\section{3.5.x => 3.6.x 升级api调整}
+llvm::ParseAssemblyXXX(1,2,3,4) => llvm::parseAssemblyXXX(1,3,4)
+
+const clang::driver::Command *Cmd = llvm::cast<clang::driver::Command>(*Jobs.begin());
+==> const clang::driver::Command *Cmd = llvm::cast<clang::driver::Command>(&(*Jobs.begin()));
+
+cgtypes.arrangeCXXConstructorDeclaration(ctor, clang::Ctor\_Base);
+==>  cgtypes.arrangeCXXStructorDeclaration(ctor, clang::CodeGen::StructorType::Base);
+
+cgmod.GetAddrOfCXXConstructor(ctor, clang::Ctor\_Base, &FIB, true);
+==>  cgmod.getAddrOfCXXStructor(ctor, clang::CodeGen::StructorType::Base, &FIB, FTyB, true);
+
+llvm::MemoryBuffer *mbuf = llvm::MemoryBuffer::getMemBuffer(pcode);
+==>  std::unique\_ptr<llvm::MemoryBuffer> mbuf = llvm::MemoryBuffer::getMemBuffer(pcode);
+
+clang::Ctor\_CompleteAllocating ==> clang::Ctor\_Complete
+
+#include "llvm/ExecutionEngine/JITMemoryManager.h"
+==> 删除
+
+llvm::Module* mod;
+llvm::EngineBuilder builder(tmod);
+==> 
+std::unique\_ptr<llvm::Module> tmod(mod);
+llvm::EngineBuilder builder(std::move(tmod));
+
+builder.setUseMCJIT(true); ==> 删除
+
+ErrorOr<llvm::object::ObjectFile *> => ErrorOr<OwningBinary<llvm::object::ObjectFile>>
+
 \section{参考}
 ROOT/cling
 llvm/vmkit

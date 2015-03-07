@@ -381,7 +381,7 @@ bool IROperator::init()
 
     char *llcode_str = strdup(llcode.data());
     llvm::SMDiagnostic diag;
-    tmod = llvm::ParseAssemblyString(llcode_str, NULL, diag, ctx);
+    tmod = llvm::parseAssemblyString(llcode_str, diag, ctx).release();
 
     free(llcode_str);
 
