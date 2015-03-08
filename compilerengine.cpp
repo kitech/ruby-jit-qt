@@ -31,7 +31,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/AsmParser/Parser.h>
 
-
+#include "ivm/dbghelper.h"
 #include "invokestorage.h"
 #include "compilerengine.h"
 
@@ -155,7 +155,8 @@ void walk_decl(QStack<clang::Stmt*> &fexpr, clang::Stmt *bstmt, int level)
     for (auto expr: stmts->children()) {
         qDebug()<<"e:"<<expr<<level;
         if (expr == 0) {
-            bstmt->dumpColor();
+            // bstmt->dumpColor();
+            DUMP_COLOR(bstmt);
             continue;
         }
         qDebug()<<"e:"<<expr->getStmtClassName()<<level;
@@ -170,7 +171,8 @@ void walk_decl(QStack<clang::Stmt*> &fexpr, clang::Stmt *bstmt, int level)
         for (auto ci: ctor_decl->inits()) {
             auto e = ci->getInit();
             qDebug()<<"ctorinit..."<<e;
-            e->dumpColor();
+            // e->dumpColor();
+            DUMP_COLOR(e);
                 
             fexpr.push(e);
             walk_decl(fexpr, e, level+1);
@@ -202,7 +204,8 @@ CompilerEngine::find_callee_decl_by_symbol2(clang::Decl *bdecl, QString callee_s
         for (auto ci: ctor_decl->inits()) {
             auto e = ci->getInit();
             qDebug()<<"ctorinit..."<<e;
-            e->dumpColor();
+            // e->dumpColor();
+            DUMP_COLOR(e);
                 
             fexpr.push(e);
             walk_decl(fexpr, e, 1);
@@ -217,7 +220,8 @@ CompilerEngine::find_callee_decl_by_symbol2(clang::Decl *bdecl, QString callee_s
     while (!fexpr.isEmpty()) {
         clang::Stmt *s = fexpr.pop();
         qDebug()<<"flated..."<<s;
-        s->dumpColor();
+        // s->dumpColor();
+        DUMP_COLOR(s);
 
         if (llvm::isa<clang::CXXConstructExpr>(s)) {
             clang::CXXConstructorDecl *d = llvm::cast<clang::CXXConstructExpr>(s)->getConstructor();
@@ -341,7 +345,8 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
     // qDebug()<<"toexpr count:"<<toexpr.count();
     for (auto expr: toexpr) {
         // qDebug()<<"see toexpr's decl:"<<expr;
-        expr->getConstructor()->dumpColor();
+        // expr->getConstructor()->dumpColor();
+        DUMP_COLOR(expr->getConstructor());
         return expr->getConstructor();
     }
 
@@ -351,7 +356,8 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
         for (auto ci: ctor_decl->inits()) {
             auto e = ci->getInit();
             qDebug()<<"ctorinit..."<<e;
-            e->dumpColor();
+            // e->dumpColor();
+            DUMP_COLOR(e);
             auto d = this->find_callee_decl_by_symbol(bdecl, callee_symbol, e);
             if (d) return d;
         }
@@ -400,7 +406,8 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
         else if (clang::isa<clang::DeclRefExpr>(s)) {
             auto d = llvm::cast<clang::DeclRefExpr>(s)->getDecl();
             qDebug()<<"dddddddref"<<d->getName().data();
-            d->dumpColor();
+            // d->dumpColor();
+            DUMP_COLOR(d);
             if (0) {
                 std::string str; llvm::raw_string_ostream stm(str);
                 mgctx->mangleName(clang::cast<clang::NamedDecl>(d), stm);
@@ -413,7 +420,8 @@ CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_sy
         else if (llvm::isa<clang::CXXDefaultArgExpr>(s)) {
             auto *daexpr = llvm::cast<clang::CXXDefaultArgExpr>(s);
             auto *e = daexpr->getExpr();
-            e->dumpColor();
+            // e->dumpColor();
+            DUMP_COLOR(e);
             if (llvm::isa<clang::CXXConstructExpr>(e)) {
                 ctor_expr.append(llvm::cast<clang::CXXConstructExpr>(e));
                 QStack<clang::Stmt*> texpr; // flat expr
@@ -657,7 +665,8 @@ void CompilerEngine::decl2def(llvm::Module *mod, clang::ASTContext &ctx,
                 genmth_decl(cgmod, cgf, d1);
             }
         }
-        mod->dump();
+        // mod->dump();
+        DUMP_IR(mod);
         exit(-1);
     }
 
@@ -722,7 +731,8 @@ llvm::Module* CompilerEngine::conv_ctor(clang::ASTContext &ctx, clang::CXXConstr
         noinlined[ctor_base_fn->getName().data()] = true;
     }
 
-    mod->dump();
+    // mod->dump();
+    DUMP_IR(mod);
 
     // ??? 没用了吧
     QHash<QString, llvm::Function*> usyms;
@@ -731,19 +741,22 @@ llvm::Module* CompilerEngine::conv_ctor(clang::ASTContext &ctx, clang::CXXConstr
         if (f.isDeclaration()) usyms.insert(QString(f.getName().data()), &f);
     }
 
-    ctor->dumpColor();
+    // ctor->dumpColor();
+    DUMP_COLOR(ctor);
     // 遍历body stmt
     auto s = ctor->getBody();
-    s->dumpColor();
-
+    // s->dumpColor();
+    DUMP_COLOR(s);
     
     // 遍历Ctor init
     for (auto i: ctor->inits()) {
         auto s = i->getInit();
         auto cs = clang::cast<clang::CallExpr>(s);
-        s->dumpColor();
+        // s->dumpColor();
+        DUMP_COLOR(s);
         auto d = cs->getCalleeDecl();
-        d->dumpColor();
+        // d->dumpColor();
+        DUMP_COLOR(d);
 
         auto sd = clang::cast<clang::CXXMethodDecl>(d);
         qDebug()<<"call name:"<<cgmod.getMangledName(clang::cast<clang::CXXMethodDecl>(d)).data();
@@ -759,11 +772,13 @@ llvm::Module* CompilerEngine::conv_ctor(clang::ASTContext &ctx, clang::CXXConstr
         break;
     }
 
-    mod->dump(); 
+    // mod->dump();
+    DUMP_IR(mod);
 
     decl2def(mod, ctx, cgmod, ctor, 0, noinlined);
 
-    mod->dump(); 
+    // mod->dump();
+    DUMP_IR(mod);
 
     return mod;
 }
@@ -880,12 +895,14 @@ llvm::Module* CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMeth
     }
 
     qDebug()<<"dump module after gencode...";    
-    mod->dump();
+    // mod->dump();
+    DUMP_IR(mod);
 
     decl2def(mod, ctx, cgmod, mth, 0, noinlined);
 
     qDebug()<<"dump module after all...";
-    mod->dump();
+    // mod->dump();
+    DUMP_IR(mod);
 
     return mod;
 }
@@ -1027,7 +1044,8 @@ CompilerEngine::conv_method2(clang::ASTUnit *unit, clang::CXXMethodDecl *mth)
                     <<"is method:"<<llvm::isa<clang::CXXMethodDecl>(callee_decl);
             QString tsym = cu->mcgm->getMangledName(callee_decl).data();
             if (tsym == "_Z7qt_noopv") {
-                callee_decl->dumpColor();
+                // callee_decl->dumpColor();
+                DUMP_COLOR(callee_decl);
                 this->gen_free_function(cu, callee_decl);
             }
             if (tsym == "_ZNK10QByteArray4sizeEv") {
@@ -1046,7 +1064,8 @@ CompilerEngine::conv_method2(clang::ASTUnit *unit, clang::CXXMethodDecl *mth)
         // auto callee_decl = this->find_callee_decl_by_symbol(cu->mbdecl, "_ZNK10QByteArray4sizeEv");
     }
 
-    cu->mmod->dump();
+    // cu->mmod->dump();
+    DUMP_IR(cu->mmod);
     qDebug()<<"all gen done...";
 
     return cu->mmod;
@@ -1067,7 +1086,8 @@ llvm::Module* CompilerEngine::conv_function2(clang::ASTUnit *unit, clang::Functi
 
     this->gen_undefs(cu);
     
-    cu->mmod->dump();
+    // cu->mmod->dump();
+    DUMP_IR(cu->mmod);
     qDebug()<<"all gen done...";
 
     return cu->mmod;
@@ -1107,7 +1127,8 @@ bool CompilerEngine::gen_ctor(CompilerUnit *cu, clang::CXXConstructorDecl *yacto
         }
 
         qDebug()<<"ffffffff:"<<ctor_base_fn->getName().data();
-        cu->mmod->dump();
+        // cu->mmod->dump();
+        DUMP_IR(cu->mmod);
         qDebug()<<"ffffffff:"<<ctor_base_fn->getName().data();
     }
         
@@ -1167,7 +1188,8 @@ bool CompilerEngine::gen_dtor(CompilerUnit *cu, clang::CXXDestructorDecl *yadtor
         }
 
         qDebug()<<"ffffffff:"<<dtor_base_fn->getName().data();
-        cu->mmod->dump();
+        // cu->mmod->dump();
+        DUMP_IR(cu->mmod);
         qDebug()<<"ffffffff:"<<dtor_base_fn->getName().data();
     }
         
@@ -1211,7 +1233,8 @@ bool CompilerEngine::gen_darg(llvm::Module *mod, QVariant &darg, int idx, clang:
     auto ctor = expr->getConstructor();
     this->gen_ctor(cu, ctor);
     qDebug()<<"hhhhhhhhh";
-    ctor->dumpColor();
+    // ctor->dumpColor();
+    DUMP_COLOR(ctor);
 
     // this->gen_free_function(cu, fd);
     
@@ -1232,7 +1255,8 @@ bool CompilerEngine::gen_darg(llvm::Module *mod, QVariant &darg, int idx, clang:
         darg = QVariant::fromValue(EvalType(r.ve, r.vv));
         r.vv->setName("argxx");
         qDebug()<<darg<<r.vv->hasName()<<r.vv->getName().data();
-        r.vv->dump();
+        // r.vv->dump();
+        DUMP_IR(r.vv);
     }
     if (0) {
         llvm::Value *mv = NULL;
@@ -1242,18 +1266,21 @@ bool CompilerEngine::gen_darg(llvm::Module *mod, QVariant &darg, int idx, clang:
         // cu->mcgf->EmitAnyExprToMem(expr, mv, expr->getType().getQualifiers(), true);
         // auto lv = cu->mcgf->Emit
         qDebug()<<mv;
-        mv->dump();
+        // mv->dump();
+        DUMP_IR(mv);
     }
 
     
     auto ce = *expr->children();
     qDebug()<<"ffffffff";
-    ce->dumpColor();
+    // ce->dumpColor();
+    DUMP_COLOR(ce);
     if (0) {
         auto lv = cu->mcgf->EmitMaterializeTemporaryExpr(llvm::cast<clang::MaterializeTemporaryExpr>(ce));
         auto lvd = lv.getAddress();
         qDebug()<<lv.getAddress();
-        lvd->dump();
+        // lvd->dump();
+        DUMP_IR(lvd);
         r.vv = lvd;
         darg = QVariant::fromValue(EvalType(r.ve, r.vv));
         r.vv->setName("argxx");
@@ -1307,7 +1334,8 @@ bool CompilerEngine::gen_darg(llvm::Module *mod, QVariant &darg, int idx, clang:
         darg = QVariant::fromValue(nr);
         
         qDebug()<<lvd;
-        lvd->dump();
+        // lvd->dump();
+        DUMP_IR(lvd);
     }
 
     if (1) {
@@ -1318,7 +1346,8 @@ bool CompilerEngine::gen_darg(llvm::Module *mod, QVariant &darg, int idx, clang:
     qDebug()<<"fffffffff:";
     this->gen_undefs(cu, ctor, expr);
     
-    mod->dump();
+    // mod->dump();
+    DUMP_IR(mod);
     // exit(0);
     
     return false;
@@ -1484,10 +1513,12 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
             qDebug()<<"callee decl:"<<callee_decl<<sym<<froms.count();
             if (callee_decl == NULL) {
                 // 如果没有找到，则一定是查找方法还有问题
-                cu->mmod->dump();
+                // cu->mmod->dump();
+                DUMP_IR(cu->mmod);
                 for (auto d: froms) {
                     qDebug()<<"decl dump:"<<d;
-                    d->dumpColor();
+                    // d->dumpColor();
+                    DUMP_COLOR(d);
                 }
                 // 在作为ruby模块的情况下，这个方便，不会生成太长的调用桟列表                
                 qFatal(QString("vvvvvvv:%1").arg(sym).toLatin1().data());
@@ -1511,8 +1542,9 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
             if (callee_decl->isTemplateInstantiation()) {
                 // maybe controll
                 QStringList known_syms = {
+                    "_ZN19QBasicAtomicIntegerIiE3refEv",
                     "_ZN19QBasicAtomicIntegerIiE5derefEv", "_ZN15QBasicAtomicOpsILi4EE5derefIiEEbRT_",
-                    "_ZNK19QBasicAtomicIntegerIiE4loadEv",
+                    "_ZNK19QBasicAtomicIntegerIiE4loadEv", "_ZN15QBasicAtomicOpsILi4EE3refIiEEbRT_",
                     "_ZN17QGenericAtomicOpsI15QBasicAtomicOpsILi4EEE4loadIiEET_RKS4_",
                     "_ZN15QTypedArrayDataIcE10sharedNullEv",
                     "_ZN15QTypedArrayDataItE10sharedNullEv",
@@ -1627,7 +1659,8 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
 
             if (0) {
             if (tsym == "_Z7qt_noopv") {
-                callee_decl->dumpColor();
+                // callee_decl->dumpColor();
+                DUMP_COLOR(callee_decl);
                 this->gen_free_function(cu, callee_decl);
             }
             else if (tsym == "_Z9qt_assertPKcS0_i") {
@@ -1663,21 +1696,24 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
             }
             else if (tsym == "_ZN15QTypedArrayDataIcE10sharedNullEv") {
                 qDebug()<<"tmpl mthod..."<<callee_decl;
-                callee_decl->dumpColor();
+                // callee_decl->dumpColor();
+                DUMP_COLOR(callee_decl);
                 this->instantiate_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
                 this->gen_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
                 // cu->mmod->dump();
             }
             else if (tsym == "_ZN15QTypedArrayDataItE10sharedNullEv") {
                 qDebug()<<"tmpl mthod..."<<callee_decl;
-                callee_decl->dumpColor();
+                // callee_decl->dumpColor();
+                DUMP_COLOR(callee_decl);
                 this->instantiate_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
                 this->gen_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
                 // cu->mmod->dump();
             }
             else if (tsym == "_ZN15QTypedArrayDataIcE4dataEv") {
                 qDebug()<<"tmpl mthod..."<<callee_decl;
-                callee_decl->dumpColor();
+                // callee_decl->dumpColor();
+                DUMP_COLOR(callee_decl);
                 this->instantiate_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
                 this->gen_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
                 // cu->mmod->dump();
@@ -1838,12 +1874,14 @@ bool CompilerEngine::instantiate_method(CompilerUnit *cu, clang::CXXMethodDecl *
     } else {
         auto rs = sema.SubstStmt(Pattern, TemplateArgs);
         qDebug()<<rs.isInvalid()<<rs.get();
-        rs.get()->dumpColor();
+        // rs.get()->dumpColor();
+        DUMP_COLOR(rs.get());
         // sema.ActOnFinishFunctionBody(mthdecl2, Pattern);
         mthdecl2->setBody(rs.get());
     }
     qDebug()<<"sema stats...";
-    sema.PrintStats();
+    // sema.PrintStats();
+    PRINT_STATS(&sema);
     
     return false;
 }
@@ -1880,11 +1918,13 @@ bool CompilerEngine::tryCompile(clang::CXXRecordDecl *decl, clang::ASTContext &c
 
     qDebug()<<"mth cnter:"<<cnter;
     qDebug()<<"=========";
-    cgtor->PrintStats();
+    // cgtor->PrintStats();
+    PRINT_STATS(cgtor);
     qDebug()<<"=========";
     llvm::Module *mod = cgtor->GetModule();
     qDebug()<<mod;
-    mod->dump();
+    // mod->dump();
+    DUMP_IR(mod);
 
     std::string stmc;
     llvm::raw_string_ostream stmo(stmc);
@@ -1927,7 +1967,8 @@ bool CompilerEngine::tryCompile3(clang::CXXRecordDecl *decl, clang::ASTContext &
     QDateTime etime = QDateTime::currentDateTime();
     qDebug()<<"compile code done."<<bret<<mod<<btime.msecsTo(etime);
 
-    mod->dump();
+    // mod->dump();
+    DUMP_IR(mod);
 
     return false;
 }
@@ -2025,7 +2066,8 @@ bool CompilerEngine::tryCompile4(clang::CXXRecordDecl *decl, clang::ASTContext &
     QDateTime etime = QDateTime::currentDateTime();
     qDebug()<<"compile code done."<<bret<<mod<<btime.msecsTo(etime);
 
-    mod->dump();
+    // mod->dump();
+    DUMP_IR(mod);
 
     return false;
 }
@@ -2088,7 +2130,8 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
             int cnter3 = 0;
             for (auto it = ctor->redecls_begin(); it != ctor->redecls_end(); it ++, cnter3++) {
                 qDebug()<<"redecl:"<<*it;
-                (*it)->dumpColor();
+                // (*it)->dumpColor();
+                DUMP_COLOR(*it);
             }
 
             if (cnter3 == 2) {
@@ -2103,8 +2146,10 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
                     <<",inline body:"<<mthdecl->hasInlineBody()
                     <<",is first:"<<mthdecl->isFirstDecl();
 
-            mthdecl->getBody()->dumpColor();
-            mthdecl->dumpColor();
+            // mthdecl->getBody()->dumpColor();
+            DUMP_COLOR(mthdecl->getBody());
+            // mthdecl->dumpColor();
+            DUMP_COLOR(mthdecl);
             // mthdecl->getCanonicalDecl()->dumpColor();
             // mthdecl->getCorrespondingMethodInClass(decl)->dumpColor();
 
@@ -2132,7 +2177,8 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
             // break;
             qDebug()<<"========================";
         }
-        mod.dump();
+        // mod.dump();
+        DUMP_IR(&mod);
         return false;
     }
     int cnter = 0;
@@ -2148,8 +2194,10 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
                 clang::CXXCtorInitializer *cti = *it;
                 clang::Expr *ctie = cti->getInit();
                 qDebug()<<cti;
-                ctor->dumpColor();
-                ctie->dumpColor();
+                // ctor->dumpColor();
+                DUMP_COLOR(ctor);
+                // ctie->dumpColor();
+                DUMP_COLOR(ctie);
             }
         }
         cgmod.EmitTopLevelDecl(mthdecl);
@@ -2210,7 +2258,8 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
                 genmth(cgmod, cgf, mthdecl);
                 QDateTime etime = QDateTime::currentDateTime();
                 qDebug()<<"gen func time:"<<btime.msecsTo(etime);
-                mod.dump();
+                // mod.dump();
+                DUMP_IR(&mod);
 
                 // break;
             }
@@ -2223,8 +2272,10 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
             // cgmod.EmitGlobal(mthdecl);
 
             if (mthdecl->isInlined()) {
-                mthdecl->dumpColor();
-                mthdecl->getBody()->dumpColor();
+                // mthdecl->dumpColor();
+                DUMP_COLOR(mthdecl);
+                // mthdecl->getBody()->dumpColor();
+                DUMP_COLOR(mthdecl->getBody());
 
                 auto genmth = [](clang::CodeGen::CodeGenModule &cgm,
                                  clang::CodeGen::CodeGenFunction &cgf,
@@ -2282,7 +2333,8 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
     
 
     qDebug()<<"heeeeee...";
-    mod.dump();
+    // mod.dump();
+    DUMP_IR(&mod);
     qDebug()<<"heeeeee...======";
     
     return false;
@@ -2415,8 +2467,10 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
         }
     }
     auto mthdecl = clang::cast<clang::CXXMethodDecl>(td);
-    td->dumpColor();
-    mthdecl->getBody()->dumpColor();
+    // td->dumpColor();
+    DUMP_COLOR(td);
+    // mthdecl->getBody()->dumpColor();
+    DUMP_COLOR(mthdecl->getBody());
     
     qDebug()<<mthdecl->getName().data()<<mthdecl->clang::Decl::getDeclKindName()
             <<llvm::isa<clang::FunctionTemplateDecl>(mthdecl); // not FunctionTemplateDecl
@@ -2438,7 +2492,8 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
                     
         llvm::FunctionType *FTy = cgtypes.GetFunctionType(FI);
         qDebug()<<"aaaaa";
-        FTy->dump();
+        // FTy->dump();
+        DUMP_IR(FTy);
         qDebug()<<"aaaaa";
 
         clang::QualType retype = decl->getReturnType();
@@ -2503,7 +2558,8 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
             // qDebug()<<mthname<<stmo.str().c_str();
             if (QString(stmo.str().c_str()) == "_ZN15QTypedArrayDataItE10sharedNullEv") {
                 mthdecl2 = rd;
-                mthdecl2->dumpColor();
+                // mthdecl2->dumpColor();
+                DUMP_COLOR(mthdecl2);
             }
         }
     }
@@ -2515,11 +2571,13 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
                 <<md->hasTrivialBody();
         for (auto d: md->redecls()) {
             qDebug()<<d;
-            d->dumpColor();
+            // d->dumpColor();
+            DUMP_COLOR(d);
         }
         auto s = md->getBody();
         qDebug()<<"===========";
-        s->dumpColor();
+        // s->dumpColor();
+        DUMP_COLOR(s);
         auto a = md->getInstantiatedFromMemberFunction();
         // a->dumpColor();
         // qDebug()<<"aaaaaaaaaaaaa";
@@ -2545,7 +2603,8 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
             }
         }
         qDebug()<<"==============";
-        ctsd->dumpColor();
+        // ctsd->dumpColor();
+        DUMP_COLOR(ctsd);
         std::vector<clang::TemplateArgument> targs;
         clang::CXXMethodDecl *mth3 = NULL;
         for (auto md: ctsd->methods()) {
@@ -2559,7 +2618,8 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
             }
         }
         qDebug()<<mth3;
-        mth3->dumpColor();
+        // mth3->dumpColor();
+        DUMP_COLOR(mth3);
         mthdecl2 = mth3;
         int kcnter = 0;
         for (auto rd: mth3->redecls()) {
@@ -2615,7 +2675,8 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
     QDateTime etime = QDateTime::currentDateTime();
     qDebug()<<"gen func time:"<<btime.msecsTo(etime);
 
-    mod.dump();
+    // mod.dump();
+    DUMP_IR(&mod);
     
     return false;
 }
@@ -2633,7 +2694,8 @@ bool CompilerEngine::tryTransform(clang::ClassTemplateDecl *decl,
     
     if (true) {
         qDebug()<<"==============";        
-        mthdecl2->dumpColor();
+        // mthdecl2->dumpColor();
+        DUMP_COLOR(mthdecl2);
         qDebug()<<unit->hasSema();
         auto &sema = unit->getSema();
         sema.Initialize();
@@ -2677,7 +2739,8 @@ bool CompilerEngine::tryTransform(clang::ClassTemplateDecl *decl,
         qDebug()<<mthdecl->getTranslationUnitDecl();
         
         qDebug()<<"==============";
-        mthdecl2->dumpColor();
+        // mthdecl2->dumpColor();
+        DUMP_COLOR(mthdecl2);
         qDebug()<<"==============";
         qDebug()<<ctx.getTranslationUnitDecl()->isTranslationUnit(); // true
         qDebug()<<sema.getCurFunction();
@@ -2687,7 +2750,8 @@ bool CompilerEngine::tryTransform(clang::ClassTemplateDecl *decl,
         // sema.ActOnTranslationUnitScope(ascope);
         qDebug()<<scope<<decl->getDeclContext()<<decl->getDeclContext()->getPrimaryContext();
         // sema.ActOnEndOfTranslationUnit();
-        sema.PrintStats();
+        // sema.PrintStats();
+        PRINT_STATS(&sema);
 
         qDebug()<<TemplateArgs.getNumLevels();
         auto arglist = TemplateArgs.getInnermost();
@@ -2706,7 +2770,8 @@ bool CompilerEngine::tryTransform(clang::ClassTemplateDecl *decl,
         // // sema.ActOnFinishFunctionBody(mthdecl2, Pattern);
         // mthdecl2->setBody(rs.get());
         // qDebug()<<mthdecl2->getDeclContext();
-        sema.PrintStats();
+        // sema.PrintStats();
+        PRINT_STATS(&sema);
         
         qDebug()<<"hhhhhhhhhhhhhhh";
         clang::TemplateDeclInstantiator instord(sema, mthdecl->getDeclContext(), TemplateArgs);
@@ -2715,8 +2780,10 @@ bool CompilerEngine::tryTransform(clang::ClassTemplateDecl *decl,
         qDebug()<<"hhhhhhhhhhhhhhh";
         auto nd = instord.VisitCXXMethodDecl(mthdecl, nullptr, true);
         qDebug()<<"okkkkkkkkk>???"<<nd;
-        nd->dumpColor();
-        mthdecl2->dumpColor();
+        // nd->dumpColor();
+        DUMP_COLOR(nd);
+        // mthdecl2->dumpColor();
+        DUMP_COLOR(mthdecl2);
         // auto cd2 = instor.TransformDefinition(mthdecl->getLocation(), mthdecl2);
         // qDebug()<<cd2;
         // cd2->dumpColor();
@@ -2746,7 +2813,8 @@ bool CompilerEngine::tryTransform2(clang::ClassTemplateDecl *decl,
         }
 
         auto tmpl2 = mth2->getBody();
-        tmpl2->dumpColor();
+        // tmpl2->dumpColor();
+        DUMP_COLOR(tmpl2);
         
         QStack<clang::Stmt*> ss;
         ss.push(tmpl2);
@@ -2782,14 +2850,16 @@ bool CompilerEngine::tryTransform2(clang::ClassTemplateDecl *decl,
                         <<ctot2->getTypeClassName();
                 e->setType(mth2->getReturnType()); // 这个管用，但对不对呢
                 qDebug()<<"transformed expr:";
-                e->dumpColor();
+                // e->dumpColor();
+                DUMP_COLOR(e);
                 continue;
                 const clang::InjectedClassNameType *injty = ctot2->getAs<clang::InjectedClassNameType>();
                 clang::QualType injty2 = injty->getInjectedSpecializationType();
                 qDebug()<<injty2.getAsString().data()
                         <<injty2->getTypeClassName();
                 auto we =ce->getSubExprAsWritten(); // subexpr即要cast的表达式部分，()内的部分
-                we->dumpColor();
+                // we->dumpColor();
+                DUMP_COLOR(we);
                 qDebug()<<ce->path_size();
             }
         }
