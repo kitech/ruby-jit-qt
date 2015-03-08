@@ -32,6 +32,7 @@
 #include <llvm/AsmParser/Parser.h>
 
 #include "ivm/dbghelper.h"
+#include "ivm/findsymbolvisitor.h"
 #include "invokestorage.h"
 #include "compilerengine.h"
 
@@ -189,7 +190,8 @@ CompilerEngine::find_callee_decl_by_symbol2(clang::Decl *bdecl, QString callee_s
     QStack<clang::Stmt*> fexpr; // flat expr
 
     if (stmts != NULL) {
-        qDebug()<<"Wooooo, no body decl...."<<stmts;
+        DUMP_COLOR(bdecl);
+        qDebug()<<"Wooooo, body decl...."<<stmts;
         int cnter = 0;
         for (auto expr: stmts->children()) {
             qDebug()<<"e:"<<cnter++<<expr->getStmtClassName();
@@ -267,7 +269,7 @@ CompilerEngine::find_callee_decl_by_symbol2(clang::Decl *bdecl, QString callee_s
 // 起始decl，一般是一个函数或者方法的定义
 clang::FunctionDecl*
 CompilerEngine::find_callee_decl_by_symbol(clang::Decl *bdecl, QString callee_symbol)
-{
+{    
     qDebug()<<callee_symbol;
     clang::Stmt *stmts = bdecl->getBody();
     QStack<clang::Stmt*> fexpr; // flat expr
@@ -996,7 +998,10 @@ CompilerEngine::conv_ctor2(clang::ASTUnit *unit, clang::CXXConstructorDecl *ctor
     
     this->gen_ctor(cu);
 
-    this->gen_undefs(cu);
+    qDebug()<<"222:"<<QDateTime::currentDateTime();
+    // this->gen_undefs(cu);
+    this->gen_undefs2(cu);
+    qDebug()<<"222:"<<QDateTime::currentDateTime();    
 
     return cu->mmod;
     return 0;
@@ -1728,6 +1733,185 @@ bool CompilerEngine::gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun, cl
         continue;
         // for test
         // auto callee_decl = this->find_callee_decl_by_symbol(cu->mbdecl, "_ZNK10QByteArray4sizeEv");
+    }
+
+    /// testsssssssssssssss
+    /*
+    // DUMP_COLOR(froms.at(0));
+    qDebug()<<froms;
+    for (auto d: froms) {
+        // DUMP_COLOR(d);
+    }
+    qDebug()<<"222:"<<QDateTime::currentDateTime();
+    FindSymbolVisitor fsv(froms.at(0), this, cu);
+    fsv.Run();
+    qDebug()<<"222:"<<QDateTime::currentDateTime();
+    qDebug()<<fsv.mSymbols.count()<<fsv.mSymbols;    
+    */
+    
+    return false;
+}
+
+// 改进版本，使用clang::RecursiveASTVisitor
+bool CompilerEngine::gen_undefs2(CompilerUnit *cu, clang::FunctionDecl *yafun, clang::Stmt *yastmt)
+{
+    QVector<clang::FunctionDecl*> froms;
+    froms.append(llvm::cast<clang::FunctionDecl>(cu->mbdecl));
+    if (yafun) froms.append(yafun);
+
+    qDebug()<<"222:"<<QDateTime::currentDateTime();    
+    FindSymbolVisitor fsv(froms.at(0), this, cu);
+    fsv.Run();
+    qDebug()<<"222:"<<QDateTime::currentDateTime();    
+    qDebug()<<fsv.mSymbols.count()<<fsv.mSymbols;
+
+    for (auto it = fsv.mSymbols.begin(); it != fsv.mSymbols.end(); it++) {
+        QString sym = it.key();
+        clang::FunctionDecl *callee_decl = it.value();
+
+        qDebug().nospace()
+            <<"is method:"<<llvm::isa<clang::CXXMethodDecl>(callee_decl)
+            <<", is ctor:"<<llvm::isa<clang::CXXConstructorDecl>(callee_decl)
+            <<", is dtor:"<<llvm::isa<clang::CXXDestructorDecl>(callee_decl)
+            <<", is tmpl inst:"<<callee_decl->isTemplateInstantiation()
+            <<", is func tmpl spec:"<<callee_decl->isFunctionTemplateSpecialization()
+            <<", is global:"<<callee_decl->isGlobal()
+            <<", end";
+        /*
+          可以分为四种情况，
+          第一种是函数的Qt函数，第二种是普通类方法，第三种是模板类的方法，第四种是模板函数（少）,
+          也许还要加一种构造方法，ctor
+        */
+        QString tsym = cu->mcgm->getMangledName(callee_decl).data();
+        Q_ASSERT(tsym == sym);
+        if (callee_decl->isTemplateInstantiation()) {
+            // maybe controll
+            QStringList known_syms = {
+                "_ZN19QBasicAtomicIntegerIiE3refEv",
+                "_ZN19QBasicAtomicIntegerIiE5derefEv", "_ZN15QBasicAtomicOpsILi4EE5derefIiEEbRT_",
+                "_ZNK19QBasicAtomicIntegerIiE4loadEv", "_ZN15QBasicAtomicOpsILi4EE3refIiEEbRT_",
+                "_ZN17QGenericAtomicOpsI15QBasicAtomicOpsILi4EEE4loadIiEET_RKS4_",
+                "_ZN15QTypedArrayDataIcE10sharedNullEv",
+                "_ZN15QTypedArrayDataItE10sharedNullEv",
+                "_ZN15QTypedArrayDataIcE4dataEv", "_ZN15QTypedArrayDataItE4dataEv",
+                "_ZN6QFlagsIN2Qt10WindowTypeEEC1EMNS2_7PrivateEi", // ctor
+                "_ZN6QFlagsIN2Qt13AlignmentFlagEEC1EMNS2_7PrivateEi",
+                "_ZNK14QScopedPointerI11QObjectData21QScopedPointerDeleterIS0_EEptEv",
+                "_ZN15QTypedArrayDataItE10deallocateEP10QArrayData",
+                "_ZN5QListI7QStringEC1Ev",
+                // template function
+                "_Z6qBoundIiERKT_S2_S2_S2_", "_Z4qMinIiERKT_S2_S2_", "_Z4qMaxIiERKT_S2_S2_",
+            };
+            if (known_syms.contains(tsym)) {
+                if (llvm::isa<clang::CXXConstructorDecl>(callee_decl)) {                        
+                    this->instantiate_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
+                    if (tsym == "_ZN6QFlagsIN2Qt13AlignmentFlagEEC1EMNS2_7PrivateEi") {
+                        // 为什么用这个单独的方法能正常生成呢？这个方法区别在于使用空的llvm::Module和CodeGenFunction对象？
+                        // 是不是要用另一种策略，所有的函数都在一个独立的llvm::Module内生成呢？
+                        // 需要使用全新的clang::CodeGen::CodeGenFunction对象。
+                    }
+                    this->gen_ctor(cu, llvm::cast<clang::CXXConstructorDecl>(callee_decl));
+                    if (tsym == "_ZN6QFlagsIN2Qt13AlignmentFlagEEC1EMNS2_7PrivateEi") {
+                        // cu->mmod->dump();
+                        // qFatal("now should be okkkkkkkkkk");
+                    }
+                } else if (llvm::isa<clang::CXXMethodDecl>(callee_decl)) {
+                    this->instantiate_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
+                    this->gen_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
+                } else {
+                    this->instantiate_method(cu, llvm::cast<clang::CXXMethodDecl>(callee_decl));
+                    this->gen_free_function(cu, callee_decl);
+                }
+            } else {
+                qDebug()<<"unsupported tmpl inst..."<<tsym;
+            }
+        }
+        else if (llvm::isa<clang::CXXConstructorDecl>(callee_decl)) {
+            // maybe controll
+            QStringList known_syms = {
+                "_ZN5QSizeC1Eii", "_ZN5QRectC1Eiiii", "_ZN5QRectC1Ev",
+                "_ZN11QSizePolicyC1ENS_6PolicyES0_NS_11ControlTypeE",
+                "_ZN11QLayoutItemC1E6QFlagsIN2Qt13AlignmentFlagEE",
+                "_ZN5QIconC1Ev",
+            };
+            if (known_syms.contains(tsym)) {
+                auto callee_decl_with_body = 
+                    this->get_decl_with_body(llvm::cast<clang::CXXMethodDecl>(callee_decl));
+                callee_decl_with_body = callee_decl_with_body->isInlined() ?
+                    callee_decl_with_body : llvm::cast<clang::CXXMethodDecl>(callee_decl);
+                if (callee_decl_with_body->isInlined()) {
+                    this->gen_ctor(cu, llvm::cast<clang::CXXConstructorDecl>
+                                   (callee_decl_with_body));
+                } else {
+                    // this->gen_method_decl(cu, callee_decl_with_body);
+                    qDebug()<<"leave it there:"<<tsym;
+                    assert(1==2);
+                }
+            } else {
+                qDebug()<<"unsupported ctor..."<<tsym;
+            }
+        }
+        else if (llvm::isa<clang::CXXDestructorDecl>(callee_decl)) {
+            QStringList known_syms = {
+                "_ZN10QByteArrayD1Ev", "_ZN5QIconD1Ev",
+            };
+            qDebug()<<"dtor.........";
+            qFatal("hehhhhhhhhhhh");
+        }
+        else if (llvm::isa<clang::CXXMethodDecl>(callee_decl)) {
+            // maybe controll
+            QStringList known_syms = {
+                "_ZNK10QByteArray4sizeEv", "_ZN10QArrayData10sharedNullEv",
+                "_ZNK10QByteArray6lengthEv", "_ZNK10QByteArray9constDataEv",
+                "_ZNK7QString6toUtf8Ev",
+                "_ZN10QArrayData4dataEv", "_ZN7QWidget6resizeERK5QSize",
+                "_ZN10QArrayData10deallocateEPS_mm", "_ZN9QtPrivate8RefCount5derefEv",
+                "_ZN7QWidget11setGeometryERK5QRect", "_ZNK5QRect6heightEv",
+                "_ZNK6QPoint1xEv", "_ZNK6QPoint1yEv", "_ZNK5QRect4sizeEv",
+                "_ZNK5QRect5widthEv",
+                "_ZNK7QWidget13testAttributeEN2Qt15WidgetAttributeE",
+                "_ZN9QtPrivate8RefCount3refEv",
+                "_ZN11QSizePolicy14setControlTypeENS_11ControlTypeE",
+                "_ZN9QComboBox10insertItemEiRK5QIconRK7QStringRK8QVariant",
+            };
+            if (known_syms.contains(tsym)) {
+                auto callee_decl_with_body = 
+                    this->get_decl_with_body(llvm::cast<clang::CXXMethodDecl>(callee_decl));
+                if (callee_decl_with_body->isInlined()) {
+                    qDebug()<<"gen... known syms:"<<tsym;
+                    this->gen_method(cu, callee_decl_with_body);
+                } else {
+                    this->gen_method_decl(cu, callee_decl_with_body);
+                }
+            } else {
+                qDebug()<<"unsupported method..."<<tsym;
+            }
+        }
+        else if (callee_decl->isGlobal()) {
+            // maybe controll
+            QStringList known_syms = {
+                "_Z7qt_noopv", "_Z9qt_assertPKcS0_i",
+            };
+            if (known_syms.contains(tsym)) {
+                this->gen_free_function(cu, callee_decl);
+            } else {
+                qDebug()<<"unsupported global..."<<tsym;                    
+            }
+        }
+        else {
+            qDebug()<<"unsupported symbol..."<<tsym;
+        }
+
+        if (0) {
+            if (tsym == "_Z7qt_noopv") {
+                // callee_decl->dumpColor();
+                DUMP_COLOR(callee_decl);
+                this->gen_free_function(cu, callee_decl);
+            } else {
+                qDebug()<<"unsupported..."<<tsym;
+            }
+        }
+
     }
     
     return false;

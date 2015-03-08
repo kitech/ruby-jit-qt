@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.0)
 set(CMAKE_VERBOSE_MAKEFILE on)
 
 # add_definitions(-g -O2 -std=c++11) # -std=c++14 -fno-rtti)  # -fno-rtti
-add_definitions(-DQT_MESSAGELOGCONTEXT=1 -DLLVM_DUMP_COLOR=0)
+add_definitions(-DQT_MESSAGELOGCONTEXT=1 -DLLVM_DUMP_COLOR=1)
 set(CMAKE_C_COMPILER ./myllvm/bin/clang)
 set(CMAKE_CXX_COMPILER ./myllvm/bin/clang++)
 set(CMAKE_C_COMPILER clang)
@@ -63,9 +63,10 @@ set(handby_lib_SRCS
     ctrlengine.cpp
     clvmengine.cpp
     operatorengine.cpp
+    ivm/findsymbolvisitor.cpp    
     compilerengine.cpp
+    ivm/fecache.cpp    
     frontengine.cpp
-    ivm/fecache.cpp
     clvm_operator.cpp
     clvm.cpp
     namelookup.cpp

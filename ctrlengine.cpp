@@ -40,14 +40,18 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     // 获取两段ll代码合并（如果需要的话）
     // 以module的方式传入vme执行
 
-    qDebug()<<"111:"<<QDateTime::currentDateTime();
+#define TEMP_DEBUG()                                                    \
+            printf("111: %d, %s\n", __LINE__, QDateTime::currentDateTime().toString("yyyy-M-d H:m:s.zzz").toLatin1().data());
+
+    TEMP_DEBUG();
     mfe->loadPreparedASTFile();
     clang::CXXRecordDecl *rec_decl = mfe->find_class_decl(klass);
-    qDebug()<<"111:"<<QDateTime::currentDateTime();    
+    TEMP_DEBUG();
+    
     qDebug()<<rec_decl;
     qDebug()<<"uargs:"<<uargs;
     clang::CXXConstructorDecl *ctor_decl = mfe->find_ctor_decl(rec_decl, klass, uargs);
-    qDebug()<<"111:"<<QDateTime::currentDateTime();    
+    TEMP_DEBUG();    
     qDebug()<<ctor_decl;
     // ctor_decl->dumpColor();
     DUMP_COLOR(ctor_decl);
@@ -55,12 +59,12 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     QVector<QVariant> dargs;
     QVector<MetaTypeVariant> mtdargs;
     mfe->get_method_default_params(ctor_decl, dargs, mtdargs);
-    qDebug()<<"111:"<<QDateTime::currentDateTime();
+    TEMP_DEBUG();    
     
     // auto mod = mce->conv_ctor(mfe->getASTContext(), ctor_decl);
     auto mod = mce->conv_ctor2(mfe->getASTUnit(), ctor_decl, dargs);
     qDebug()<<mod<<mod->getDataLayout();
-    qDebug()<<"111:"<<QDateTime::currentDateTime();
+    TEMP_DEBUG();    
     
     // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
     QString symname = mce->mangle_ctor(mfe->getASTContext(), ctor_decl);
@@ -69,15 +73,15 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
         symname = symname.replace("C2", "C1");
     }
 
-    qDebug()<<"111:"<<QDateTime::currentDateTime();
-    
+    TEMP_DEBUG();    
+
     // 默认参数编译成IR    
     clang::FunctionDecl *jmt_decl = mfe->find_free_function("__jit_main_tmpl");
     qDebug()<<jmt_decl;
     // jmt_decl->dumpColor();
     DUMP_COLOR(jmt_decl);
 
-    qDebug()<<"111:"<<QDateTime::currentDateTime();
+    TEMP_DEBUG();
     
     int cnter = -1;
     if (true)
@@ -91,20 +95,20 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
         EvalType r = v.value<EvalType>();
         qDebug()<<v<<r.ve<<r.vv;
     }    
-    qDebug()<<"111:"<<QDateTime::currentDateTime();
-    
+    TEMP_DEBUG();
+        
     OperatorEngine oe;
     void *kthis = calloc(oe.getClassAllocSize(mod, klass), 1);
     memset(kthis, 0, oe.getClassAllocSize(mod, klass));
     qDebug()<<oe.getClassAllocSize(mod, klass)<<kthis<<(int64_t)kthis<<dargs.count();
 
-    qDebug()<<"111:"<<QDateTime::currentDateTime();
+    TEMP_DEBUG();
     
     // QString lamsym = oe.bind(mod, "_ZN7QStringC2Ev", kthis, uargs, dargs);
     QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, mtdargs, false, kthis);
     qDebug()<<lamsym;
 
-    qDebug()<<"111:"<<QDateTime::currentDateTime();
+    TEMP_DEBUG();    
     
     Clvm *vm = new Clvm;
     if (vm == NULL) qFatal("kkkkkkkkk");
@@ -117,7 +121,7 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     // }
     qDebug()<<"======================";
 
-    qDebug()<<"111:"<<QDateTime::currentDateTime();
+    TEMP_DEBUG();    
     
     return kthis;
 }
