@@ -7,6 +7,7 @@
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include "ivm/dbghelper.h"
 #include "operatorengine.h"
 
 OperatorEngine::OperatorEngine()
@@ -284,7 +285,8 @@ OperatorEngine::darg_instcpy(llvm::Module *mod, llvm::IRBuilder<> &builder)
     auto &blk = src_fun->getEntryBlock();
     for (auto &inst: blk.getInstList()) {
         qDebug()<<"inst:"<<&inst<<inst.hasName()<<inst.getName().data();
-        inst.dump();
+        // inst.dump();
+        DUMP_IR(&inst);
         QString name = inst.getName().data();
         if (name.startsWith("toargx")) {
             auto new_inst = inst.clone();
@@ -493,7 +495,8 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass,
     }
 
     qDebug()<<"operator bind done."<<lamsym;
-    mod->dump();
+    // mod->dump();
+    DUMP_IR(mod);
 
     lamsym = QString(lamname);
     return lamsym;
@@ -540,7 +543,8 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass, v
     builder.CreateRetVoid();
 
     qDebug()<<"operator dtor bind done."<<lamsym;
-    mod->dump();
+    // mod->dump();
+    DUMP_IR(mod);
 
     lamsym = QString(lamname);
     return lamsym;

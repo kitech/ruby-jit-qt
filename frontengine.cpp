@@ -16,9 +16,13 @@
 
 #include "invokestorage.h"
 #include "frontengine.h"
+#include "ivm/fecache.h"
+#include "ivm/dbghelper.h"
 
+FECache *gfec = NULL;
 FrontEngine::FrontEngine()
 {
+    gfec = new FECache();
     this->initCompiler();
 }
 
@@ -610,7 +614,8 @@ bool FrontEngine::get_method_return_type(QString klass, QString method, QVector<
     for (clang::CXXMethodDecl *d: mthdecls) {
         QString tmp_symbol;
         QString tmp_prototype;
-        d->dumpColor();
+        // d->dumpColor();
+        DUMP_COLOR(d);
         bool ok = this->mangle_method_to_symbol(d, tmp_symbol, tmp_prototype);
         if (ok && tmp_symbol == symbol_name) {
             mthdecl = d;
@@ -708,6 +713,12 @@ clang::CXXRecordDecl* FrontEngine::find_class_decl(QString klass)
     qDebug()<<klass<<udecl;
     Q_ASSERT(udecl != NULL);
 
+    // use cache
+    // if (gfec->mCxxRecs.contains(klass)) {
+    //     // qFatal("cache hits");
+    //     return gfec->mCxxRecs.value(klass);
+    // }
+
     // 1st, find class record decl
     // 2nd, find method decl
     // 2.5nd, overload method resolve
@@ -759,6 +770,9 @@ clang::CXXRecordDecl* FrontEngine::find_class_decl(QString klass)
         qDebug()<<"klass decl not found:";
         return NULL;
     }
+
+    ///// add cache
+    // gfec->mCxxRecs[klass] = res_recdecl;
 
     clang::CXXRecordDecl *recdecl = res_recdecl;
     return recdecl;
@@ -1422,7 +1436,8 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
             }
         }
         qDebug()<<re<<re->isEvaluatable(tthis->mtrunit->getASTContext());
-        re->dumpColor();
+        // re->dumpColor();
+        DUMP_COLOR(re);
         if (llvm::isa<clang::IntegerLiteral>(re)) {
             llvm::APInt v = llvm::cast<clang::IntegerLiteral>(re)->getValue();
             QVariant tmpv = QVariant::fromValue(v.getLimitedValue());
@@ -1442,7 +1457,8 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
         clang::CXXConstructorDecl *decl = expr->getConstructor();
         clang::CXXRecordDecl *rec_decl = decl->getParent();
         QString klass_name = rec_decl->getName().data();
-        decl->dumpColor();
+        // decl->dumpColor();
+        DUMP_COLOR(decl);
         qDebug()<<"param klass name:"<<klass_name<<decl;
         if (klass_name == "QChar") {
             QVariant tmpv(QChar(' '));
@@ -1495,7 +1511,8 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
 
     int cnter = 0;
     qDebug()<<"============"<<dps.count()<<decl->param_size();
-    decl->dumpColor();
+    // decl->dumpColor();
+    DUMP_COLOR(decl);
     for (auto it = decl->param_begin(); it != decl->param_end(); it++, cnter++) {
         clang::ParmVarDecl *pd = *it;
         qDebug()<<cnter<<dps;
@@ -1508,7 +1525,8 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
         clang::Expr *udae = pd->getUninstantiatedDefaultArg();
         clang::QualType otype = pd->getOriginalType();
         qDebug()<<otype.getAsString().data();
-        udae->dumpColor();
+        // udae->dumpColor();
+        DUMP_COLOR(udae);
         llvm::APSInt ival;
         bool bret;
         int nulltype = 0;

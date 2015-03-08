@@ -85,6 +85,7 @@
 #include "frontengine.h"
 #include "clvm_operator.h"
 #include "clvm.h"
+#include "ivm/dbghelper.h"
 
 // FIXME: MCTargetOptionsCommandFlags.h中几个函数的multiple definition问题
 #include "clvm_letacy.cpp"
@@ -195,7 +196,8 @@ void *jit_vm_new(QString klass, QVector<QVariant> args)
 
     irop->knew(klass);
 
-    module->dump();
+    // module->dump();
+    DUMP_IR(module);
 
     llvm::GenericValue gv = jit_execute_func(module, entry_func);
     jo = llvm::GVTOP(gv);
@@ -230,7 +232,8 @@ QVariant jit_vm_call(void *kthis, QString klass, QString method, QVector<QVarian
 
     irop->call(kthis, klass, method, args, symbol_name);
 
-    module->dump();
+    // module->dump();
+    DUMP_IR(module);
     qDebug()<<"============module dump end.";
 
     llvm::GenericValue gv = jit_execute_func(module, entry_func);
