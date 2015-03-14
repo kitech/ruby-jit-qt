@@ -128,7 +128,6 @@ clang::ASTContext &FrontEngine::getASTContext()
 bool FrontEngine::loadPreparedASTFile()
 {
     // 可以看作是parseHeader方法的正式版本，实时方法，不过一般通过自身内部调度调用
-
     if (mtrunit != NULL) {
         qDebug()<<"ast file alread loaded.";
         return true;
@@ -147,7 +146,7 @@ bool FrontEngine::loadPreparedASTFile()
         //                                 ArrayRef<RemappedFile> RemappedFiles);
     QDateTime etime = QDateTime::currentDateTime();
     if (!unit) qFatal("load ast faild.");
-    
+
     clang::ASTContext &tctx = unit->getASTContext();
     clang::SourceManager &srcman = unit->getSourceManager();
     clang::FileManager &fman = unit->getFileManager();
@@ -164,15 +163,21 @@ bool FrontEngine::loadPreparedASTFile()
     mtrunit = trud;
     mgctx = tctx.createMangleContext();
 
-    int ndic = std::count_if(trud->decls_begin(), trud->decls_end(), [](clang::Decl *d){return true;});
-    int dic = 0;
-    for (auto it = trud->decls_begin(); it != trud->decls_end(); it++) {
-        dic++;
+    bool warmup = true;
+    if (warmup) {
+        // 即使在这不遍历，后续遍历还是要花时间初始化一些内部结构的。
+        // 这是ASTUnit的warmup过程。占用这个方法的90%时间。
+        int ndic = std::count_if(trud->decls_begin(), trud->decls_end(), [](clang::Decl *d){return true;});
+
+        int dic = 0;
+        for (auto it = trud->decls_begin(); it != trud->decls_end(); it++) {
+            dic++;
+        }
+        qDebug()<<trud<<trud->decls_empty()<<"decls count:"<<dic<<ndic;
     }
-    qDebug()<<trud<<trud->decls_empty()<<"decls count:"<<dic<<ndic;
 
     // 遍历一次用时120ms,加载5,6ms，很快了。3M内存？？？
-    qDebug()<<"time "<<etime.msecsTo(btime)
+    qDebug()<<"time "<<btime.msecsTo(etime)
             <<tctx.getASTAllocatedMemory()
             <<tctx.getSideTableAllocatedMemory();
 
