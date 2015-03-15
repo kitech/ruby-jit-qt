@@ -39,12 +39,12 @@ message("clang defs: ${CLANG_CXXFLAGS_OUTPUT}")
 #set(COMPILER_FLAGS ${CLANG_CXXFLAGS_OUTPUT})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CLANG_CXXFLAGS_OUTPUT}")
 
-### fix c++11 => c++14
-string(REPLACE "-std=gnu++11" "-std=c++14" NEW_FLAGS ${CMAKE_CXX_FLAGS})
-string(REPLACE "-std=c++11" "-std=c++14" NEW_FLAGS ${CMAKE_CXX_FLAGS})
+### fix c++11 => c++14 => c++17
+string(REPLACE "-std=gnu++11" "-std=c++17 -std=c++1z" NEW_FLAGS ${CMAKE_CXX_FLAGS})
+string(REPLACE "-std=c++11" "-std=c++17 -std=c++1z" NEW_FLAGS ${CMAKE_CXX_FLAGS})
 set(CMAKE_CXX_FLAGS "${NEW_FLAGS}")
 
-set(LLVM_SRC_DIR2 "./llvm-3.5.1.src")  # maybe a symlink
+set(LLVM_SRC_DIR2 "./llvm-3.6.0.src")  # maybe a symlink
 set(CLANG_SRC_DIR2 ${LLVM_SRC_DIR2}/tools/clang)
 include_directories(${CLANG_SRC_DIR2}/lib/CodeGen ${CLANG_SRC_DIR2}/lib/)
 
@@ -82,8 +82,8 @@ set(handby_lib_SRCS
 #  metalize/kitech_qtcore.cpp
 #  metalize/kitech_qtnetwork.cpp
 #  metalize/metas.cpp
-  debugoutput.cpp
-  macrolib.cpp
+    debugoutput.cpp
+    macrolib.cpp
 )
 
 set(handby_exe_SRCS
