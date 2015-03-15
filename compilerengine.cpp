@@ -2152,7 +2152,7 @@ bool CompilerEngine::tryCompile3(clang::CXXRecordDecl *decl, clang::ASTContext &
     qDebug()<<"compile code done."<<bret<<mod.get()<<btime.msecsTo(etime);
 
     // mod->dump();
-    DUMP_IR(mod);
+    DUMP_IR(mod.get());
 
     return false;
 }
@@ -2251,7 +2251,7 @@ bool CompilerEngine::tryCompile4(clang::CXXRecordDecl *decl, clang::ASTContext &
     qDebug()<<"compile code done."<<bret<<mod.get()<<btime.msecsTo(etime);
 
     // mod->dump();
-    DUMP_IR(mod);
+    DUMP_IR(mod.get());
 
     return false;
 }
