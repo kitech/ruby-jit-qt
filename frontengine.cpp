@@ -131,16 +131,21 @@ bool FrontEngine::loadPreparedASTFile()
     }
 
     std::string astfile = "data/qthdrsrc.ast";
-    clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> mydiag;
+    clang::DiagnosticConsumer *Client = nullptr;
+    clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> mydiag
+        = clang::CompilerInstance::createDiagnostics(new clang::DiagnosticOptions(), Client, true);
     clang::FileSystemOptions fsopts;
 
     QDateTime btime = QDateTime::currentDateTime();
-    std::unique_ptr<clang::ASTUnit> unit = clang::ASTUnit::LoadFromASTFile(astfile, mydiag, fsopts);
-        // clang::ASTUnit::LoadFromASTFile(const std::string &Filename, 
-        //                                 IntrusiveRefCntPtr<clang::DiagnosticsEngine> Diags, 
-        //                                 const clang::FileSystemOptions &FileSystemOpts, 
-        //                                 bool OnlyLocalDecls, 
-        //                                 ArrayRef<RemappedFile> RemappedFiles);
+    std::unique_ptr<clang::ASTUnit> unit
+        = clang::ASTUnit::LoadFromASTFile(astfile, mydiag, fsopts, false, clang::None, true, true, true);
+    // false, clang::None,
+    // true, true, true);
+    // clang::ASTUnit::LoadFromASTFile(const std::string &Filename, 
+    //                                 IntrusiveRefCntPtr<clang::DiagnosticsEngine> Diags, 
+    //                                 const clang::FileSystemOptions &FileSystemOpts, 
+    //                                 bool OnlyLocalDecls, 
+    //                                 ArrayRef<RemappedFile> RemappedFiles);
     QDateTime etime = QDateTime::currentDateTime();
     if (!unit) qFatal("load ast faild.");
     
