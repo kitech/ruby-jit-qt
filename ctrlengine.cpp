@@ -16,6 +16,7 @@
 #include "qtobjectmanager.h"
 #include "ruby_cxx.h"
 #include "callargument.h"
+#include "ivm/dbghelper.h"
 
 CtrlEngine::CtrlEngine()
 {
@@ -38,22 +39,33 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     // 使用oe生成调用这个构造函数的ll代码。
     // 获取两段ll代码合并（如果需要的话）
     // 以module的方式传入vme执行
-    
+
+#define TEMP_DEBUG()                                                    \
+            printf("111: %d, %s\n", __LINE__, QDateTime::currentDateTime().toString("yyyy-M-d H:m:s.zzz").toLatin1().data());
+
+    TEMP_DEBUG();
     mfe->loadPreparedASTFile();
     clang::CXXRecordDecl *rec_decl = mfe->find_class_decl(klass);
+    TEMP_DEBUG();
+    
     qDebug()<<rec_decl;
     qDebug()<<"uargs:"<<uargs;
     clang::CXXConstructorDecl *ctor_decl = mfe->find_ctor_decl(rec_decl, klass, uargs);
+    TEMP_DEBUG();    
     qDebug()<<ctor_decl;
-    ctor_decl->dumpColor();
+    // ctor_decl->dumpColor();
+    DUMP_COLOR(ctor_decl);
 
     QVector<QVariant> dargs;
     QVector<MetaTypeVariant> mtdargs;
     mfe->get_method_default_params(ctor_decl, dargs, mtdargs);
+    TEMP_DEBUG();    
     
     // auto mod = mce->conv_ctor(mfe->getASTContext(), ctor_decl);
     auto mod = mce->conv_ctor2(mfe->getASTUnit(), ctor_decl, dargs);
     qDebug()<<mod<<mod->getDataLayout();
+    TEMP_DEBUG();    
+    
     // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
     QString symname = mce->mangle_ctor(mfe->getASTContext(), ctor_decl);
     qDebug()<<mod<<symname;
@@ -61,11 +73,16 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
         symname = symname.replace("C2", "C1");
     }
 
+    TEMP_DEBUG();    
+
     // 默认参数编译成IR    
     clang::FunctionDecl *jmt_decl = mfe->find_free_function("__jit_main_tmpl");
     qDebug()<<jmt_decl;
-    jmt_decl->dumpColor();
+    // jmt_decl->dumpColor();
+    DUMP_COLOR(jmt_decl);
 
+    TEMP_DEBUG();
+    
     int cnter = -1;
     if (true)
     for (auto &v: dargs) {
@@ -78,15 +95,20 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
         EvalType r = v.value<EvalType>();
         qDebug()<<v<<r.ve<<r.vv;
     }    
-
+    TEMP_DEBUG();
+        
     OperatorEngine oe;
     void *kthis = calloc(oe.getClassAllocSize(mod, klass), 1);
     memset(kthis, 0, oe.getClassAllocSize(mod, klass));
     qDebug()<<oe.getClassAllocSize(mod, klass)<<kthis<<(int64_t)kthis<<dargs.count();
 
+    TEMP_DEBUG();
+    
     // QString lamsym = oe.bind(mod, "_ZN7QStringC2Ev", kthis, uargs, dargs);
     QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, mtdargs, false, kthis);
     qDebug()<<lamsym;
+
+    TEMP_DEBUG();    
     
     Clvm *vm = new Clvm;
     if (vm == NULL) qFatal("kkkkkkkkk");
@@ -99,6 +121,8 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     // }
     qDebug()<<"======================";
 
+    TEMP_DEBUG();    
+    
     return kthis;
 }
 
@@ -117,7 +141,8 @@ bool CtrlEngine::vm_delete(void *kthis, QString klass)
     qDebug()<<rec_decl;
     clang::CXXDestructorDecl *dtor_decl = mfe->find_dtor_decl(rec_decl, klass);
     qDebug()<<dtor_decl;
-    dtor_decl->dumpColor();
+    // dtor_decl->dumpColor();
+    DUMP_COLOR(dtor_decl);
 
     auto mod = mce->conv_dtor(mfe->getASTUnit(), dtor_decl);
     qDebug()<<mod<<mod->getDataLayout();
@@ -132,7 +157,8 @@ bool CtrlEngine::vm_delete(void *kthis, QString klass)
     // 默认参数编译成IR    
     clang::FunctionDecl *jmt_decl = mfe->find_free_function("__jit_main_tmpl");
     qDebug()<<jmt_decl;
-    jmt_decl->dumpColor();
+    // jmt_decl->dumpColor();
+    DUMP_COLOR(jmt_decl);
 
     OperatorEngine oe;
     QString lamsym = oe.bind(mod, symname, klass, kthis);
@@ -199,7 +225,8 @@ QVariant GV2Variant(llvm::GenericValue gv, clang::FunctionDecl *decl, void *kthi
     else if (rty->isRecordType()) {
         qDebug()<<"record...";
         auto rec_decl = rty->getAsCXXRecordDecl();
-        rec_decl->dumpColor();
+        // rec_decl->dumpColor();
+        DUMP_COLOR(rec_decl);
         qDebug()<<rec_decl->getName().data();
 
         VALUE modval = rb_const_get(rb_cObject, rb_intern("Qt5"));
@@ -280,7 +307,8 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     qDebug()<<rec_decl;
     clang::CXXMethodDecl *mth_decl = mfe->find_method_decl(rec_decl, klass, method, uargs);
     qDebug()<<mth_decl<<mth_decl->isStatic();
-    mth_decl->dumpColor();
+    // mth_decl->dumpColor();
+    DUMP_COLOR(mth_decl);
 
     // test
     qDebug()<<"Ooops...................";
@@ -301,7 +329,8 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     // 默认参数编译成IR
     clang::FunctionDecl *jmt_decl = mfe->find_free_function("__jit_main_tmpl");
     qDebug()<<jmt_decl;
-    jmt_decl->dumpColor();
+    // jmt_decl->dumpColor();
+    DUMP_COLOR(jmt_decl);
     // /*    
     int cnter = -1;
     if (true)
@@ -349,7 +378,8 @@ QVariant CtrlEngine::vm_static_call(QString klass, QString method, QVector<QVari
     qDebug()<<rec_decl;
     clang::CXXMethodDecl *mth_decl = mfe->find_static_method_decl(rec_decl, klass, method, uargs);
     qDebug()<<mth_decl<<mth_decl->isStatic();
-    mth_decl->dumpColor();
+    // mth_decl->dumpColor();
+    DUMP_COLOR(mth_decl);
 
     QVector<QVariant> dargs;
     QVector<MetaTypeVariant> mtdargs;

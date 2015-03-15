@@ -16,9 +16,13 @@
 
 #include "invokestorage.h"
 #include "frontengine.h"
+#include "ivm/fecache.h"
+#include "ivm/dbghelper.h"
 
+FECache *gfec = NULL;
 FrontEngine::FrontEngine()
 {
+    gfec = new FECache();
     this->initCompiler();
 }
 
@@ -124,7 +128,6 @@ clang::ASTContext &FrontEngine::getASTContext()
 bool FrontEngine::loadPreparedASTFile()
 {
     // 可以看作是parseHeader方法的正式版本，实时方法，不过一般通过自身内部调度调用
-
     if (mtrunit != NULL) {
         qDebug()<<"ast file alread loaded.";
         return true;
@@ -148,7 +151,7 @@ bool FrontEngine::loadPreparedASTFile()
     //                                 ArrayRef<RemappedFile> RemappedFiles);
     QDateTime etime = QDateTime::currentDateTime();
     if (!unit) qFatal("load ast faild.");
-    
+
     clang::ASTContext &tctx = unit->getASTContext();
     clang::SourceManager &srcman = unit->getSourceManager();
     clang::FileManager &fman = unit->getFileManager();
@@ -165,15 +168,21 @@ bool FrontEngine::loadPreparedASTFile()
     mtrunit = trud;
     mgctx = tctx.createMangleContext();
 
-    int ndic = std::count_if(trud->decls_begin(), trud->decls_end(), [](clang::Decl *d){return true;});
-    int dic = 0;
-    for (auto it = trud->decls_begin(); it != trud->decls_end(); it++) {
-        dic++;
+    bool warmup = true;
+    if (warmup) {
+        // 即使在这不遍历，后续遍历还是要花时间初始化一些内部结构的。
+        // 这是ASTUnit的warmup过程。占用这个方法的90%时间。
+        int ndic = std::count_if(trud->decls_begin(), trud->decls_end(), [](clang::Decl *d){return true;});
+
+        int dic = 0;
+        for (auto it = trud->decls_begin(); it != trud->decls_end(); it++) {
+            dic++;
+        }
+        qDebug()<<trud<<trud->decls_empty()<<"decls count:"<<dic<<ndic;
     }
-    qDebug()<<trud<<trud->decls_empty()<<"decls count:"<<dic<<ndic;
 
     // 遍历一次用时120ms,加载5,6ms，很快了。3M内存？？？
-    qDebug()<<"time "<<etime.msecsTo(btime)
+    qDebug()<<"time "<<btime.msecsTo(etime)
             <<tctx.getASTAllocatedMemory()
             <<tctx.getSideTableAllocatedMemory();
 
@@ -615,7 +624,8 @@ bool FrontEngine::get_method_return_type(QString klass, QString method, QVector<
     for (clang::CXXMethodDecl *d: mthdecls) {
         QString tmp_symbol;
         QString tmp_prototype;
-        d->dumpColor();
+        // d->dumpColor();
+        DUMP_COLOR(d);
         bool ok = this->mangle_method_to_symbol(d, tmp_symbol, tmp_prototype);
         if (ok && tmp_symbol == symbol_name) {
             mthdecl = d;
@@ -713,6 +723,12 @@ clang::CXXRecordDecl* FrontEngine::find_class_decl(QString klass)
     qDebug()<<klass<<udecl;
     Q_ASSERT(udecl != NULL);
 
+    // use cache
+    // if (gfec->mCxxRecs.contains(klass)) {
+    //     // qFatal("cache hits");
+    //     return gfec->mCxxRecs.value(klass);
+    // }
+
     // 1st, find class record decl
     // 2nd, find method decl
     // 2.5nd, overload method resolve
@@ -764,6 +780,9 @@ clang::CXXRecordDecl* FrontEngine::find_class_decl(QString klass)
         qDebug()<<"klass decl not found:";
         return NULL;
     }
+
+    ///// add cache
+    // gfec->mCxxRecs[klass] = res_recdecl;
 
     clang::CXXRecordDecl *recdecl = res_recdecl;
     return recdecl;
@@ -1427,7 +1446,8 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
             }
         }
         qDebug()<<re<<re->isEvaluatable(tthis->mtrunit->getASTContext());
-        re->dumpColor();
+        // re->dumpColor();
+        DUMP_COLOR(re);
         if (llvm::isa<clang::IntegerLiteral>(re)) {
             llvm::APInt v = llvm::cast<clang::IntegerLiteral>(re)->getValue();
             QVariant tmpv = QVariant::fromValue(v.getLimitedValue());
@@ -1447,7 +1467,8 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
         clang::CXXConstructorDecl *decl = expr->getConstructor();
         clang::CXXRecordDecl *rec_decl = decl->getParent();
         QString klass_name = rec_decl->getName().data();
-        decl->dumpColor();
+        // decl->dumpColor();
+        DUMP_COLOR(decl);
         qDebug()<<"param klass name:"<<klass_name<<decl;
         if (klass_name == "QChar") {
             QVariant tmpv(QChar(' '));
@@ -1500,7 +1521,8 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
 
     int cnter = 0;
     qDebug()<<"============"<<dps.count()<<decl->param_size();
-    decl->dumpColor();
+    // decl->dumpColor();
+    DUMP_COLOR(decl);
     for (auto it = decl->param_begin(); it != decl->param_end(); it++, cnter++) {
         clang::ParmVarDecl *pd = *it;
         qDebug()<<cnter<<dps;
@@ -1513,7 +1535,8 @@ bool FrontEngine::get_method_default_params(clang::CXXMethodDecl *decl, QVector<
         clang::Expr *udae = pd->getUninstantiatedDefaultArg();
         clang::QualType otype = pd->getOriginalType();
         qDebug()<<otype.getAsString().data();
-        udae->dumpColor();
+        // udae->dumpColor();
+        DUMP_COLOR(udae);
         llvm::APSInt ival;
         bool bret;
         int nulltype = 0;

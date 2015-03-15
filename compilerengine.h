@@ -74,6 +74,7 @@ public:
     bool gen_method_decl(CompilerUnit *cu, clang::CXXMethodDecl *yamth = NULL);
     bool gen_free_function(CompilerUnit *cu, clang::FunctionDecl *yafun = NULL);
     bool gen_undefs(CompilerUnit *cu, clang::FunctionDecl *yafun = NULL, clang::Stmt *yastmt = NULL);
+    bool gen_undefs2(CompilerUnit *cu, clang::FunctionDecl *yafun = NULL, clang::Stmt *yastmt = NULL);
     bool gen_darg(llvm::Module *mod, QVariant &darg, int idx, clang::FunctionDecl *fd);
     
     clang::CXXMethodDecl *get_decl_with_body(clang::CXXMethodDecl *decl);
