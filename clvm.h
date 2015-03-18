@@ -22,6 +22,10 @@ namespace clang {
     };
 };
 
+/////
+class ClvmJitListener;
+
+/////
 llvm::GenericValue vm_execute(QString code, QVector<llvm::GenericValue> &envp);
 
 void *jit_vm_new(QString klass, QVector<QVariant> args);
@@ -56,6 +60,7 @@ public:
     clang::CompilerInstance *mcis = NULL;
     clang::CompilerInvocation *mciv = NULL;
     clang::driver::Driver *mdrv = NULL;
+    ClvmJitListener *mlsner = NULL;
 };
 
 

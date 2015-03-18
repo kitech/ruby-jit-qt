@@ -69,6 +69,7 @@ set(handby_lib_SRCS
     frontengine.cpp
     clvm_operator.cpp
     clvm.cpp
+    ivm/clvmjitlistener.cpp
     namelookup.cpp
     callargument.cpp
     invokestorage.cpp

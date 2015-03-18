@@ -86,6 +86,8 @@
 #include "clvm_operator.h"
 #include "clvm.h"
 #include "ivm/dbghelper.h"
+#include "ivm/clvmjitlistener.h"
+
 
 // FIXME: MCTargetOptionsCommandFlags.h中几个函数的multiple definition问题
 #include "clvm_letacy.cpp"
@@ -402,6 +404,10 @@ Clvm::execute2(llvm::Module *mod, QString func_entry)
     // eb.setUseMCJIT(true);
 
     llvm::ExecutionEngine *EE = eb.create();
+
+    // ClvmJitListener *lsner = new ClvmJitListener();
+    if (!mlsner) mlsner = ClvmJitListener::inst();
+    EE->RegisterJITEventListener(mlsner);
 
     //*
     qDebug()<<"before load obj...";
