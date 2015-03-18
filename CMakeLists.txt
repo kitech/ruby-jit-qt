@@ -61,7 +61,7 @@ set(handby_lib_SRCS
     qtobjectmanager.cpp
     entry.cpp
     ctrlengine.cpp
-    clvmengine.cpp
+    ivm/clvmengine.cpp
     operatorengine.cpp
     ivm/findsymbolvisitor.cpp    
     compilerengine.cpp
@@ -69,6 +69,7 @@ set(handby_lib_SRCS
     frontengine.cpp
     clvm_operator.cpp
     clvm.cpp
+    clvm_letacy.cpp
     ivm/clvmjitlistener.cpp
     namelookup.cpp
     callargument.cpp
