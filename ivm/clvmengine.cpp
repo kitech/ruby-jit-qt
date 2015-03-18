@@ -84,6 +84,9 @@
 #include "llvm/LTO/LTOModule.h"
 #include "llvm/Target/TargetOptions.h"
 
+#include "ExecutionEngine/MCJIT/MCJIT.h"
+
+////////////////
 #include "frontengine.h"
 // #include "clvm_operator.h"
 // #include "clvm.h"
@@ -93,6 +96,8 @@
 
 // FIXME: MCTargetOptionsCommandFlags.h中几个函数的multiple definition问题
 // #include "clvm_letacy.cpp"
+
+#include "ivm/modulemanager.h"
 
 #include "clvmengine.h"
 
@@ -114,6 +119,8 @@ ClvmEngine::ClvmEngine() : QThread()
 
     init();
     initCompiler();
+
+    initExecutionEngine();
 }
 
 ClvmEngine::~ClvmEngine()
@@ -194,6 +201,47 @@ bool ClvmEngine::initCompiler()
 
 bool ClvmEngine::initExecutionEngine()
 {
+    // run module
+    std::string dmname = "dummyee";
+    llvm::StringRef rdmname(dmname);
+    llvm::LLVMContext *ctx = new llvm::LLVMContext();
+    llvm::LLVMContext &rctx = *ctx;
+    
+    llvm::Module *mod = new llvm::Module(rdmname, rctx);
+    std::unique_ptr<llvm::Module> tmod(mod);
+    llvm::EngineBuilder eb(std::move(tmod));
+    
+    std::string errstr;    
+    eb.setErrorStr(&errstr);
+    // eb.setUseMCJIT(true);
+
+    llvm::ExecutionEngine *EE = eb.create();
+
+    // ClvmJitListener *lsner = new ClvmJitListener();
+    if (!mlsner) mlsner = ClvmJitListener::inst();
+    EE->RegisterJITEventListener(mlsner);
+
+    //*
+    qDebug()<<"before load obj...";
+    llvm::ErrorOr<llvm::object::OwningBinary<llvm::object::ObjectFile> > obj = 
+        llvm::object::ObjectFile::createObjectFile("/usr/lib/libQt5Sql.so");
+    if (!obj) {
+        qDebug()<<"create obj file error.";
+    } else {
+        // crash, 是不是因为当前已经是在.so中了呢？
+        // EE->addObjectFile(std::unique_ptr<llvm::object::ObjectFile>(obj.get()));
+    }
+    // */
+
+    mee = EE;
+    /*
+    if (llvm::isa<llvm::MCJIT>(EE)) {
+        llvm::MCJIT *jee = llvm::cast<llvm::MCJIT>(EE);
+    }
+    */
+    llvm::MCJIT *jee = llvm::cast<llvm::MCJIT>(EE);
+    mman = new ModuleManager(EE);
+    
     return true;
 }
 
@@ -201,6 +249,8 @@ bool ClvmEngine::initExecutionEngine()
 llvm::GenericValue 
 ClvmEngine::execute2(llvm::Module *mod, QString func_entry)
 {
+    return execute3(mod, func_entry);
+    
     // 只能放在这，run action之后，exeucte function之前
     // 这段代码现在不需要固定放在这个位置了，已经正常使用init()中的片段。
     // 也可能和当前类只使用了一个实例有关,这也就要求该必须是单实例的了。
@@ -267,6 +317,54 @@ ClvmEngine::execute2(llvm::Module *mod, QString func_entry)
     
     EE->runStaticConstructorsDestructors(true);
     // cleanups
+
+    qDebug()<<"run code done."<<llvm::GVTOP(rgv)<<rgv.IntVal.getZExtValue();
+    return rgv;
+}
+
+// 使用类变量mee多次执行IR代码。
+llvm::GenericValue ClvmEngine::execute3(llvm::Module *mod, QString func_entry)
+{
+    llvm::ExecutionEngine *EE = mee;
+
+    // std::unique_ptr<llvm::Module> tmod(mod);
+    // EE->addModule(std::move(tmod));
+    // mman->add(name, mod);
+    
+    EE->finalizeObject();
+    EE->runStaticConstructorsDestructors(false);
+
+    llvm::Function *etyfn = NULL;
+    QString mangle_name;
+    llvm::ValueSymbolTable &vst = mod->getValueSymbolTable();
+    for (auto sit = vst.begin(); sit != vst.end(); sit++) {
+        auto k = sit->first();
+        auto v = sit->second;
+        if (QString(v->getName().data()).startsWith("__PRETTY_FUNCTION__")) {
+            continue;
+        }
+        if (QString(v->getName().data()).startsWith("_Z15__jit_main_tmplv")) {
+            continue;
+        }
+        // if (QString(v->getName().data()).indexOf("jit_main") >= 0) {
+        if (QString(v->getName().data()).indexOf(func_entry) >= 0) {
+            etyfn = mod->getFunction(v->getName());
+            mangle_name = QString(v->getName().data());
+            // break;
+        }
+        qDebug()<<""<<k.data()<<v->getName().data();
+        //  v->dump();
+    }
+    qDebug()<<"our fun:"<<func_entry<<mangle_name<<etyfn;
+
+    std::vector<llvm::GenericValue> args;
+    llvm::GenericValue rgv = EE->runFunction(etyfn, args);
+    // qDebug()<<"err:"<<errstr.c_str();
+    
+    EE->runStaticConstructorsDestructors(true);
+    // cleanups
+    bool bret = EE->removeModule(mod);
+    qDebug()<<bret;
 
     qDebug()<<"run code done."<<llvm::GVTOP(rgv)<<rgv.IntVal.getZExtValue();
     return rgv;

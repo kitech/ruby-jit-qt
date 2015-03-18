@@ -46,7 +46,7 @@ set(CMAKE_CXX_FLAGS "${NEW_FLAGS}")
 
 set(LLVM_SRC_DIR2 "./llvm-3.6.0.src")  # maybe a symlink
 set(CLANG_SRC_DIR2 ${LLVM_SRC_DIR2}/tools/clang)
-include_directories(${CLANG_SRC_DIR2}/lib/CodeGen ${CLANG_SRC_DIR2}/lib/)
+include_directories(${CLANG_SRC_DIR2}/lib/CodeGen ${CLANG_SRC_DIR2}/lib/ ${LLVM_SRC_DIR2}/lib/)
 
 set(handby_lib_SRCS
 #  llvm-3.5.0.src/tools/clang/lib/CodeGen/CodeGenModule.cpp
@@ -62,6 +62,7 @@ set(handby_lib_SRCS
     entry.cpp
     ctrlengine.cpp
     ivm/clvmengine.cpp
+    ivm/modulemanager.cpp
     operatorengine.cpp
     ivm/findsymbolvisitor.cpp    
     compilerengine.cpp
