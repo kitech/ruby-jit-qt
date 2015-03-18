@@ -54,6 +54,7 @@ public:
 public:
     FrontEngine *mfe = NULL;
     CompilerEngine *mce = NULL;
+    ClvmEngine *mvme = NULL;
 };
 
 #endif /* CTRLENGINE_H */

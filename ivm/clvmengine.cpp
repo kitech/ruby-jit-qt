@@ -78,14 +78,18 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/IRBuilder.h"
 
-#include "llvm/CodeGen/CommandFlags.h"
+// 为什么CommandFlags.h在两个不同cpp文件中包含会引起ABIname重定义问题呢？
+// #include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/LTO/LTOCodeGenerator.h"
 #include "llvm/LTO/LTOModule.h"
 #include "llvm/Target/TargetOptions.h"
 
+#include "ExecutionEngine/MCJIT/MCJIT.h"
+
+////////////////
 #include "frontengine.h"
-#include "clvm_operator.h"
-#include "clvm.h"
+// #include "clvm_operator.h"
+// #include "clvm.h"
 #include "ivm/dbghelper.h"
 #include "ivm/clvmjitlistener.h"
 
@@ -93,190 +97,17 @@
 // FIXME: MCTargetOptionsCommandFlags.h中几个函数的multiple definition问题
 // #include "clvm_letacy.cpp"
 
+#include "ivm/modulemanager.h"
 
-
-llvm::GenericValue jit_execute_func(llvm::Module *mod, llvm::Function *func)
-{
-    llvm::GenericValue gv;
-
-    llvm::InitializeNativeTarget();
-    llvm::InitializeNativeTargetAsmPrinter();
-    llvm::InitializeNativeTargetAsmParser();
-
-    llvm::ExecutionEngine *EE = NULL;
-    qDebug()<<"222222222";
-    std::string Error;
-    std::unique_ptr<llvm::Module> tmod(mod);
-    llvm::EngineBuilder builder(std::move(tmod));
-    qDebug()<<EE<<"aaa is sym search disabled:";
-    // builder.setUseMCJIT(true);
-    // builder.setMArch("core2"); // 这种强制设置可能引起问题，使用三个InitailzeNativexxx函数初始化。
-
-    EE = builder.create();
-    qDebug()<<EE<<"is sym search disabled:"<<EE->isSymbolSearchingDisabled();
-
-    //* 这些行还是有用的，否则在用Qt相关类时崩溃（在普通的print无问题）
-    // 不过这些调用应用是每个函数都调用还是初始化调用一次呢。
-    EE->finalizeObject();
-    EE->runStaticConstructorsDestructors(false);
-
-    int miret = -1;
-    llvm::GenericValue rgv;
-    std::vector<std::string> argv;
-    std::vector<llvm::GenericValue> gargv;
-
-    gv = EE->runFunction(func, gargv);
-
-    // Run static destructors.
-    EE->runStaticConstructorsDestructors(true);
-
-    qDebug()<<"run done.";   
-
-    return gv;
-}
-
-static IROperator *irop = NULL;
-static IROperator *getIROp()
-{
-    if (::irop == NULL) {
-        ::irop = new IROperator();
-    }
-    return ::irop;
-}
-
-/*
-  从llvm::GenericValue转换成这个方法的实际类型。
-  还需要有很多特定的转换要处理。
- */
-QVariant mapGV2Variant(QString klass, QString method, QString symbol_name, llvm::GenericValue gv)
-{
-    IROperator *irop = getIROp();
-    QVector<QVariant> args;
-    // QString retype = irop->resolve_return_type(klass, method, args, symbol_name);
-    QVariant vretype;
-    bool bret = irop->mfe->get_method_return_type(klass, method, args, symbol_name, vretype);
-    QString retype = vretype.toString();
-    // if retype is empty, maybe a ctor
-    if (retype.isEmpty()) return QVariant();
-
-    if (retype == "int" || retype == "uint" || retype == "long" || retype == "ulong"
-        || retype == "qlonglong" || retype == "qulonglong"
-        || retype == "short" || retype == "ushort" ) {
-        return QVariant((qlonglong)llvm::GVTOP(gv));
-    } else if (retype == "bool") {
-        return QVariant((bool)llvm::GVTOP(gv));
-    } else if (retype == "double" || retype == "float") {
-        return QVariant((double)(long)llvm::GVTOP(gv));
-    } else if (retype == "void") {
-        return QVariant();
-    }
-
-    if (retype == "QString") {
-        return QVariant(QString(*(QString*)llvm::GVTOP(gv)));
-    }
-
-    if (retype == "QString &") {
-        return QVariant(QString(*(QString*)llvm::GVTOP(gv)));
-    }
-
-    return QVariant();
-}
-
-void *jit_vm_new(QString klass, QVector<QVariant> args)
-{
-    void *jo = NULL;
-    IROperator *irop = getIROp();
-    llvm::Module *module = irop->dmod;
-    llvm::IRBuilder<> &builder = irop->builder;
-    llvm::LLVMContext &ctx = irop->ctx;
-
-    // entry func
-    llvm::Function *entry_func = 
-        llvm::Function::Create(llvm::FunctionType::get(builder.getVoidTy()->getPointerTo(), false),
-                               llvm::Function::ExternalLinkage,
-                               "yamain", module);
-    builder.SetInsertPoint(llvm::BasicBlock::Create(ctx, "eee", entry_func));
-
-    irop->knew(klass);
-
-    // module->dump();
-    DUMP_IR(module);
-
-    llvm::GenericValue gv = jit_execute_func(module, entry_func);
-    jo = llvm::GVTOP(gv);
-    return jo;
-}
-
-QVariant jit_vm_call(void *kthis, QString klass, QString method, QVector<QVariant> args)
-{
-
-    IROperator *irop = getIROp();
-    llvm::Module *module = irop->dmod;
-    llvm::IRBuilder<> &builder = irop->builder;
-    llvm::LLVMContext &ctx = irop->ctx;
-
-    QString symbol_name;
-
-    // entry func
-    std::vector<llvm::Type *> entry_func_type = {builder.getVoidTy()->getPointerTo()};
-    llvm::ArrayRef<llvm::Type*> ref_entry_func_type(entry_func_type);
-    llvm::Function *entry_func = 
-        llvm::Function::Create(llvm::FunctionType::get(builder.getVoidTy()->getPointerTo(), 
-                                                       ref_entry_func_type, false),
-                               llvm::Function::ExternalLinkage,
-                               "yamain2", module);
-    builder.SetInsertPoint(llvm::BasicBlock::Create(ctx, "eee", entry_func));
-    int i = 0;
-    for (auto it = entry_func->arg_begin(); it != entry_func->arg_end(); it ++, i++) {
-        llvm::Argument &a = *it;
-        if (i == 0) a.setName("kthis");
-        else a.setName(QString("fa%1").arg(i).toStdString());
-    }
-
-    irop->call(kthis, klass, method, args, symbol_name);
-
-    // module->dump();
-    DUMP_IR(module);
-    qDebug()<<"============module dump end.";
-
-    llvm::GenericValue gv = jit_execute_func(module, entry_func);
-    int iret = gv.IntVal.getZExtValue();
-    qDebug()<<"raw ret:"<<iret<<llvm::GVTOP(gv);
-
-    // how to known return type
-    // 需要把gv解释并转换为为什么类型呢。
-    // 怎么转呢？
-    // GenericValue要求首先要知道返回值的类型才能解释
-    int tyno = QMetaType::Int;
-    switch (tyno) {
-    case QMetaType::Int: 
-        iret = (long)(llvm::GVTOP(gv));
-        // return QVariant(iret);
-    default:
-        break;
-    }
-
-    qDebug()<<"symbol name:"<<symbol_name;
-    QVariant vret =  mapGV2Variant(klass, method, symbol_name, gv);
-    entry_func->deleteBody();  // 删除函数体
-    entry_func->removeFromParent(); // 删除整个函数
-    // entry_func->eraseFromParent(); //  清理干净, 再执行这个就crash，为什么提供了这几个不同的方法呢？
-    // entry_func->replaceAllUsesWith(llvm::UndefValue::get(entry_func->getType()));
-    // entry_func->dropAllReferences();
-    delete entry_func;
-    // qDebug()<<"===============";
-    // module->dump();
-    // qDebug()<<"===============";
-
-    return vret;
-    
-    return QVariant();
-}
+#include "clvmengine.h"
 
 //////////////////////////////////
 /////
 //////////////////////////////////
-Clvm::Clvm() : QThread()
+/*
+ * TODO 这个类需要做成单实例模式的。
+ */
+ClvmEngine::ClvmEngine() : QThread()
 {
     static char *argv[] = {
         (char*)"prettystack"
@@ -288,27 +119,36 @@ Clvm::Clvm() : QThread()
 
     init();
     initCompiler();
+
+    initExecutionEngine();
 }
 
-Clvm::~Clvm()
+ClvmEngine::~ClvmEngine()
 {
 }
 
-bool Clvm::init()
+bool ClvmEngine::init()
 {
     // 是由于定义了链接参数：-Wl,--allow-multiple-definition引起的上面这个错误。
     // CommandLine Error: Option 'load' registered more than once!
 
-    llvm::InitializeNativeTarget();
-    llvm::InitializeNativeTargetAsmPrinter();
-    llvm::InitializeNativeTargetAsmParser();
-    llvm::InitializeNativeTargetDisassembler();
+    static bool llvm_init_native_done = false;
 
+    // TODO 是否需要使用线程锁呢？
+    if (!llvm_init_native_done) {
+        llvm::InitializeNativeTarget();
+        llvm::InitializeNativeTargetAsmPrinter();
+        llvm::InitializeNativeTargetAsmParser();
+        llvm::InitializeNativeTargetDisassembler();
+        
+        llvm_init_native_done = true;
+    }
+    
     return true;
 }
 
 
-bool Clvm::initCompiler()
+bool ClvmEngine::initCompiler()
 {
     clang::CompilerInstance *cis  = new clang::CompilerInstance();
     clang::CompilerInvocation *civ = new clang::CompilerInvocation();
@@ -321,8 +161,8 @@ bool Clvm::initCompiler()
     // cis.createModuleManager();
 
     std::string path = "./myjitqt";
-    clang::driver::Driver *drv = new clang::driver::Driver(path, llvm::sys::getProcessTriple(),
-                                                          cis->getDiagnostics());
+    clang::driver::Driver *drv =
+        new clang::driver::Driver(path, llvm::sys::getProcessTriple(), cis->getDiagnostics());
     drv->setTitle("myjitclangpp");
     drv->setCheckInputsExist(false);
 
@@ -359,42 +199,64 @@ bool Clvm::initCompiler()
     return true;
 }
 
-bool Clvm::initExecutionEngine()
+bool ClvmEngine::initExecutionEngine()
 {
+    // run module
+    std::string dmname = "dummyee";
+    llvm::StringRef rdmname(dmname);
+    llvm::LLVMContext *ctx = new llvm::LLVMContext();
+    llvm::LLVMContext &rctx = *ctx;
+    
+    llvm::Module *mod = new llvm::Module(rdmname, rctx);
+    std::unique_ptr<llvm::Module> tmod(mod);
+    llvm::EngineBuilder eb(std::move(tmod));
+    
+    std::string errstr;    
+    eb.setErrorStr(&errstr);
+    // eb.setUseMCJIT(true);
+
+    llvm::ExecutionEngine *EE = eb.create();
+
+    // ClvmJitListener *lsner = new ClvmJitListener();
+    if (!mlsner) mlsner = ClvmJitListener::inst();
+    EE->RegisterJITEventListener(mlsner);
+
+    //*
+    qDebug()<<"before load obj...";
+    llvm::ErrorOr<llvm::object::OwningBinary<llvm::object::ObjectFile> > obj = 
+        llvm::object::ObjectFile::createObjectFile("/usr/lib/libQt5Sql.so");
+    if (!obj) {
+        qDebug()<<"create obj file error.";
+    } else {
+        // crash, 是不是因为当前已经是在.so中了呢？
+        // EE->addObjectFile(std::unique_ptr<llvm::object::ObjectFile>(obj.get()));
+    }
+    // */
+
+    mee = EE;
+    /*
+    if (llvm::isa<llvm::MCJIT>(EE)) {
+        llvm::MCJIT *jee = llvm::cast<llvm::MCJIT>(EE);
+    }
+    */
+    llvm::MCJIT *jee = llvm::cast<llvm::MCJIT>(EE);
+    mman = new ModuleManager(EE);
+    
     return true;
 }
 
-llvm::GenericValue
-Clvm::execute(QString &code, std::vector<llvm::GenericValue> &args, QString func_entry)
-{
-    llvm::GenericValue rgv;
-    bool bret;
-
-    const char *pcode = strdup(code.toLatin1().data());
-    std::unique_ptr<llvm::MemoryBuffer> mbuf = llvm::MemoryBuffer::getMemBuffer(pcode);
-    clang::PreprocessorOptions &ppOpt = this->mcis->getPreprocessorOpts();
-    ppOpt.addRemappedFile("flycode.cxx", mbuf.release());
-
-    clang::EmitLLVMOnlyAction llvm_only_action;
-    bret = mcis->ExecuteAction(llvm_only_action);
-    std::unique_ptr<llvm::Module> mod = llvm_only_action.takeModule();
-    qDebug()<<"compile code done."<<mod.get();
-
-    if (mod == NULL) {
-    } else {
-        rgv = run_module_func(mod.get(), args, func_entry);
-    }
-
-    return rgv;
-}
-
+// 执行IR代码中的一个入口函数
 llvm::GenericValue 
-Clvm::execute2(llvm::Module *mod, QString func_entry)
+ClvmEngine::execute2(llvm::Module *mod, QString func_entry)
 {
+    return execute3(mod, func_entry);
+    
     // 只能放在这，run action之后，exeucte function之前
-    llvm::InitializeNativeTarget();
-    llvm::InitializeNativeTargetAsmPrinter();
-    llvm::InitializeNativeTargetAsmParser();
+    // 这段代码现在不需要固定放在这个位置了，已经正常使用init()中的片段。
+    // 也可能和当前类只使用了一个实例有关,这也就要求该必须是单实例的了。
+    // llvm::InitializeNativeTarget();
+    // llvm::InitializeNativeTargetAsmPrinter();
+    // llvm::InitializeNativeTargetAsmParser();
     // llvm::InitializeNativeTargetDisassembler();
 
     // run module
@@ -460,9 +322,82 @@ Clvm::execute2(llvm::Module *mod, QString func_entry)
     return rgv;
 }
 
+// 使用类变量mee多次执行IR代码。
+llvm::GenericValue ClvmEngine::execute3(llvm::Module *mod, QString func_entry)
+{
+    llvm::ExecutionEngine *EE = mee;
+
+    // std::unique_ptr<llvm::Module> tmod(mod);
+    // EE->addModule(std::move(tmod));
+    // mman->add(name, mod);
+    
+    EE->finalizeObject();
+    EE->runStaticConstructorsDestructors(false);
+
+    llvm::Function *etyfn = NULL;
+    QString mangle_name;
+    llvm::ValueSymbolTable &vst = mod->getValueSymbolTable();
+    for (auto sit = vst.begin(); sit != vst.end(); sit++) {
+        auto k = sit->first();
+        auto v = sit->second;
+        if (QString(v->getName().data()).startsWith("__PRETTY_FUNCTION__")) {
+            continue;
+        }
+        if (QString(v->getName().data()).startsWith("_Z15__jit_main_tmplv")) {
+            continue;
+        }
+        // if (QString(v->getName().data()).indexOf("jit_main") >= 0) {
+        if (QString(v->getName().data()).indexOf(func_entry) >= 0) {
+            etyfn = mod->getFunction(v->getName());
+            mangle_name = QString(v->getName().data());
+            // break;
+        }
+        qDebug()<<""<<k.data()<<v->getName().data();
+        //  v->dump();
+    }
+    qDebug()<<"our fun:"<<func_entry<<mangle_name<<etyfn;
+
+    std::vector<llvm::GenericValue> args;
+    llvm::GenericValue rgv = EE->runFunction(etyfn, args);
+    // qDebug()<<"err:"<<errstr.c_str();
+    
+    EE->runStaticConstructorsDestructors(true);
+    // cleanups
+    bool bret = EE->removeModule(mod);
+    qDebug()<<bret;
+
+    qDebug()<<"run code done."<<llvm::GVTOP(rgv)<<rgv.IntVal.getZExtValue();
+    return rgv;
+}
+
+// 执行一段C++ Qt源代码，类似于使用命令行编译这段代码为IR代码，再使用EE执行。
+// 这个使用了高级函数，灵活性和功能特征比较弱
+llvm::GenericValue
+ClvmEngine::execute(QString &code, std::vector<llvm::GenericValue> &args, QString func_entry)
+{
+    llvm::GenericValue rgv;
+    bool bret;
+
+    const char *pcode = strdup(code.toLatin1().data());
+    std::unique_ptr<llvm::MemoryBuffer> mbuf = llvm::MemoryBuffer::getMemBuffer(pcode);
+    clang::PreprocessorOptions &ppOpt = this->mcis->getPreprocessorOpts();
+    ppOpt.addRemappedFile("flycode.cxx", mbuf.release());
+
+    clang::EmitLLVMOnlyAction llvm_only_action;
+    bret = mcis->ExecuteAction(llvm_only_action);
+    std::unique_ptr<llvm::Module> mod = llvm_only_action.takeModule();
+    qDebug()<<"compile code done."<<mod.get();
+
+    if (mod == NULL) {
+    } else {
+        rgv = run_module_func(mod.get(), args, func_entry);
+    }
+
+    return rgv;
+}
 
 llvm::GenericValue 
-Clvm::run_module_func(llvm::Module *mod, std::vector<llvm::GenericValue> &args, QString func_entry)
+ClvmEngine::run_module_func(llvm::Module *mod, std::vector<llvm::GenericValue> &args, QString func_entry)
 {
     // 只能放在这，run action之后，exeucte function之前
     llvm::InitializeNativeTarget();
@@ -522,14 +457,13 @@ Clvm::run_module_func(llvm::Module *mod, std::vector<llvm::GenericValue> &args, 
     return rgv;
 }
 
-void Clvm::run()
+void ClvmEngine::run()
 {
 
 }
 
-void Clvm::deleteAsync(QString klass_name, void *obj)
+void ClvmEngine::deleteAsync(QString klass_name, void *obj)
 {
     
 }
-
 

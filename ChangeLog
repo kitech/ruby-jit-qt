@@ -1,3 +1,7 @@
+2015-3
+	优化IR生成引擎中的ast遍历。
+	升级到依赖llvm-3.6库。
+	
 2014-11
 	直接存储ruby VALUE类型作为hash的key值，不再使用rb_hash计算一次。
 	实现诸如qApp的Qt全局变量getter/setter。

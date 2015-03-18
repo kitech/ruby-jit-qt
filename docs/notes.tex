@@ -277,6 +277,10 @@ builder.setUseMCJIT(true); ==> 删除
 
 ErrorOr<llvm::object::ObjectFile *> => ErrorOr<OwningBinary<llvm::object::ObjectFile>>
 
+ASTUnit::LoadFromASTFile方法 ==> 3.6中需要一个有效的DiagnosticsEngine实例，不能为nullptr了。
+
+3.6中有些api返回std::unique\_ptr类型实例，使用QDebug()调试输出指针的地方，需要调整为v.get()。
+
 \section{参考}
 ROOT/cling
 llvm/vmkit

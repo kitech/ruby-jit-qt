@@ -10,8 +10,8 @@
 #include "compilerengine.h"
 #include "operatorengine.h"
 #include "ctrlengine.h"
-#include "clvm.h"
-#include "clvmengine.h"
+// #include "clvm.h"
+#include "ivm/clvmengine.h"
 #include "invokestorage.h"
 #include "qtobjectmanager.h"
 #include "ruby_cxx.h"
@@ -22,6 +22,7 @@ CtrlEngine::CtrlEngine()
 {
     mfe = new FrontEngine();
     mce = new CompilerEngine();
+    mvme = new ClvmEngine();
 }
 
 
@@ -110,9 +111,10 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
 
     TEMP_DEBUG();    
     
-    Clvm *vm = new Clvm;
-    if (vm == NULL) qFatal("kkkkkkkkk");
-    auto gv = vm->execute2(mod, lamsym);
+    // Clvm *vm = new Clvm;
+    // if (vm == NULL) qFatal("kkkkkkkkk");
+    // auto gv = vm->execute2(mod, lamsym);
+    auto gv = mvme->execute2(mod, lamsym);
     qDebug()<<"gv:"<<llvm::GVTOP(gv);
     // QVector<clang::CXXMethodDecl*> mths = mfe->find_method_decls(rec_decl, klass_name, "fromLatin1");
     // if (mths.count() > 0) {eval type: QVariant(EvalType, )
@@ -164,9 +166,10 @@ bool CtrlEngine::vm_delete(void *kthis, QString klass)
     QString lamsym = oe.bind(mod, symname, klass, kthis);
     qDebug()<<lamsym;
 
-    Clvm *vm = new Clvm;
-    if (vm == NULL) qFatal("vm instance can not be NULL.");
-    auto gv = vm->execute2(mod, lamsym);
+    // Clvm *vm = new Clvm;
+    // if (vm == NULL) qFatal("vm instance can not be NULL.");
+    // auto gv = vm->execute2(mod, lamsym);
+    auto gv = mvme->execute2(mod, lamsym);
     qDebug()<<"gv:"<<llvm::GVTOP(gv)<<gv.IntVal.getZExtValue();
     qDebug()<<"======================";
     free(kthis); kthis = NULL; // 真的需要再free一次，对应vm_new中的calloc。
@@ -355,8 +358,9 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, mtdargs, mth_decl->isStatic(), kthis);
     qDebug()<<lamsym;
     
-    Clvm *vm = new Clvm;
-    auto gv = vm->execute2(mod, lamsym);
+    // Clvm *vm = new Clvm;
+    // auto gv = vm->execute2(mod, lamsym);
+    auto gv = mvme->execute2(mod, lamsym);
     qDebug()<<"gv:"<<llvm::GVTOP(gv)<<(qlonglong)llvm::GVTOP(gv)<<gv.IntVal.getZExtValue();
     qDebug()<<"======================";
 
@@ -396,8 +400,9 @@ QVariant CtrlEngine::vm_static_call(QString klass, QString method, QVector<QVari
     QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, mtdargs, mth_decl->isStatic(), NULL);
     qDebug()<<lamsym;
     
-    Clvm *vm = new Clvm;
-    auto gv = vm->execute2(mod, lamsym);
+    // Clvm *vm = new Clvm;
+    // auto gv = vm->execute2(mod, lamsym);
+    auto gv = mvme->execute2(mod, lamsym);
     qDebug()<<"gv:"<<llvm::GVTOP(gv)<<gv.IntVal.getZExtValue();
     qDebug()<<"======================";
 
@@ -469,8 +474,9 @@ QString CtrlEngine::vm_qdebug(void *kthis, QString klass)
         QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, mtdargs, false, NULL);
         qDebug()<<lamsym;
     
-        Clvm *vm = new Clvm;
-        auto gv = vm->execute2(mod, lamsym);
+        // Clvm *vm = new Clvm;
+        // auto gv = vm->execute2(mod, lamsym);
+        auto gv = mvme->execute2(mod, lamsym);
         qDebug()<<"gv:"<<llvm::GVTOP(gv)<<gv.IntVal.getZExtValue();
         qDebug()<<"======================";
     

@@ -1,5 +1,5 @@
-#ifndef CLVM_H
-#define CLVM_H
+#ifndef CLVMENGINE_H
+#define CLVMENGINE_H
 
 #include "fix_clang_undef_eai.h"
 
@@ -24,23 +24,25 @@ namespace clang {
 
 /////
 class ClvmJitListener;
+class ModuleManager;
 
 /////
-llvm::GenericValue vm_execute(QString code, QVector<llvm::GenericValue> &envp);
+// llvm::GenericValue vm_execute(QString code, QVector<llvm::GenericValue> &envp);
 
-void *jit_vm_new(QString klass, QVector<QVariant> args);
-QVariant jit_vm_call(void *kthis, QString klass, QString method, QVector<QVariant> args);
+// void *jit_vm_new(QString klass, QVector<QVariant> args);
+// QVariant jit_vm_call(void *kthis, QString klass, QString method, QVector<QVariant> args);
 
-class Clvm : public QThread
+class ClvmEngine : public QThread/*, public Singleton<ClvmEngine>*/
 {
     Q_OBJECT;
 public:
-    Clvm();
-    virtual ~Clvm();
+    ClvmEngine();
+    virtual ~ClvmEngine();
 
     llvm::GenericValue execute(QString &code, std::vector<llvm::GenericValue> & args,
                                QString func_entry);
     llvm::GenericValue execute2(llvm::Module *mod, QString func_entry);
+    llvm::GenericValue execute3(llvm::Module *mod, QString func_entry);
     virtual void run();
 
 public slots:
@@ -55,13 +57,17 @@ private:
 
 public:
     llvm::GenericValue mretgv;
-    llvm::ExecutionEngine *mexe = NULL;
+    llvm::ExecutionEngine *mee = NULL;
     llvm::EngineBuilder *meb = NULL;
     clang::CompilerInstance *mcis = NULL;
     clang::CompilerInvocation *mciv = NULL;
     clang::driver::Driver *mdrv = NULL;
+    
     ClvmJitListener *mlsner = NULL;
+    ModuleManager *mman = NULL;
 };
 
 
-#endif /* CLVM_H */
+
+
+#endif /* CLVMENGINE_H */
