@@ -46,6 +46,8 @@ public:
     llvm::GenericValue execute3(llvm::Module *mod, QString func_entry, CodeUnit *cu);
     virtual void run();
 
+    ModuleManager *getModuleManager() { return this->mman; }
+
 public slots:
     void deleteAsync(QString klass_name, void *obj);
 

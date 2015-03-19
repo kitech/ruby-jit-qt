@@ -29,7 +29,7 @@ static void dumpObjectFile(const llvm::object::ObjectFile &Obj)
         uint64_t sz = 0;
         sym.getName(rname);
         sym.getSize(sz);
-        qDebug()<<"sym:"<<&sym<<sz<<rname.str().c_str();
+        // qDebug()<<"sym:"<<&sym<<sz<<rname.str().c_str();
     }
 
     for (auto sec : Obj.sections()) {
@@ -38,7 +38,7 @@ static void dumpObjectFile(const llvm::object::ObjectFile &Obj)
         uint64_t sz = 0;
         sec.getName(rname);
         sz = sec.getSize();
-        qDebug()<<"sec:"<<&sec<<sz<<rname.str().c_str();
+        // qDebug()<<"sec:"<<&sec<<sz<<rname.str().c_str();
     }
 }
 

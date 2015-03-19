@@ -3,6 +3,8 @@
 
 #include <QtCore>
 
+#include "macrolib.h"
+
 namespace llvm {
     class Module;
     class ExecutionEngine;
@@ -20,7 +22,7 @@ namespace llvm {
   注意，这个类中的Module对象可能处于已销毁状态，可能是野指针，需要改进。
  */
 
-class ModuleManager
+class ModuleManager : public Singleton<ModuleManager>
 {
 public:
     ModuleManager(llvm::ExecutionEngine* ee) : mee(ee) {}
@@ -29,6 +31,7 @@ public:
     bool add(QString name, llvm::Module* mod);
     bool remove(QString name);
     bool contains(QString name);
+    llvm::Module *get(QString name);
     int size() { return modules.size(); }
     const QStringList keys() { return modules.keys(); }
     

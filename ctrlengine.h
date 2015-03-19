@@ -23,6 +23,7 @@ class FrontEngine;
 class CompilerEngine;
 class OperatorEngine;
 class ClvmEngine;
+class ModuleManager;
 
 class CtrlEngine
 {
@@ -55,16 +56,8 @@ public:
     FrontEngine *mfe = NULL;
     CompilerEngine *mce = NULL;
     ClvmEngine *mvme = NULL;
+    ModuleManager *mman = NULL;
 };
 
 #endif /* CTRLENGINE_H */
-
-
-
-
-
-
-
-
-
 

@@ -33,3 +33,7 @@ bool ModuleManager::contains(QString name)
     return true;
 }
 
+llvm::Module *ModuleManager::get(QString name)
+{
+    return modules.value(name);
+}
