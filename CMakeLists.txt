@@ -61,6 +61,8 @@ set(handby_lib_SRCS
     qtobjectmanager.cpp
     entry.cpp
     ctrlengine.cpp
+    ivm/callcontext.cpp
+    ivm/codeunit.cpp
     ivm/clvmengine.cpp
     ivm/modulemanager.cpp
     operatorengine.cpp
