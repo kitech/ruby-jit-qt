@@ -16,6 +16,7 @@
 #include "qtobjectmanager.h"
 #include "ruby_cxx.h"
 #include "callargument.h"
+#include "ivm/modulemanager.h"
 #include "ivm/codeunit.h"
 #include "ivm/dbghelper.h"
 
@@ -24,6 +25,7 @@ CtrlEngine::CtrlEngine()
     mfe = new FrontEngine();
     mce = new CompilerEngine();
     mvme = new ClvmEngine();
+    mman = mvme->getModuleManager();
 }
 
 
@@ -62,64 +64,75 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     QVector<MetaTypeVariant> mtdargs;
     mfe->get_method_default_params(ctor_decl, dargs, mtdargs);
     TEMP_DEBUG();    
-    
-    // auto mod = mce->conv_ctor(mfe->getASTContext(), ctor_decl);
-    auto mod = mce->conv_ctor2(mfe->getASTUnit(), ctor_decl, dargs);
-    qDebug()<<mod<<mod->getDataLayout();
-    TEMP_DEBUG();    
-    
-    // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
-    QString symname = mce->mangle_ctor(mfe->getASTContext(), ctor_decl);
-    qDebug()<<mod<<symname;
-    if (symname.indexOf("LayoutC") != -1) {
-        symname = symname.replace("C2", "C1");
-    }
 
-    TEMP_DEBUG();    
+    QString modname = QString("qtmod%1").arg(mce->mangle_symbol(mfe->getASTContext(), ctor_decl));
+    llvm::Module *qtmod = NULL;
 
-    // 默认参数编译成IR    
-    clang::FunctionDecl *jmt_decl = mfe->find_free_function("__jit_main_tmpl");
-    qDebug()<<jmt_decl;
-    // jmt_decl->dumpColor();
-    DUMP_COLOR(jmt_decl);
-
-    TEMP_DEBUG();
+    if (mman->contains(modname)) {
+        qtmod = mman->get(modname);
+    } else {
+        // auto mod = mce->conv_ctor(mfe->getASTContext(), ctor_decl);
+        auto tmod = mce->conv_ctor2(mfe->getASTUnit(), ctor_decl, dargs);
+        qDebug()<<tmod<<tmod->getDataLayout();
+        TEMP_DEBUG();
+        qtmod = tmod;
     
-    int cnter = -1;
-    if (true)
-    for (auto &v: dargs) {
-        cnter ++;
-        // qDebug()<<v<<v.type()<<(int)v.type()<<v.userType();
-        int t = (int)v.type();
-        if (v.type() != QMetaType::User) continue;
-        if (v.userType() != EvalType::id) continue;
-        mce->gen_darg(mod, v, cnter, jmt_decl);
-        EvalType r = v.value<EvalType>();
-        qDebug()<<v<<r.ve<<r.vv;
-    }    
-    TEMP_DEBUG();
+        // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
+        QString symname = mce->mangle_ctor(mfe->getASTContext(), ctor_decl);
+        qDebug()<<tmod<<symname;
+        if (symname.indexOf("LayoutC") != -1) {
+            symname = symname.replace("C2", "C1");
+        }
+
+        TEMP_DEBUG();    
+
+        // 默认参数编译成IR    
+        clang::FunctionDecl *jmt_decl = mfe->find_free_function("__jit_main_tmpl");
+        qDebug()<<jmt_decl;
+        // jmt_decl->dumpColor();
+        DUMP_COLOR(jmt_decl);
+
+        TEMP_DEBUG();
+    
+        int cnter = -1;
+        if (true)
+            for (auto &v: dargs) {
+                cnter ++;
+                // qDebug()<<v<<v.type()<<(int)v.type()<<v.userType();
+                int t = (int)v.type();
+                if (v.type() != QMetaType::User) continue;
+                if (v.userType() != EvalType::id) continue;
+                mce->gen_darg(tmod, v, cnter, jmt_decl);
+                EvalType r = v.value<EvalType>();
+                qDebug()<<v<<r.ve<<r.vv;
+            }    
+        TEMP_DEBUG();
         
+    }
+    
+    
     OperatorEngine oe;
-    void *kthis = calloc(oe.getClassAllocSize(mod, klass), 1);
-    memset(kthis, 0, oe.getClassAllocSize(mod, klass));
-    qDebug()<<oe.getClassAllocSize(mod, klass)<<kthis<<(int64_t)kthis<<dargs.count();
+    void *kthis = calloc(oe.getClassAllocSize(qtmod, klass), 1);
+    memset(kthis, 0, oe.getClassAllocSize(qtmod, klass));
+    qDebug()<<oe.getClassAllocSize(qtmod, klass)<<kthis<<(int64_t)kthis<<dargs.count();
 
     TEMP_DEBUG();
-    
+
+    QString symname = mce->mangle_ctor(mfe->getASTContext(), ctor_decl);
     // QString lamsym = oe.bind(mod, "_ZN7QStringC2Ev", kthis, uargs, dargs);
-    QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, mtdargs, false, kthis);
-    qDebug()<<lamsym;
-
+    QString lamsym = oe.bind(qtmod, symname, klass, uargs, dargs, mtdargs, false, kthis);
+    // qDebug()<<lamsym;
+    
+    llvm::Module *remod = oe.bind(qtmod, klass, uargs, dargs, mtdargs, false, kthis);
     TEMP_DEBUG();    
-
-    llvm::Module *remod = oe.bind(mod, klass, uargs, dargs, mtdargs, false, kthis);
     DUMP_IR(remod);    
-    CodeUnit *cu = new CodeUnit(mod, remod);
+    CodeUnit *cu = new CodeUnit(qtmod, remod);
+    // QString lamsym = QString::fromStdString(remod->getName().str());
     
     // Clvm *vm = new Clvm;
     // if (vm == NULL) qFatal("kkkkkkkkk");
     // auto gv = vm->execute2(mod, lamsym);
-    auto gv = mvme->execute3(mod, lamsym, cu);
+    auto gv = mvme->execute3(qtmod, lamsym, cu);
     qDebug()<<"gv:"<<llvm::GVTOP(gv);
     // QVector<clang::CXXMethodDecl*> mths = mfe->find_method_decls(rec_decl, klass_name, "fromLatin1");
     // if (mths.count() > 0) {eval type: QVariant(EvalType, )
@@ -151,34 +164,45 @@ bool CtrlEngine::vm_delete(void *kthis, QString klass)
     // dtor_decl->dumpColor();
     DUMP_COLOR(dtor_decl);
 
-    auto mod = mce->conv_dtor(mfe->getASTUnit(), dtor_decl);
-    qDebug()<<mod<<mod->getDataLayout();
-    // mod->dump();
+    QString modname = QString("qtmod%1").arg(mce->mangle_symbol(mfe->getASTContext(), dtor_decl));
+    llvm::Module *qtmod = NULL;
 
-    QString symname = mce->mangle_dtor(mfe->getASTContext(), dtor_decl);
-    qDebug()<<mod<<symname;
-    if (symname.indexOf("LayoutC") != -1) {
-        symname = symname.replace("D2", "D1");
+    if (mman->contains(modname)) {
+        qtmod = mman->get(modname);
+    } else {
+        auto mod = mce->conv_dtor(mfe->getASTUnit(), dtor_decl);
+        qDebug()<<mod<<mod->getDataLayout();
+        // mod->dump();
+        qtmod = mod;
+
+        QString symname = mce->mangle_dtor(mfe->getASTContext(), dtor_decl);
+        qDebug()<<mod<<symname;
+        if (symname.indexOf("LayoutC") != -1) {
+            symname = symname.replace("D2", "D1");
+        }
+
+        // 默认参数编译成IR    
+        clang::FunctionDecl *jmt_decl = mfe->find_free_function("__jit_main_tmpl");
+        qDebug()<<jmt_decl;
+        // jmt_decl->dumpColor();
+        DUMP_COLOR(jmt_decl);
+
     }
 
-    // 默认参数编译成IR    
-    clang::FunctionDecl *jmt_decl = mfe->find_free_function("__jit_main_tmpl");
-    qDebug()<<jmt_decl;
-    // jmt_decl->dumpColor();
-    DUMP_COLOR(jmt_decl);
-
+    QString symname = mce->mangle_symbol(mfe->getASTContext(), dtor_decl);
+    
     OperatorEngine oe;
-    QString lamsym = oe.bind(mod, symname, klass, kthis);
+    QString lamsym = oe.bind(qtmod, symname, klass, kthis);
     qDebug()<<lamsym;
 
-    llvm::Module *remod = oe.bind(mod, klass, kthis);
+    llvm::Module *remod = oe.bind(qtmod, klass, kthis);
     DUMP_IR(remod);
-    CodeUnit *cu = new CodeUnit(mod, remod);
+    CodeUnit *cu = new CodeUnit(qtmod, remod);
     
     // Clvm *vm = new Clvm;
     // if (vm == NULL) qFatal("vm instance can not be NULL.");
     // auto gv = vm->execute2(mod, lamsym);
-    auto gv = mvme->execute3(mod, lamsym, cu);
+    auto gv = mvme->execute3(qtmod, lamsym, cu);
     qDebug()<<"gv:"<<llvm::GVTOP(gv)<<gv.IntVal.getZExtValue();
     qDebug()<<"======================";
     free(kthis); kthis = NULL; // 真的需要再free一次，对应vm_new中的calloc。
@@ -330,55 +354,65 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     QVector<QVariant> dargs;
     QVector<MetaTypeVariant> mtdargs;
     mfe->get_method_default_params(mth_decl, dargs, mtdargs);
-    
-    // auto mod = mce->conv_method(mfe->getASTContext(), mth_decl);
-    auto mod = mce->conv_method2(mfe->getASTUnit(), mth_decl);
-    qDebug()<<mod<<mod->getDataLayout();
-    // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
-    QString symname = mce->mangle_method(mfe->getASTContext(), mth_decl);
-    qDebug()<<mod<<symname;
 
-    // 默认参数编译成IR
-    clang::FunctionDecl *jmt_decl = mfe->find_free_function("__jit_main_tmpl");
-    qDebug()<<jmt_decl;
-    // jmt_decl->dumpColor();
-    DUMP_COLOR(jmt_decl);
-    // /*    
-    int cnter = -1;
-    if (true)
-    for (auto &v: dargs) {
-        cnter ++;
-        // qDebug()<<v<<v.type()<<(int)v.type()<<v.userType();
-        int t = (int)v.type();
-        if (v.type() != QMetaType::User) continue;
-        if (v.userType() != EvalType::id) continue;
-        mce->gen_darg(mod, v, cnter, jmt_decl);
-        EvalType r = v.value<EvalType>();
-        qDebug()<<v<<r.ve<<r.vv;
+    QString modname = QString("qtmod%1").arg(mce->mangle_symbol(mfe->getASTContext(), mth_decl));
+    llvm::Module *qtmod = NULL;
+
+    if (mman->contains(modname)) {
+        qtmod = mman->get(modname);
+    } else {
+        // auto mod = mce->conv_method(mfe->getASTContext(), mth_decl);
+        auto mod = mce->conv_method2(mfe->getASTUnit(), mth_decl);
+        qDebug()<<mod<<mod->getDataLayout();
+        qtmod = mod;
+        
+        // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
+        QString symname = mce->mangle_method(mfe->getASTContext(), mth_decl);
+        qDebug()<<mod<<symname;
+
+        // 默认参数编译成IR
+        clang::FunctionDecl *jmt_decl = mfe->find_free_function("__jit_main_tmpl");
+        qDebug()<<jmt_decl;
+        // jmt_decl->dumpColor();
+        DUMP_COLOR(jmt_decl);
+        // /*    
+        int cnter = -1;
+        if (true)
+            for (auto &v: dargs) {
+                cnter ++;
+                // qDebug()<<v<<v.type()<<(int)v.type()<<v.userType();
+                int t = (int)v.type();
+                if (v.type() != QMetaType::User) continue;
+                if (v.userType() != EvalType::id) continue;
+                mce->gen_darg(mod, v, cnter, jmt_decl);
+                EvalType r = v.value<EvalType>();
+                qDebug()<<v<<r.ve<<r.vv;
+            }
+        // mod->dump();
+        // */
     }
-    // mod->dump();
-    // */
 
+    QString symname = mce->mangle_symbol(mfe->getASTContext(), mth_decl);
     // replace void* => i32 trivial copy params
     int replaced = mfe->replace_trivial_copy_params(mth_decl, uargs);
 
     qDebug()<<mtdargs<<method<<dargs.count();
     OperatorEngine oe;
-    QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, mtdargs, mth_decl->isStatic(), kthis);
+    QString lamsym = oe.bind(qtmod, symname, klass, uargs, dargs, mtdargs, mth_decl->isStatic(), kthis);
     qDebug()<<lamsym;
 
-    llvm::Module *remod = oe.bind(mod, klass, uargs, dargs, mtdargs, mth_decl->isStatic(), kthis);
+    llvm::Module *remod = oe.bind(qtmod, klass, uargs, dargs, mtdargs, mth_decl->isStatic(), kthis);
     DUMP_IR(remod);
-    CodeUnit *cu = new CodeUnit(mod, remod);
+    CodeUnit *cu = new CodeUnit(qtmod, remod);
     
     // Clvm *vm = new Clvm;
     // auto gv = vm->execute2(mod, lamsym);
-    auto gv = mvme->execute3(mod, lamsym, cu);
+    auto gv = mvme->execute3(qtmod, lamsym, cu);
     qDebug()<<"gv:"<<llvm::GVTOP(gv)<<(qlonglong)llvm::GVTOP(gv)<<gv.IntVal.getZExtValue();
     qDebug()<<"======================";
 
     // impove some method return i32 instead of class object
-    llvm::GenericValue ngv = i32ToRecord(gv, mth_decl, mod, symname);
+    llvm::GenericValue ngv = i32ToRecord(gv, mth_decl, qtmod, symname);
     gv = ngv;
     
     QVariant rv = GV2Variant(gv, mth_decl, kthis);
@@ -402,29 +436,38 @@ QVariant CtrlEngine::vm_static_call(QString klass, QString method, QVector<QVari
     QVector<MetaTypeVariant> mtdargs;
     mfe->get_method_default_params(mth_decl, dargs, mtdargs);
 
-    // auto mod = mce->conv_method(mfe->getASTContext(), mth_decl);
-    auto mod = mce->conv_method2(mfe->getASTUnit(), mth_decl);
-    qDebug()<<mod<<mod->getDataLayout();
-    // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
-    QString symname = mce->mangle_method(mfe->getASTContext(), mth_decl);
-    qDebug()<<mod<<symname;
+    QString modname = QString("qtmod%1").arg(mce->mangle_symbol(mfe->getASTContext(), mth_decl));
+    llvm::Module *qtmod = NULL;
+
+    if (mman->contains(modname)) {
+        qtmod = mman->get(modname);
+    } else {
+        // auto mod = mce->conv_method(mfe->getASTContext(), mth_decl);
+        auto mod = mce->conv_method2(mfe->getASTUnit(), mth_decl);
+        qDebug()<<mod<<mod->getDataLayout();
+        // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
+        qtmod = mod;
+    }
+    
+    QString symname = mce->mangle_symbol(mfe->getASTContext(), mth_decl);
+    qDebug()<<qtmod<<symname;
 
     OperatorEngine oe;
-    QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, mtdargs, mth_decl->isStatic(), NULL);
+    QString lamsym = oe.bind(qtmod, symname, klass, uargs, dargs, mtdargs, mth_decl->isStatic(), NULL);
     qDebug()<<lamsym;
 
-    llvm::Module *remod = oe.bind(mod, klass, uargs, dargs, mtdargs, mth_decl->isStatic(), NULL);
+    llvm::Module *remod = oe.bind(qtmod, klass, uargs, dargs, mtdargs, mth_decl->isStatic(), NULL);
     DUMP_IR(remod);
-    CodeUnit *cu = new CodeUnit(mod, remod);
+    CodeUnit *cu = new CodeUnit(qtmod, remod);
 
     // Clvm *vm = new Clvm;
     // auto gv = vm->execute2(mod, lamsym);
-    auto gv = mvme->execute3(mod, lamsym, cu);
+    auto gv = mvme->execute3(qtmod, lamsym, cu);
     qDebug()<<"gv:"<<llvm::GVTOP(gv)<<gv.IntVal.getZExtValue();
     qDebug()<<"======================";
 
     // impove some method return i32 instead of class object
-    llvm::GenericValue ngv = i32ToRecord(gv, mth_decl, mod, symname);
+    llvm::GenericValue ngv = i32ToRecord(gv, mth_decl, qtmod, symname);
     gv = ngv;
     
     QVariant rv = GV2Variant(gv, mth_decl, NULL);
@@ -481,23 +524,31 @@ QString CtrlEngine::vm_qdebug(void *kthis, QString klass)
         uargs.append(QVariant::fromValue((void*)(&dm)));
         uargs.append(QVariant::fromValue(kthis));
 
-        auto mod = mce->conv_function2(mfe->getASTUnit(), fun_decl);
-        qDebug()<<mod<<mod->getDataLayout();
-        // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
-        // QString symname = mce->mangle_method(mfe->getASTContext(), mth_decl);
-        qDebug()<<mod<<symname;
+        QString modname = QString("qtmod%1").arg(mce->mangle_symbol(mfe->getASTContext(), fun_decl));
+        llvm::Module *qtmod = NULL;
 
+        if (mman->contains(modname)) {
+            qtmod = mman->get(modname);
+        } else {
+            auto mod = mce->conv_function2(mfe->getASTUnit(), fun_decl);
+            qDebug()<<mod<<mod->getDataLayout();
+            qtmod = mod;
+            // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
+            // QString symname = mce->mangle_method(mfe->getASTContext(), mth_decl);
+            qDebug()<<mod<<symname;
+        }
+        
         OperatorEngine oe;
-        QString lamsym = oe.bind(mod, symname, klass, uargs, dargs, mtdargs, false, NULL);
+        QString lamsym = oe.bind(qtmod, symname, klass, uargs, dargs, mtdargs, false, NULL);
         qDebug()<<lamsym;
 
-        llvm::Module *remod = oe.bind(mod, klass, uargs, dargs, mtdargs, false, NULL);
+        llvm::Module *remod = oe.bind(qtmod, klass, uargs, dargs, mtdargs, false, NULL);
         DUMP_IR(remod);
-        CodeUnit *cu = new CodeUnit(mod, remod);
+        CodeUnit *cu = new CodeUnit(qtmod, remod);
         
         // Clvm *vm = new Clvm;
         // auto gv = vm->execute2(mod, lamsym);
-        auto gv = mvme->execute3(mod, lamsym, cu);
+        auto gv = mvme->execute3(qtmod, lamsym, cu);
         qDebug()<<"gv:"<<llvm::GVTOP(gv)<<gv.IntVal.getZExtValue();
         qDebug()<<"======================";
     

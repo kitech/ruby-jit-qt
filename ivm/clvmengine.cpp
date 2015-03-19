@@ -329,11 +329,9 @@ ClvmEngine::execute2(llvm::Module *mod, QString func_entry)
 llvm::GenericValue ClvmEngine::execute3(llvm::Module *mod, QString func_entry, CodeUnit *cu)
 {
     llvm::ExecutionEngine *EE = mee;
-    // llvm::Module *mod = cu->qtmod;
+    llvm::Module *qtmod = cu->qtmod;
     llvm::Module *remod = cu->remod;
 
-    // std::unique_ptr<llvm::Module> tmod(mod);
-    // EE->addModule(std::move(tmod));
     mman->add(QString::fromStdString(mod->getName().str()), mod);
     mman->add(QString::fromStdString(remod->getName().str()), remod);
     
@@ -373,10 +371,9 @@ llvm::GenericValue ClvmEngine::execute3(llvm::Module *mod, QString func_entry, C
     
     EE->runStaticConstructorsDestructors(true);
     // cleanups
-    bool bret;    
-    // bool bret = EE->removeModule(mod);
+    bool bret = false;
     bret = mman->remove(QString::fromStdString(remod->getName().str()));
-    bret &= mman->remove(QString::fromStdString(mod->getName().str()));
+    // bret &= mman->remove(QString::fromStdString(mod->getName().str()));
     qDebug()<<bret;
 
     qDebug()<<"run code done."<<llvm::GVTOP(rgv)<<rgv.IntVal.getZExtValue();
