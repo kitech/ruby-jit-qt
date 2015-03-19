@@ -25,6 +25,7 @@ namespace clang {
 /////
 class ClvmJitListener;
 class ModuleManager;
+class CodeUnit;
 
 /////
 // llvm::GenericValue vm_execute(QString code, QVector<llvm::GenericValue> &envp);
@@ -42,8 +43,10 @@ public:
     llvm::GenericValue execute(QString &code, std::vector<llvm::GenericValue> & args,
                                QString func_entry);
     llvm::GenericValue execute2(llvm::Module *mod, QString func_entry);
-    llvm::GenericValue execute3(llvm::Module *mod, QString func_entry);
+    llvm::GenericValue execute3(llvm::Module *mod, QString func_entry, CodeUnit *cu);
     virtual void run();
+
+    ModuleManager *getModuleManager() { return this->mman; }
 
 public slots:
     void deleteAsync(QString klass_name, void *obj);

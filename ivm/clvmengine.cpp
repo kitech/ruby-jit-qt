@@ -98,6 +98,7 @@
 // #include "clvm_letacy.cpp"
 
 #include "ivm/modulemanager.h"
+#include "ivm/codeunit.h"
 
 #include "clvmengine.h"
 
@@ -240,7 +241,9 @@ bool ClvmEngine::initExecutionEngine()
     }
     */
     llvm::MCJIT *jee = llvm::cast<llvm::MCJIT>(EE);
-    mman = new ModuleManager(EE);
+    // mman = new ModuleManager(EE); 
+    mman = ModuleManager::inst();
+    mman->mee = EE;
     
     return true;
 }
@@ -249,7 +252,7 @@ bool ClvmEngine::initExecutionEngine()
 llvm::GenericValue 
 ClvmEngine::execute2(llvm::Module *mod, QString func_entry)
 {
-    return execute3(mod, func_entry);
+    // return execute3(mod, func_entry);
     
     // 只能放在这，run action之后，exeucte function之前
     // 这段代码现在不需要固定放在这个位置了，已经正常使用init()中的片段。
@@ -323,13 +326,14 @@ ClvmEngine::execute2(llvm::Module *mod, QString func_entry)
 }
 
 // 使用类变量mee多次执行IR代码。
-llvm::GenericValue ClvmEngine::execute3(llvm::Module *mod, QString func_entry)
+llvm::GenericValue ClvmEngine::execute3(llvm::Module *mod, QString func_entry, CodeUnit *cu)
 {
     llvm::ExecutionEngine *EE = mee;
+    llvm::Module *qtmod = cu->qtmod;
+    llvm::Module *remod = cu->remod;
 
-    // std::unique_ptr<llvm::Module> tmod(mod);
-    // EE->addModule(std::move(tmod));
-    // mman->add(name, mod);
+    mman->add(QString::fromStdString(mod->getName().str()), mod);
+    mman->add(QString::fromStdString(remod->getName().str()), remod);
     
     EE->finalizeObject();
     EE->runStaticConstructorsDestructors(false);
@@ -357,13 +361,19 @@ llvm::GenericValue ClvmEngine::execute3(llvm::Module *mod, QString func_entry)
     }
     qDebug()<<"our fun:"<<func_entry<<mangle_name<<etyfn;
 
+    mangle_name = QString::fromStdString(remod->getName().str());
+    etyfn = remod->getFunction(mangle_name.toStdString());
+    qDebug()<<"our fun:"<<func_entry<<mangle_name<<etyfn;
+    
     std::vector<llvm::GenericValue> args;
     llvm::GenericValue rgv = EE->runFunction(etyfn, args);
     // qDebug()<<"err:"<<errstr.c_str();
     
     EE->runStaticConstructorsDestructors(true);
     // cleanups
-    bool bret = EE->removeModule(mod);
+    bool bret = false;
+    bret = mman->remove(QString::fromStdString(remod->getName().str()));
+    // bret &= mman->remove(QString::fromStdString(mod->getName().str()));
     qDebug()<<bret;
 
     qDebug()<<"run code done."<<llvm::GVTOP(rgv)<<rgv.IntVal.getZExtValue();

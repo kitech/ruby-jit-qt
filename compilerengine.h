@@ -50,6 +50,7 @@ public:
     QString mangle_ctor(clang::ASTContext &ctx, clang::CXXConstructorDecl *ctor);
     QString mangle_dtor(clang::ASTContext &ctx, clang::CXXDestructorDecl *dtor);
     QString mangle_method(clang::ASTContext &ctx, clang::CXXMethodDecl *ctor);
+    QString mangle_symbol(clang::ASTContext &ctx, clang::FunctionDecl *ctor);
 
     // 第一种方式，拿到还未定义的symbol，到ast中查找
     // 第二种方式，解析C++方法的源代码，找到这个未定义的symbol，从decl再把它编译成ll，效率更好。

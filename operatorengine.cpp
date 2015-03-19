@@ -497,9 +497,189 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass,
     qDebug()<<"operator bind done."<<lamsym;
     // mod->dump();
     DUMP_IR(mod);
-
+    
     lamsym = QString(lamname);
     return lamsym;
+}
+
+
+llvm::Module *OperatorEngine::bind(llvm::Module *mod, QString klass,
+                                    QVector<QVariant> uargs, QVector<QVariant> dargs,
+                                    QVector<MetaTypeVariant> mtdargs,
+                                    bool is_static, void *kthis)
+{
+    QString lamsym;
+    QString symbol;
+
+    llvm::Module *remod = this->createRemod(mod);
+    symbol = QString::fromStdString(mod->getName().str());
+    symbol = symbol.right(symbol.length() - strlen("qtmod"));
+
+    // llvm::LLVMContext &vmctx = mod->getContext();
+    llvm::IRBuilder<> builder(mod->getContext());
+    llvm::IRBuilder<> rebuilder(remod->getContext());
+    llvm::Function *dstfun = mod->getFunction(symbol.toLatin1().data());
+    llvm::Function *lamfun = NULL;
+    const char *lamname = "jit_main"; // TODO, rt mangle
+    lamname = remod->getName().str().c_str();
+    
+    auto c_lamfun = remod->getOrInsertFunction(lamname, rebuilder.getVoidTy()->getPointerTo(), NULL);
+    lamfun = (decltype(lamfun))(c_lamfun); // cast it
+    rebuilder.SetInsertPoint(llvm::BasicBlock::Create(remod->getContext(), "eee", lamfun));
+
+    
+    std::vector<llvm::Value*> callee_arg_values;
+    if (is_static) {
+    } else if (kthis == NULL) {
+    } else {
+        llvm::Type *thisTy = this->uniqTy(mod, QString("class.%1").arg(klass));
+        qDebug()<<klass<<thisTy << mtdargs;
+        assert(thisTy != NULL);
+        // TODO 想办法使用真实的thisTy类型
+        if (thisTy == NULL) {
+            thisTy = rebuilder.getVoidTy()->getPointerTo();
+        }
+        // 在32位系统上crash，可能是因为这里直接使用了64位整数。(已验证，果然是这个问题）
+        // 应该是在23位系统上不能直接使用int64_t表示指针，而64位系统可以。
+        // 一般显示为llvm::TargetLowering::LowerCallTo中crash
+        // callee_arg_values.push_back(llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)kthis));
+        llvm::Constant *lc = llvm::ConstantInt::get(rebuilder.getInt64Ty(), (int64_t)kthis);
+        llvm::Constant *lv = llvm::ConstantExpr::getIntToPtr(lc, thisTy->getPointerTo());
+        callee_arg_values.push_back(lv);
+    }
+
+    // Add uarg
+    std::vector<llvm::Value*> more_values = 
+        ConvertToCallArgs(mod, builder, uargs, dargs, mtdargs, dstfun, !is_static && kthis != NULL);
+    // std::copy(more_values.begin(), more_values.end(), callee_arg_values.end());// why???
+    for (auto v: more_values) callee_arg_values.push_back(v);
+
+
+    // deal sret
+    qDebug()<<"sret:"<<dstfun->hasStructRetAttr()<<"noret:"<<dstfun->doesNotReturn();
+    if (dstfun->hasStructRetAttr()) {
+        // qDebug()<<"arg size:"<<dstfun->arg_size();
+        auto &sret_arg = *dstfun->arg_begin();
+        llvm::Type *sretype = dstfun->getReturnType(); // 如果是sret，则获取不到returntype了
+        sretype = sret_arg.getType();
+        std::string ostr; llvm::raw_string_ostream ostm(ostr);
+        sretype->print(ostm);
+        qDebug()<<"sret type:"<<ostm.str().c_str();
+
+        if (ostm.str() == "%class.QString*") {
+            gis2.sbyvalret = (decltype(gis2.sbyvalret))calloc(1, sizeof(decltype(*gis2.sbyvalret)));
+            llvm::Constant *rlr1 = rebuilder.getInt64((int64_t)gis2.sbyvalret);
+            llvm::Value *rlr2 = llvm::ConstantExpr::getIntToPtr(rlr1, sretype);
+            llvm::Value *rlr3 = rebuilder.CreateAlloca(sretype, rebuilder.getInt32(1), "oretaddr");
+            llvm::Value *rlr4 = rebuilder.CreateStore(rlr2, rlr3);
+            llvm::Value *rlr5 = rebuilder.CreateLoad(rlr3, "sret2");
+            callee_arg_values.insert(callee_arg_values.begin(), rlr5);    
+        } else {
+            auto dlo = this->getDataLayout(mod);
+            gis2.vbyvalret = calloc(1, dlo->getTypeAllocSize(sretype));
+            llvm::Constant *rlr1 = rebuilder.getInt64((int64_t)gis2.vbyvalret);
+            llvm::Value *rlr2 = llvm::ConstantExpr::getIntToPtr(rlr1, sretype);
+            llvm::Value *rlr3 = rebuilder.CreateAlloca(sretype, rebuilder.getInt32(1), "oretaddr");
+            llvm::Value *rlr4 = rebuilder.CreateStore(rlr2, rlr3);
+            llvm::Value *rlr5 = rebuilder.CreateLoad(rlr3, "sret2");
+            callee_arg_values.insert(callee_arg_values.begin(), rlr5);    
+        }
+    }
+
+    
+    llvm::ArrayRef<llvm::Value*> callee_arg_values_ref(callee_arg_values);
+    llvm::CallInst *cval = rebuilder.CreateCall(dstfun, callee_arg_values_ref);
+
+    // dereferenced test, QString::append
+    // TODO 需要更通用一些，目前只针对特定的函数
+    if (false) {
+        llvm::AttrBuilder ab(llvm::Attribute::getWithDereferenceableBytes(remod->getContext(), 1*sizeof(void*)));
+        llvm::AttributeSet sets;
+        sets = sets.addAttributes(remod->getContext(), 2, llvm::AttributeSet::get(remod->getContext(), 2, ab));
+        sets = sets.addAttributes(remod->getContext(), 0, llvm::AttributeSet::get(remod->getContext(), 0, ab));
+        cval->setAttributes(sets);
+    }
+    // TODO byval call and reference arg
+    for (auto &a: dstfun->getArgumentList()) {
+        qDebug()<<a.getArgNo()<<a.hasByValAttr()<<a.getDereferenceableBytes();
+        
+        if (a.getDereferenceableBytes() > 0) {
+            llvm::AttrBuilder ab(llvm::Attribute::getWithDereferenceableBytes(remod->getContext(), a.getDereferenceableBytes()));
+            llvm::AttributeSet sets;
+            sets = sets.addAttributes(remod->getContext(), a.getArgNo()+1,
+                                      llvm::AttributeSet::get(remod->getContext(), a.getArgNo()+1, ab));
+            cval->setAttributes(sets);
+        }
+        
+        if (a.hasByValAttr()) {
+            auto aty = a.getType();
+            std::string ostr; llvm::raw_string_ostream ostm(ostr); aty->print(ostm);
+            /*
+            qDebug()<<"need byval attr:"<<(&a)<<dstfun->getName().data()
+                    <<ostm.str().c_str()
+                    <<a.getType()->isPointerTy()
+                    <<a.getType()->isIntegerTy()
+                    <<a.getArgNo();
+            */
+            if (a.getType()->isPointerTy()) {
+                 // need +1, idx0为返回值属性,idx~0为函数属性。是否需要考虑sret？
+                cval->addAttribute(a.getArgNo()+1, llvm::Attribute::ByVal);
+            }
+        }
+    }
+    // test for qflags byval
+    if (false && symbol.indexOf("path") != -1 && klass == "QUrl") {
+        cval->addAttribute(3, llvm::Attribute::ByVal);
+        // qDebug()<<"QUrl::path called";
+    }
+    // for test
+    if (false && symbol.indexOf("_ZN7QWidgetC2EPS_6QFlagsIN2Qt10WindowTypeEE") != -1) {
+        cval->addAttribute(3, llvm::Attribute::ByVal);
+    }
+
+    // 针对有些需要返回record类对象的方法，却返回了i32，这时需要做一个后处理。see issue #2。
+    auto elem_or_record_post_retval =
+        [](llvm::IRBuilder<> &builder, llvm::Function *dstfun, llvm::Value *cval) {
+        // int to object result
+        // qDebug()<<builder.getInt32Ty()->getPrimitiveSizeInBits();
+        void *ioret = calloc(1, builder.getInt32Ty()->getPrimitiveSizeInBits()/8);
+        memset(ioret, 0, builder.getInt32Ty()->getPrimitiveSizeInBits()/8);
+        llvm::Constant *lcv = builder.getInt64((int64_t)ioret);
+        llvm::Value *lvv = llvm::ConstantExpr::getIntToPtr(lcv, builder.getVoidTy()->getPointerTo());
+        // llvm::Value *unrefv = builder.CreateLoad(lvv);
+        llvm::Value *stv = builder.CreateStore(cval, lvv);
+        builder.CreateRet(lvv);
+    };
+    
+    if (dstfun->hasStructRetAttr()) {
+        rebuilder.CreateRet(callee_arg_values.at(0));
+    } else if (dstfun->doesNotReturn()
+               || (llvm::IRBuilder<>(mod->getContext())).getVoidTy() == dstfun->getReturnType()
+               // || dstfun->getReturnType() == builder.getVoidTy()
+               || dstfun->getReturnType()->isVoidTy()) {
+        rebuilder.CreateRetVoid();
+    } else {
+        // 还有一种方式，在ctrlengine中实现的，目前先不在这实现。
+        // 不过ctrlengine和OperatorEngine两边差不多复杂，只是OperatorEngine还需要传递额外的数据才能处理。
+        // 放在这里处理的好处是只需要改这一个地方，在ctrlengine中所有的Clvm::execute2调用处都需要处理。
+        if (symbol == "_ZNK7QWidget10sizePolicyEv") {
+            // elem_or_record_post_retval(rebuilder, dstfun, cval);
+        } else {
+
+        }
+
+        // 如何检测cval是有效的呢？
+        rebuilder.CreateRet(cval);
+    }
+
+    qDebug()<<"operator bind done."<<lamsym;
+    // mod->dump();
+    DUMP_IR(mod);
+
+    return remod;
+    return NULL;
+    // lamsym = QString(lamname);
+    // return lamsym;
 }
 
 
@@ -552,6 +732,62 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass, v
 }
 
 
+llvm::Module *OperatorEngine::bind(llvm::Module *mod, QString klass, void *kthis)
+{
+    QString lamsym;
+    QString symbol;
+
+    llvm::Module *remod = this->createRemod(mod);
+    symbol = QString::fromStdString(mod->getName().str());
+    symbol = symbol.right(symbol.length() - strlen("qtmod"));
+
+    // llvm::LLVMContext &vmctx = mod->getContext();
+    // llvm::IRBuilder<> builder(mod->getContext());
+    llvm::IRBuilder<> rebuilder(remod->getContext());
+    llvm::Function *dstfun = mod->getFunction(symbol.toLatin1().data());
+    llvm::Function *lamfun = NULL;
+    const char *lamname = "jit_main"; // TODO, rt mangle
+    lamname = remod->getName().str().c_str();
+    
+    auto c_lamfun = remod->getOrInsertFunction(lamname, rebuilder.getVoidTy()->getPointerTo(), NULL);
+    lamfun = (decltype(lamfun))(c_lamfun); // cast it
+    rebuilder.SetInsertPoint(llvm::BasicBlock::Create(remod->getContext(), "ddd", lamfun));
+    
+    std::vector<llvm::Value*> callee_arg_values;
+    if (kthis == NULL) {
+        qFatal("kthis can not be NULL");
+    } else {
+        llvm::Type *thisTy = this->uniqTy(mod, QString("class.%1").arg(klass));
+        qDebug()<<klass<<thisTy;
+        assert(thisTy != NULL);
+        // TODO 想办法使用真实的thisTy类型
+        if (thisTy == NULL) {
+            thisTy = rebuilder.getVoidTy()->getPointerTo();
+        }
+        // 在32位系统上crash，可能是因为这里直接使用了64位整数。(已验证，果然是这个问题）
+        // 应该是在23位系统上不能直接使用int64_t表示指针，而64位系统可以。
+        // 一般显示为llvm::TargetLowering::LowerCallTo中crash
+        // callee_arg_values.push_back(llvm::ConstantInt::get(builder.getInt64Ty(), (int64_t)kthis));
+        llvm::Constant *lc = llvm::ConstantInt::get(rebuilder.getInt64Ty(), (int64_t)kthis);
+        llvm::Constant *lv = llvm::ConstantExpr::getIntToPtr(lc, thisTy->getPointerTo());
+        callee_arg_values.push_back(lv);
+    }
+
+    llvm::ArrayRef<llvm::Value*> callee_arg_values_ref(callee_arg_values);
+    llvm::CallInst *cval = rebuilder.CreateCall(dstfun, callee_arg_values_ref);
+    rebuilder.CreateRetVoid();
+
+    qDebug()<<"operator dtor bind done."<<lamsym;
+    // mod->dump();
+    DUMP_IR(mod);
+
+    lamsym = QString(lamname);
+    return remod;
+    // return lamsym;
+    // return QString();
+}
+
+
 void OperatorEngine::elem_or_record_post_return()
 {
 }
@@ -576,3 +812,20 @@ llvm::DataLayout *OperatorEngine::getDataLayout(llvm::Module *mod)
     // qDebug()<<mod->getDataLayout()->getStringRepresentation().c_str();
     return pdlo;
 }
+
+llvm::Module *OperatorEngine::createRemod(llvm::Module *mod)
+{
+    QString modname = QString::fromStdString(mod->getName().str()).replace("qtmod", "remod");
+    llvm::LLVMContext *mvmctx = new llvm::LLVMContext();
+    llvm::Module *remod = new llvm::Module(modname.toStdString(), *mvmctx);
+    llvm::DataLayout *dlo = this->getDataLayout(mod);
+    // mmod->setDataLayout(ctx.getTargetInfo().getTargetDescription());
+    remod->setDataLayout(dlo);
+
+    QString rename = QString::fromStdString(remod->getName().str())/*.replace("remod", "runpxy")*/;
+    llvm::IRBuilder<> builder(*mvmctx);
+    remod->getOrInsertFunction(rename.toLatin1().data(), builder.getVoidTy()->getPointerTo(), NULL);
+    
+    return remod;
+}
+

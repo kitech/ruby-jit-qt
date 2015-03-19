@@ -988,6 +988,27 @@ QString CompilerEngine::mangle_method(clang::ASTContext &ctx, clang::CXXMethodDe
     return QString();
 }
 
+QString CompilerEngine::mangle_symbol(clang::ASTContext &ctx, clang::FunctionDecl *decl)
+{
+    clang::MangleContext *mgctx = ctx.createMangleContext();
+    std::string str; llvm::raw_string_ostream stm(str);
+
+    if (llvm::isa<clang::CXXConstructorDecl>(decl)) {
+        mgctx->mangleCXXCtor(llvm::cast<clang::CXXConstructorDecl>(decl), clang::Ctor_Base, stm);
+    } else if (llvm::isa<clang::CXXDestructorDecl>(decl)) {
+        mgctx->mangleCXXDtor(llvm::cast<clang::CXXDestructorDecl>(decl), clang::Dtor_Base, stm);
+    } else if (llvm::isa<clang::CXXMethodDecl>(decl)) {
+        mgctx->mangleCXXName(decl, stm);
+    } else if (llvm::isa<clang::FunctionDecl>(decl)) {
+        mgctx->mangleCXXName(decl, stm);
+    } else {
+        qFatal("not support.");
+    }
+
+    return QString::fromStdString(stm.str());
+}
+
+
 llvm::Module* 
 CompilerEngine::conv_ctor2(clang::ASTUnit *unit, clang::CXXConstructorDecl *ctor,
                            QVector<QVariant> dargs)
@@ -2003,11 +2024,13 @@ CompilerEngine::createCompilerUnit(clang::ASTUnit *unit, clang::NamedDecl *decl)
     qDebug()<<"exceptions:"<<langopt.Exceptions;
     // qFatal("aaaaaaaaaaaaaaaaaaaaaa");
     
-    clang::ASTContext * nctx = new clang::ASTContext(langopt, ctx.getSourceManager(), ctx.Idents, ctx.Selectors, ctx.BuiltinInfo);
+    clang::ASTContext *nctx = new clang::ASTContext(langopt, ctx.getSourceManager(), ctx.Idents, ctx.Selectors, ctx.BuiltinInfo);
     clang::ASTContext &lctx = *nctx;
 
+    QString modname = QString("qtmod%1").arg(this->mangle_symbol(ctx, llvm::cast<clang::FunctionDecl>(decl)));
     cu->mvmctx = new llvm::LLVMContext();
-    cu->mmod = new llvm::Module("piecegen2", *cu->mvmctx);
+    // cu->mmod = new llvm::Module("piecegen2", *cu->mvmctx);
+    cu->mmod = new llvm::Module(modname.toStdString(), *cu->mvmctx);
     cu->mmod->setDataLayout(ctx.getTargetInfo().getTargetDescription());
 
     qDebug()<<ctx.getTargetInfo().getTargetDescription();

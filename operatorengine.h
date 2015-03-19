@@ -35,8 +35,14 @@ public:
                  QVector<QVariant> uargs, QVector<QVariant> dargs,
                  QVector<MetaTypeVariant> mtdargs,
                  bool is_static, void *kthis);
+    // 返回一个新的Module对象，并且入口symbol的名字就是Module的名字，类似remod_xxxxx
+    llvm::Module *bind(llvm::Module *mod, QString klass,
+                        QVector<QVariant> uargs, QVector<QVariant> dargs,
+                        QVector<MetaTypeVariant> mtdargs,
+                        bool is_static, void *kthis);
     // for dtor
     QString bind(llvm::Module *mod, QString symbol, QString klass, void *kthis);
+    llvm::Module *bind(llvm::Module *mod, QString klass, void *kthis);
     // 针对有些需要返回record类对象的方法，却返回了i32，这时需要做一个后处理。see issue #2。
     void elem_or_record_post_return();
     
@@ -56,6 +62,8 @@ private:
     // 假设已经有InsertPoint
     QHash<QString, llvm::Value*>
     darg_instcpy(llvm::Module *mod, llvm::IRBuilder<> &builder);
+
+    llvm::Module *createRemod(llvm::Module *mod);
 };
 
 #endif /* OPERATORENGINE_H */
