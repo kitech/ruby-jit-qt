@@ -241,7 +241,9 @@ bool ClvmEngine::initExecutionEngine()
     }
     */
     llvm::MCJIT *jee = llvm::cast<llvm::MCJIT>(EE);
-    mman = new ModuleManager(EE);
+    // mman = new ModuleManager(EE); 
+    mman = ModuleManager::inst();
+    mman->mee = EE;
     
     return true;
 }
@@ -363,7 +365,8 @@ llvm::GenericValue ClvmEngine::execute3(llvm::Module *mod, QString func_entry, C
 
     mangle_name = QString::fromStdString(remod->getName().str());
     etyfn = remod->getFunction(mangle_name.toStdString());
-
+    qDebug()<<"our fun:"<<func_entry<<mangle_name<<etyfn;
+    
     std::vector<llvm::GenericValue> args;
     llvm::GenericValue rgv = EE->runFunction(etyfn, args);
     // qDebug()<<"err:"<<errstr.c_str();

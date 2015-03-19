@@ -28,6 +28,12 @@ private:
     __DSingletonClass(int a, char b, const char *c)
     {
     }
+    __DSingletonClass()
+    {
+    }
+    void init(int a, char b, const char *c)
+    {
+    }
 };
 
 void __test_macrolib()

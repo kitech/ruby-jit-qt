@@ -59,6 +59,7 @@ public:
         return Singleton::m_inst;
     }
 
+    // 带参数的类行为有点问题。
     // need c++11
     // inst() with varidic template argument.
     template<typename... Arguments>
@@ -67,11 +68,18 @@ public:
         if (Singleton<T>::m_inst == NULL) {
             pthread_mutex_lock(&Singleton<T>::m_mutex);
             if (Singleton<T>::m_inst == NULL) {
-                Singleton<T>::m_inst = new T(parameters...);
+                Singleton<T>::m_inst = new T(/*parameters...*/);
+                Singleton<T>::m_inst->init(parameters...);
             }
             pthread_mutex_unlock(&Singleton<T>::m_mutex);
         }
         
+        return Singleton<T>::m_inst;
+    }
+
+    template<typename... Arguments>
+    T *init(Arguments... parameters)
+    {
         return Singleton<T>::m_inst;
     }
 
