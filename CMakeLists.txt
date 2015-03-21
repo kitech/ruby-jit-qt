@@ -53,6 +53,7 @@ set(handby_lib_SRCS
 #  llvm-3.5.0.src/tools/clang/lib/CodeGen/CodeGenFunction.cpp
 #    go/vmgo.cpp
     go/goinit.cpp
+    go/marshallgo.cpp
     extinit.cpp
     ruby/rubyinit.cpp
     ruby_cxx.cpp

@@ -51,19 +51,56 @@ func test() {
 
 	var gvs *C.GoVarArray = C.newGoVarArray(5)
 	C.setElem(gvs, 1, gv)
+
+	C.gx_Qt_class_new(1, unsafe.Pointer(gvs), gv.star)
 	
 	G_USED(gv)
 }
 
 func init() {
 	C.Init_forgo()
-	Log("fffffffff")
 }
+
 
 func Initialize(args... interface{}) unsafe.Pointer {
 	var finit func()()
 	G_USED(finit)
 
+	// 根据调用栈获取Qt类名
+	var getClassName = func () string {
+		var pc = make([]uintptr, 5)
+		runtime.Callers(0, pc)
+		fn := runtime.FuncForPC(pc[3])
+		cname := "Q" + fn.Name()[6:] // qt.NewString => QString
+		
+		return cname
+	}
+	G_USED(getClassName)
+	// 获取调用者返回值类型，可能取不到啊。
+	var getReturnType = func () reflect.Type {
+		var pc = make([]uintptr, 5)
+		runtime.Callers(0, pc)
+		fn := runtime.FuncForPC(pc[3])
+		Log(fn.Name())
+		rfn := reflect.TypeOf(fn)
+
+		return rfn
+	}
+	G_USED(getReturnType)
+	
+	var gvs *C.GoVarArray = C.newGoVarArray(1)
+	var gv *C.GoVar = C.newGoVar()
+	gv.kind = C.Int32Ty
+	C.setElem(gvs, 0, gv);
+
+	klass := getClassName()
+	cklass := C.CString(klass)
+	defer C.free(unsafe.Pointer(cklass))
+
+	Log("abc:", getReturnType())
+	
+	o := C.gx_Qt_class_new(1, unsafe.Pointer(gvs), unsafe.Pointer(cklass))
+	Log(o, reflect.TypeOf(o))
 	
 	return nil
 }

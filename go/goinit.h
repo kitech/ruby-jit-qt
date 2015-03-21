@@ -16,7 +16,15 @@ protected:
     class CtrlEngine *gce = NULL;
     
 public:
-    
+    void *Qt_class_new(int argc, void *argv, void *klass);
+    /*
+    VALUE Qt_class_init(int argc, VALUE *argv, VALUE self);
+    VALUE Qt_class_dtor(VALUE id);
+    VALUE Qt_class_to_s(int argc, VALUE *argv, VALUE self);
+    VALUE Qt_class_const_missing(int argc, VALUE *argv, VALUE self);
+    VALUE Qt_class_method_missing(int argc, VALUE *argv, VALUE self);
+    VALUE Qt_class_singleton_method_missing(int argc, VALUE *argv, VALUE self);
+    */
 public: // register
     
 protected:
