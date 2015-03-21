@@ -51,6 +51,8 @@ include_directories(${CLANG_SRC_DIR2}/lib/CodeGen ${CLANG_SRC_DIR2}/lib/ ${LLVM_
 set(handby_lib_SRCS
 #  llvm-3.5.0.src/tools/clang/lib/CodeGen/CodeGenModule.cpp
 #  llvm-3.5.0.src/tools/clang/lib/CodeGen/CodeGenFunction.cpp
+#    go/vmgo.cpp
+    go/goinit.cpp
     extinit.cpp
     ruby/rubyinit.cpp
     ruby_cxx.cpp
