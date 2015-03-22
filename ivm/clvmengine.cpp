@@ -333,7 +333,7 @@ llvm::GenericValue ClvmEngine::execute3(llvm::Module *mod, QString func_entry, C
     llvm::Module *remod = cu->remod;
 
     mman->add(QString::fromStdString(mod->getName().str()), mod);
-    mman->add(QString::fromStdString(remod->getName().str()), remod);
+    // mman->add(QString::fromStdString(remod->getName().str()), remod);
     
     EE->finalizeObject();
     EE->runStaticConstructorsDestructors(false);
@@ -361,9 +361,10 @@ llvm::GenericValue ClvmEngine::execute3(llvm::Module *mod, QString func_entry, C
     }
     qDebug()<<"our fun:"<<func_entry<<mangle_name<<etyfn;
 
-    mangle_name = QString::fromStdString(remod->getName().str());
-    etyfn = remod->getFunction(mangle_name.toStdString());
-    qDebug()<<"our fun:"<<func_entry<<mangle_name<<etyfn;
+    // 由于remod还没有完成，暂时忽略新的执行方式。
+    QString mangle_name2 = QString::fromStdString(remod->getName().str());
+    llvm::Function *etyfn2 = remod->getFunction(mangle_name2.toStdString());
+    qDebug()<<"our fun:"<<func_entry<<mangle_name2<<etyfn2;
     
     std::vector<llvm::GenericValue> args;
     llvm::GenericValue rgv = EE->runFunction(etyfn, args);
@@ -372,8 +373,8 @@ llvm::GenericValue ClvmEngine::execute3(llvm::Module *mod, QString func_entry, C
     EE->runStaticConstructorsDestructors(true);
     // cleanups
     bool bret = false;
-    bret = mman->remove(QString::fromStdString(remod->getName().str()));
-    // bret &= mman->remove(QString::fromStdString(mod->getName().str()));
+    // bret |= mman->remove(QString::fromStdString(remod->getName().str()));
+    bret |= mman->remove(QString::fromStdString(mod->getName().str()));
     qDebug()<<bret;
 
     qDebug()<<"run code done."<<llvm::GVTOP(rgv)<<rgv.IntVal.getZExtValue();
