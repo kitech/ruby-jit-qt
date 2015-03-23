@@ -11,7 +11,8 @@ extern "C" {
 
     void Init_forgo();
     void *gx_Qt_class_new(int argc,  void *argv, void *self);
-
+    void *gx_Qt_class_method_missing(int argc, void *argv, void *obj);
+    
 #ifdef __cplusplus
 };
 #endif

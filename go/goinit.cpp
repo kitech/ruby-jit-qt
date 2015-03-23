@@ -16,6 +16,8 @@ extern "C" void Init_forgo()
 extern "C" void *gx_Qt_class_new(int argc,  void *argv, void *self)
 { return goinit->Qt_class_new(argc, argv, self); }
 
+extern "C" void *gx_Qt_class_method_missing(int argc, void *argv, void *obj)
+{ return goinit->Qt_class_method_missing(argc, argv, obj); }
 
 void GoInit::initialize()
 {
@@ -30,15 +32,15 @@ void GoInit::initialize()
 void *GoInit::Qt_class_new(int argc, void *argv, void *klass)
 {
     EARGS(argv, klass);
-    qDebug()<<vars->n<<cls;
+    qDebug()<<argc<<vars->n<<cls;
 
     // return 0;
     QVector<QVariant> uargs;
 
     if (cls == "QApplication") {
-        uargs.append(QVariant(1));
+        uargs.append(QVariant(0));
         QStringList sl;
-        sl << "progname";
+        // sl << "main";
         uargs.append(sl);
     }
     
@@ -48,3 +50,23 @@ void *GoInit::Qt_class_new(int argc, void *argv, void *klass)
     return 0;
 }
 
+void *GoInit::Qt_class_method_missing(int argc, void *argv, void *obj)
+{
+    GoVarArray *vars = (GoVarArray*)argv;
+    qDebug()<<argc<<vars;
+
+    GoVar *var;
+
+    var = vars->vars[0];
+    QString klass_name = QString((char*)(var->str));
+    qDebug()<<klass_name;
+    
+    var = vars->vars[1];
+    QString method_name = QString((char*)(var->str));
+    qDebug()<<(char*)(var->str)<<method_name;
+
+    QVector<QVariant> uargs;
+    QVariant rv = gce->vm_call(obj, klass_name, method_name, uargs);
+    
+    return 0;
+}

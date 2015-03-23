@@ -2,6 +2,7 @@
 #define VTYPE_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 enum {
     Invalid = 0,
@@ -33,6 +34,10 @@ enum {
     UnsafePointerTy,
 };
 
+#ifdef __cplusplus
+#define _Bool bool
+#endif
+
 typedef struct _GoVar {
     int kind;
     uint32_t ukind;
@@ -41,11 +46,12 @@ typedef struct _GoVar {
     void *goval; // from reflect.TypeOf()
     
     // union {
-        // _Bool b;
+        _Bool b;
         int i32;
         uint32_t ui32;
         int64_t i64;
         uint64_t ui64;
+        float  f32;
         char *str;
         void *star;
     // } v;
@@ -55,6 +61,7 @@ typedef struct _GoVarArray {
     GoVar **vars;
     int n;
 } GoVarArray;
+
 
 #ifdef __cplusplus
 extern "C" {

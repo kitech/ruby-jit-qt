@@ -17,6 +17,7 @@ protected:
     
 public:
     void *Qt_class_new(int argc, void *argv, void *klass);
+    void *Qt_class_method_missing(int argc, void *argv, void *obj);
     /*
     VALUE Qt_class_init(int argc, VALUE *argv, VALUE self);
     VALUE Qt_class_dtor(VALUE id);
