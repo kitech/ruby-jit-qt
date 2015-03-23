@@ -2,14 +2,45 @@ package eg;
 
 import (
 	"unsafe"
+	// "reflect"
 )
 // import "qgc"
 import "dynamic"
 
-
 type QString struct {	
 	X unsafe.Pointer
 	b dynamic.QClass
+
+	// AStaticMethod func(args... interface{}) interface{}
+}
+
+// 这种常量可能在编译时就替换成实际值了，运行时取不到相关常量信息
+type EQString int;
+const KeepEmptyParts EQString = 0;
+
+// Enum method, use like this: eg.QString.KeepEmptyparts;
+// 在什么时间执行求值调用呢？
+// 当作参数的时候没有问题，可以在处理参数的时候求值。
+// 其他给变量的时候不好处理。
+func (rthis QString) KeepEmptyParts() int {
+	return dynamic.ConstMissing()
+}
+
+// 3种可能的静态方法调用封装API
+// Static method, use liks this: eg.QString.StaticMethod(eg.QString{}, ...);
+func (QString) AStaticMethod(args... interface{}) interface{} {
+	return dynamic.SingletonMethodMissing(nil, args...);
+	return 0;
+}
+func (rthis *QString) AStaticMethod2(args... interface{}) interface{} {
+	return dynamic.SingletonMethodMissing(rthis, args...);
+	return 0;
+}
+func QString__AStaticMethod(args... interface{}) interface{} {
+	return dynamic.SingletonMethodMissing(nil, args...);
+}
+func QString_AStaticMethod(args... interface{}) interface{} {
+	return dynamic.SingletonMethodMissing(nil, args...);
 }
 
 func NewString(args... interface{}) *QString {
@@ -33,6 +64,10 @@ func (this *QString) AnyCall(args... interface{}) interface{} {
 	return dynamic.MethodMissing(this, args...)
 }
 
+/*
+	func (this *QString) KeepEmptyParts() {
+}
+*/
 
 ////////////
 type QApplication struct {

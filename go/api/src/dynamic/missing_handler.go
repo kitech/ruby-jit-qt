@@ -214,3 +214,13 @@ func MethodMissing(this interface{}, args... interface{}) interface{} {
 	return 5
 }
 
+// 静态类方法调用
+func SingletonMethodMissing(rthis interface{}, args... interface{}) interface{} {
+	
+	return 6;
+}
+
+// 常量求值
+func ConstMissing() int {
+	return 123;
+}
