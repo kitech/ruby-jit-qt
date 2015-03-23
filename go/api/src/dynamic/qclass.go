@@ -1,4 +1,4 @@
-package qgc;
+package dynamic;
 
 import "unsafe"
 

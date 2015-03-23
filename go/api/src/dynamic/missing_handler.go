@@ -1,4 +1,4 @@
-package qgc;
+package dynamic;
 
 /*
 // 可重复
@@ -125,6 +125,15 @@ func getCallerName() string {
 	
 	return name
 	return ""
+}
+
+// private
+func getCurrentFunctionName() string {
+	pc := make([]uintptr, 10)
+	runtime.Callers(2, pc)
+	f := runtime.FuncForPC(pc[0])
+	//fmt.Println(f.Name())
+	return f.Name()
 }
 
 /*

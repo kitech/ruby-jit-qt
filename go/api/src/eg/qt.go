@@ -3,16 +3,17 @@ package eg;
 import (
 	"unsafe"
 )
-import "qgc"
+// import "qgc"
+import "dynamic"
 
 
 type QString struct {	
 	X unsafe.Pointer
-	b qgc.QClass
+	b dynamic.QClass
 }
 
 func NewString(args... interface{}) *QString {
-	x := qgc.Initialize(args...)
+	x := dynamic.Initialize(args...)
 	rv := new(QString)
 	rv.X = x
 	rv.b.X = x
@@ -21,15 +22,15 @@ func NewString(args... interface{}) *QString {
 }
 
 func (this *QString) Free() {
-	qgc.Destructor(this.X)
+	dynamic.Destructor(this.X)
 }
 
 func (this *QString) Length(args... interface{}) interface{} {
-	return qgc.MethodMissing(this, args...)
+	return dynamic.MethodMissing(this, args...)
 }
 
 func (this *QString) AnyCall(args... interface{}) interface{} {
-	return qgc.MethodMissing(this, args...)
+	return dynamic.MethodMissing(this, args...)
 }
 
 
@@ -39,26 +40,26 @@ type QApplication struct {
 }
 
 func NewApplication(args... interface{}) *QApplication {
-	x := qgc.Initialize(args...)
+	x := dynamic.Initialize(args...)
 	rv := new(QApplication)
 	rv.X = x
 	return rv
 }
 
 func (this *QApplication) Free() {
-	qgc.Destructor(this.X)
+	dynamic.Destructor(this.X)
 }
 
 func (this *QApplication) Length(args... interface{}) interface{} {
-	return qgc.MethodMissing(this, args...)
+	return dynamic.MethodMissing(this, args...)
 }
 
 func (this *QApplication) Exec(args... interface{}) interface{} {
-	return qgc.MethodMissing(this, args...)
+	return dynamic.MethodMissing(this, args...)
 }
 
 func (this *QApplication) AnyCall(args... interface{}) interface{} {
-	return qgc.MethodMissing(this, args...)
+	return dynamic.MethodMissing(this, args...)
 }
 
 ////////////
@@ -67,24 +68,24 @@ type QWidget struct {
 }
 
 func NewWidget(args... interface{}) *QWidget {
-	x := qgc.Initialize(args...)
+	x := dynamic.Initialize(args...)
 	rv := new(QWidget)
 	rv.X = x
 	return rv
 }
 
 func (this *QWidget) Free() {
-	qgc.Destructor(this.X)
+	dynamic.Destructor(this.X)
 }
 
 func (this *QWidget) Length(args... interface{}) interface{} {
-	return qgc.MethodMissing(this, args...)
+	return dynamic.MethodMissing(this, args...)
 }
 
 func (this *QWidget) Show(args... interface{}) interface{} {
-	return qgc.MethodMissing(this, args...)
+	return dynamic.MethodMissing(this, args...)
 }
 
 func (this *QWidget) AnyCall(args... interface{}) interface{} {
-	return qgc.MethodMissing(this, args...)
+	return dynamic.MethodMissing(this, args...)
 }
