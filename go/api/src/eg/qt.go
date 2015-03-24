@@ -124,3 +124,10 @@ func (this *QWidget) Show(args... interface{}) interface{} {
 func (this *QWidget) AnyCall(args... interface{}) interface{} {
 	return dynamic.MethodMissing(this, args...)
 }
+
+
+//////////普通函数
+func QMax() {
+
+}
+

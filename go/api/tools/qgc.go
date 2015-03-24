@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	qgc.Main()
+	qgc.DynamicMain()
 }

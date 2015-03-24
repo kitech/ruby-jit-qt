@@ -24,16 +24,7 @@ import (
 func G_USED(vars ...interface{}) {}
 var glog = log.New(os.Stdout, "", log.LstdFlags | log.Lshortfile)
 
-
-type CodeGen struct {
-
-}
-
-func (this *CodeGen) genParam(param interface{}) string {
-
-	return ""
-}
-
+////////////////
 type QtCalls struct {
 	klass string
 	mths map[string]*ast.CallExpr // method_name => CallExpr
