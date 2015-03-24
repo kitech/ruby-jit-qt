@@ -220,7 +220,18 @@ func SingletonMethodMissing(rthis interface{}, args... interface{}) interface{} 
 	return 6;
 }
 
-// 常量求值
-func ConstMissing() int {
+// 类常量求值
+func SingletonConstMissing() int {
+	return 567;
+}
+
+// 全局qt函数调用
+func QtFunctionMissing(args... interface{}) interface{} {
+
+	return 7;
+}
+
+// qt常量求值
+func QtConstMissing() int {
 	return 123;
 }

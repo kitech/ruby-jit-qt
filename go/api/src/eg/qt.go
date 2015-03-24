@@ -18,12 +18,17 @@ type QString struct {
 type EQString int;
 const KeepEmptyParts EQString = 0;
 
-// Enum method, use like this: eg.QString.KeepEmptyparts;
+// class Enum method, use like this: eg.QString.KeepEmptyparts;
 // 在什么时间执行求值调用呢？
 // 当作参数的时候没有问题，可以在处理参数的时候求值。
 // 其他给变量的时候不好处理。
 func (rthis QString) KeepEmptyParts() int {
-	return dynamic.ConstMissing()
+	return dynamic.SingletonConstMissing()
+}
+
+// qt global Enum method, use like this: eg.AlignLeft
+func AlignLeft() int {
+	return dynamic.QtConstMissing();
 }
 
 // 3种可能的静态方法调用封装API
@@ -41,6 +46,10 @@ func QString__AStaticMethod(args... interface{}) interface{} {
 }
 func QString_AStaticMethod(args... interface{}) interface{} {
 	return dynamic.SingletonMethodMissing(nil, args...);
+}
+
+func QMax(args... interface{}) interface{} {
+	return dynamic.QtFunctionMissing(args...);
 }
 
 func NewString(args... interface{}) *QString {

@@ -149,42 +149,125 @@ func (this *CodeGen) genMethod(klass, mth string) string {
 	return ""
 }
 
-func (this *CodeGen) genStaticMethod(param interface{}) string {
+func (this *CodeGen) genStaticMethod(klass, mthname string) string {
+	tpl := "func Q{{.Klass}}_{{.Method}}(args... interface{}) interface{} {\n" +
+		"  return dynamic.SingletonMethodMissing(nil, args...);\n" +
+		"}\n" +
+		""
+	
+	type header struct {
+		Klass string
+		Method string
+	}
+	var tbuf bytes.Buffer
+	t, _ := template.New("header").Parse(tpl)
+	t.Execute(&tbuf, header{klass, mthname})
+
+	this.buf.WriteString(tbuf.String())
+	glog.Println(klass, mthname)
 
 	return ""
 }
 
-func (this *CodeGen) genStaticMethod2(param interface{}) string {
+func (this *CodeGen) genStaticMethod2(klass, mthname string) string {
+	tpl := "func (rthis *Q{{.Klass}}) {{.Method}}2(args... interface{}) interface{} {\n" +
+		"  return dynamic.SingletonMethodMissing(rthis, args...);\n" +
+		"}\n" +
+		""
+	
+	type header struct {
+		Klass string
+		Method string
+	}
+	var tbuf bytes.Buffer
+	t, _ := template.New("header").Parse(tpl)
+	t.Execute(&tbuf, header{klass, mthname})
+
+	this.buf.WriteString(tbuf.String())
+	glog.Println(klass, mthname)
 
 	return ""
 }
 
-func (this *CodeGen) genStaticMethod3(param interface{}) string {
+func (this *CodeGen) genStaticMethod3(klass, mthname string) string {
+	tpl := "func (Q{{.Klass}}) {{.Method}}(args... interface{}) interface{} {\n" +
+	"  return dynamic.SingletonMethodMissing(nil, args...);\n" +
+	"}\n" +
+	""
+	
+	type header struct {
+		Klass string
+		Method string
+	}
+	var tbuf bytes.Buffer
+	t, _ := template.New("header").Parse(tpl)
+	t.Execute(&tbuf, header{klass, mthname})
+
+	this.buf.WriteString(tbuf.String())
+	glog.Println(klass, mthname)
 
 	return ""
 }
 
 
-func (this *CodeGen) genClassConstant(param interface{}) string {
+func (this *CodeGen) genClassConstant(klass, ename string) string {
+	tpl := "func (Q{{.Klass}}) {{.Name}}() int {\n" +
+		"  return dynamic.SingletonConstMissing()\n" +
+		"}\n" +
+		""
 
+	type header struct {
+		Klass string
+		Name string
+	}
+	var tbuf bytes.Buffer
+	t, _ := template.New("header").Parse(tpl)
+	t.Execute(&tbuf, header{klass, ename})
+
+	this.buf.WriteString(tbuf.String())
+	glog.Println(klass, ename)
+	
 	return ""
 }
 
 
-func (this *CodeGen) genFunction(param interface{}) string {
+func (this *CodeGen) genFunction(fname string) string {
+
+	tpl := "func {{.Name}}(args... interface{}) interface{} {\n" +
+		"  return dynamic.QtFunctionMissing(args...);\n" +
+		"}\n" +
+		""
+	
+	type header struct {
+		Name string
+	}
+	var tbuf bytes.Buffer
+	t, _ := template.New("header").Parse(tpl)
+	t.Execute(&tbuf, header{fname})
+
+	this.buf.WriteString(tbuf.String())
 
 	return ""
 }
 
-func (this *CodeGen) genGlobalConstant(param interface{}) string {
+func (this *CodeGen) genGlobalConstant(ename string) string {
+	tpl := "func {{.Name}}() int {\n" +
+		"  return dynamic.QtConstMissing();\n" +
+		"}\n" +
+		""
+	type header struct {
+		Name string
+	}
+	var tbuf bytes.Buffer
+	t, _ := template.New("header").Parse(tpl)
+	t.Execute(&tbuf, header{ename})
 
+	this.buf.WriteString(tbuf.String())
+	glog.Println(ename)
+	
 	return ""
 }
 
-func (this *CodeGen) genParam(param interface{}) string {
-
-	return ""
-}
 
 ////////////////
 type DynamicQtCalls struct {
@@ -262,9 +345,54 @@ func (this *DynamicVisitor) processCallee(ce *ast.CallExpr) {
 		glog.Println("method.......:", klass, mthname)
 
 		this.cg.genMethod(klass, mthname)
+	} else if this.isStaticMethodCall(ce) {
+		glog.Println("static methoddddddddddd:", ce.Fun)
+		fn := ce.Fun.(*ast.SelectorExpr)
+		mthname := strings.Split(this.getSelectorString(fn), "_")[1]
+		klass := strings.Split(this.getSelectorString(fn), "_")[0][4:]
+		glog.Println("static method.......:", klass, mthname)
+
+		this.cg.genStaticMethod(klass, mthname)
+		this.cg.genStaticMethod2(klass, mthname)
+		this.cg.genStaticMethod3(klass, mthname)
+
+	} else if this.isQtFunctionCall(ce) {
+		glog.Println("qt functionnnnnnnnnnnn:", ce.Fun)
+		fn := ce.Fun.(*ast.SelectorExpr)
+		fname := strings.Split(this.getSelectorString(fn), ".")[1]
+		glog.Println("function .......:", fname)
+
+		this.cg.genFunction(fname)
 	} else {
-		glog.Println("unknown call type:", ce.Fun)
+		glog.Println(this.isStaticMethodCall(ce))
+		glog.Println(this.isQtFunctionCall(ce))
+		glog.Println("unknown call type:", ce.Fun, reflect.TypeOf(ce.Fun))
 	}
+}
+
+// 是否是静态方法调用
+func (this *DynamicVisitor) isStaticMethodCall(ce *ast.CallExpr) bool {
+
+	str := this.getSelectorString(ce.Fun.(*ast.SelectorExpr))
+	// qt.QString_Number
+	// using regex???
+
+	if strings.HasPrefix(str, "qt.Q") && len(strings.Split(str, "_")) == 2 {
+		return true
+	}
+	
+	return false
+}
+
+func (this *DynamicVisitor) isQtFunctionCall(ce *ast.CallExpr) bool {
+	str := this.getSelectorString(ce.Fun.(*ast.SelectorExpr))
+	// qt.QMax
+	// glog.Println(strings.Split(str, "_"))
+	if strings.HasPrefix(str, "qt.Q") && len(strings.Split(str, "_")) == 1 {
+		return true
+	}
+	
+	return false
 }
 
 
