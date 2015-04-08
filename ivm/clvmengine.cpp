@@ -248,6 +248,26 @@ bool ClvmEngine::initExecutionEngine()
     return true;
 }
 
+
+llvm::ExecutionEngine *ClvmEngine::createEE(llvm::Module *mod)
+{
+    // run module
+    std::unique_ptr<llvm::Module> tmod(mod);
+    llvm::EngineBuilder eb(std::move(tmod));
+    
+    std::string errstr;    
+    eb.setErrorStr(&errstr);
+    // eb.setUseMCJIT(true);
+
+    llvm::ExecutionEngine *EE = eb.create();
+
+    // ClvmJitListener *lsner = new ClvmJitListener();
+    if (!mlsner) mlsner = ClvmJitListener::inst();
+    EE->RegisterJITEventListener(mlsner);
+
+    return EE;
+}
+
 // 执行IR代码中的一个入口函数
 llvm::GenericValue 
 ClvmEngine::execute2(llvm::Module *mod, QString func_entry)
@@ -326,21 +346,28 @@ ClvmEngine::execute2(llvm::Module *mod, QString func_entry)
 }
 
 // 使用类变量mee多次执行IR代码。
-llvm::GenericValue ClvmEngine::execute3(llvm::Module *mod, QString func_entry, CodeUnit *cu)
+llvm::GenericValue ClvmEngine::execute3(llvm::Module */*mod*/, QString func_entry, CodeUnit *cu)
 {
-    llvm::ExecutionEngine *EE = mee;
+    // llvm::ExecutionEngine *EE = mee;
     llvm::Module *qtmod = cu->qtmod;
     llvm::Module *remod = cu->remod;
+    QString modname = QString::fromStdString(qtmod->getName().str());
 
-    mman->add(QString::fromStdString(mod->getName().str()), mod);
+    llvm::ExecutionEngine *EE = mman->hasEE(modname) ? mman->getEE(modname) : this->createEE(qtmod);
+    
+    mman->add(QString::fromStdString(qtmod->getName().str()), qtmod);
+    mman->addEE(QString::fromStdString(qtmod->getName().str()), EE);
     // mman->add(QString::fromStdString(remod->getName().str()), remod);
+    std::unique_ptr<llvm::Module> tremod(remod);
+    EE->addModule(std::move(tremod));
+    assert(tremod.get() == NULL);
     
     EE->finalizeObject();
     EE->runStaticConstructorsDestructors(false);
 
     llvm::Function *etyfn = NULL;
     QString mangle_name;
-    llvm::ValueSymbolTable &vst = mod->getValueSymbolTable();
+    llvm::ValueSymbolTable &vst = remod->getValueSymbolTable();
     for (auto sit = vst.begin(); sit != vst.end(); sit++) {
         auto k = sit->first();
         auto v = sit->second;
@@ -352,7 +379,7 @@ llvm::GenericValue ClvmEngine::execute3(llvm::Module *mod, QString func_entry, C
         }
         // if (QString(v->getName().data()).indexOf("jit_main") >= 0) {
         if (QString(v->getName().data()).indexOf(func_entry) >= 0) {
-            etyfn = mod->getFunction(v->getName());
+            etyfn = remod->getFunction(v->getName());
             mangle_name = QString(v->getName().data());
             // break;
         }
@@ -367,14 +394,15 @@ llvm::GenericValue ClvmEngine::execute3(llvm::Module *mod, QString func_entry, C
     qDebug()<<"our fun:"<<func_entry<<mangle_name2<<etyfn2;
     
     std::vector<llvm::GenericValue> args;
-    llvm::GenericValue rgv = EE->runFunction(etyfn, args);
+    llvm::GenericValue rgv = EE->runFunction(etyfn2, args);
     // qDebug()<<"err:"<<errstr.c_str();
     
     EE->runStaticConstructorsDestructors(true);
     // cleanups
     bool bret = false;
     // bret |= mman->remove(QString::fromStdString(remod->getName().str()));
-    bret |= mman->remove(QString::fromStdString(mod->getName().str()));
+    // bret |= mman->remove(QString::fromStdString(mod->getName().str()));
+    EE->removeModule(remod);
     qDebug()<<bret;
 
     qDebug()<<"run code done."<<llvm::GVTOP(rgv)<<rgv.IntVal.getZExtValue();
