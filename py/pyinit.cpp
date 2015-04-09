@@ -25,7 +25,7 @@ extern "C" void Init_forpy()
 }
 
 // 定义 python 的 model
-static struct PyModuleDef abmodule = { PyModuleDef_HEAD_INIT, "ab", NULL, -1, NULL};
+static struct PyModuleDef abModule = { PyModuleDef_HEAD_INIT, "ab", NULL, -1, NULL};
 static struct PyModuleDef qtModule = { PyModuleDef_HEAD_INIT, "qt", NULL, -1, NULL};
 static struct PyModuleDef qt5Module = { PyModuleDef_HEAD_INIT, "qt5", NULL, -1, NULL};
 
@@ -41,7 +41,7 @@ extern "C" PyObject* PyInit_ab()
     // MODDEF(qt);
     // MODDEF(qt5);
     /*
-    PyObject *pyoab = PyModule_Create(&abmodule);
+    PyObject *pyoab = PyModule_Create(&aMmodule);
     PyObject *pyoqt = PyModule_Create(&qtModule);
     PyObject *pyoqt5 = PyModule_Create(&qt5Module);
     
@@ -52,6 +52,26 @@ extern "C" PyObject* PyInit_ab()
 
 ////////////////
 
+static PyTypeObject* make_type(char *type, PyTypeObject* base, char**fields, int num_fields)
+{
+    PyObject *fnames, *result;
+    int i;
+    fnames = PyTuple_New(num_fields);
+    if (!fnames) return NULL;
+    for (i = 0; i < num_fields; i++) {
+        PyObject *field = PyUnicode_FromString(fields[i]);
+        if (!field) {
+            Py_DECREF(fnames);
+            return NULL;
+        }
+        PyTuple_SET_ITEM(fnames, i, field);
+    }
+    result = PyObject_CallFunction((PyObject*)&PyType_Type, "s(O){sOss}",
+                    type, base, "_fields", fnames, "__module__", "_ast");
+    Py_DECREF(fnames);
+    return (PyTypeObject*)result;
+}
+
 void PyInit::initialize()
 {
     qInstallMessageHandler(myMessageOutput);
@@ -59,10 +79,17 @@ void PyInit::initialize()
 
     Py_Initialize();
     static PyObject* cModuleQt = NULL;
-    cModuleQt = PyModule_Create(&qt5Module);
+    cModuleQt = PyModule_Create(&abModule);
     m_cModuleQt = cModuleQt;
 
-    
+    PyModule_AddStringConstant(cModuleQt, "hehe", "vvvvvvheheh");
+    // PyType_Type();
+
+    PyObject* dt = PyDict_New();
+    // make_type("ab.QString456", (PyTypeObject*)&PyObject_Type, NULL, 0);
+    PyObject* dyc = PyObject_CallFunction((PyObject*)&PyType_Type, "sOO",
+                  "QString456", &PyObject_Type, dt);
+    // PyModule_AddObject(cModuleQt, "QString456", dyc);
     
     /*
     // 对所有的Qt5::someconst常量的调用注册
