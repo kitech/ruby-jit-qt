@@ -11,6 +11,7 @@ Qt5+
 Bidirector Singal/Slot between Ruby and Qt  
 Support uic/rcc.  
 Easy keep update to version by version  
+Easy binding for more other languages.
 
 ###Examples
 ######widget and object
@@ -49,6 +50,6 @@ Easy keep update to version by version
     clang/llvm/IR/JIT
     Ruby C API
     Qt5
-    C++11/C++14/C++1y
+    C++11/C++14/C++1z
     
 
