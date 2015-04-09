@@ -31,6 +31,10 @@ find_package(Ruby)
 message("ruby?? ${RUBY_FOUND}, ${RUBY_INCLUDE_DIRS}, ${RUBY_LIBRARY}")
 include_directories(${RUBY_INCLUDE_DIRS} ${Qt5Core_PRIVATE_INCLUDE_DIRS})
 
+find_package(PythonLibs)
+message("python?? ${PYTHON_FOUND}, ${PYTHON_INCLUDE_DIRS}, ${PYTHON_LIBRARY}")
+include_directories(${PYTHON_INCLUDE_DIRS})
+
 exec_program(llvm-config ARGS --cxxflags 
   OUTPUT_VARIABLE CLANG_CXXFLAGS_OUTPUT RETURN_VALUE CLANG_CXXFLAGS_VALUE)
 message("clang defs: ${CLANG_CXXFLAGS_OUTPUT}")
@@ -48,10 +52,12 @@ set(LLVM_SRC_DIR2 "./llvm-3.6.0.src")  # maybe a symlink
 set(CLANG_SRC_DIR2 ${LLVM_SRC_DIR2}/tools/clang)
 include_directories(${CLANG_SRC_DIR2}/lib/CodeGen ${CLANG_SRC_DIR2}/lib/ ${LLVM_SRC_DIR2}/lib/)
 
+
 set(handby_lib_SRCS
 #  llvm-3.5.0.src/tools/clang/lib/CodeGen/CodeGenModule.cpp
 #  llvm-3.5.0.src/tools/clang/lib/CodeGen/CodeGenFunction.cpp
     extinit.cpp
+    py/pyinit.cpp
     ruby/rubyinit.cpp
     ruby_cxx.cpp
     marshallruby.cpp
@@ -122,7 +128,7 @@ set(CLANGLIBS  -lclang -lLLVM-3.6
 )
 
 add_library(handby SHARED ${handby_lib_SRCS})
-target_link_libraries(handby profiler ruby  ${CLANGLIBS})
+target_link_libraries(handby profiler ${RUBY_LIBRARY} ${PYTHON_LIBRARY} ${CLANGLIBS})
 # target_link_libraries(handby ruby -L./myllvm/lib  ${CLANGLIBS})
 qt5_use_modules(handby Core Gui Widgets Network WebSockets)
 #set_target_properties(handby PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "hdrsrc.h")
