@@ -1119,6 +1119,27 @@ llvm::Module* CompilerEngine::conv_function2(clang::ASTUnit *unit, clang::Functi
     return cu->mmod;
 }
 
+llvm::Module*
+CompilerEngine::conv_dargs(clang::ASTUnit *unit, clang::FunctionDecl *fd, QVector<QVariant> &dargs)
+{
+    auto cu = this->createCompilerUnit(unit, fd);
+
+    int cnter = -1;
+    for (auto &v: dargs) {
+        cnter ++;
+        // qDebug()<<v<<v.type()<<(int)v.type()<<v.userType();
+        int t = (int)v.type();
+        if (v.type() != QMetaType::User) continue;
+        if (v.userType() != EvalType::id) continue;
+        this->gen_darg(cu->mmod, v, cnter, fd);
+        EvalType r = v.value<EvalType>();
+        qDebug()<<v<<r.ve<<r.vv;
+    }
+    
+
+    return cu->mmod;
+}
+
 bool CompilerEngine::gen_ctor(CompilerUnit *cu, clang::CXXConstructorDecl *yactor)
 {
     // 转换到需要的参数类型
@@ -1245,7 +1266,7 @@ bool CompilerEngine::gen_dtor(CompilerUnit *cu, clang::CXXDestructorDecl *yadtor
 bool CompilerEngine::gen_darg(llvm::Module *mod, QVariant &darg, int idx, clang::FunctionDecl *fd)
 {
     CompilerUnit *cu = mcus.value(mod);
-    
+
     /*
     for (auto &v: cu->mdargs) {
         if (v.type() != EvalType::id) continue;
@@ -2045,6 +2066,9 @@ CompilerEngine::createCompilerUnit(clang::ASTUnit *unit, clang::NamedDecl *decl)
     cu->mbdecl = this->get_decl_with_body(llvm::cast<clang::CXXMethodDecl>(decl));
     qDebug()<<cu->mdecl<<cu->mbdecl<<(cu->mdecl == cu->mbdecl)<<cu->mcgm;
 
+    // 
+    mcus.insert(cu->mmod, cu);
+    
     return cu;
 }
 

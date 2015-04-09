@@ -37,14 +37,23 @@ public:
     
     bool add(QString name, llvm::Module* mod);
     bool remove(QString name);
-    bool contains(QString name);
+    bool has(QString name);
     llvm::Module *get(QString name);
     int size() { return modules.size(); }
     const QStringList keys() { return modules.keys(); }
+
+    ////
+    bool addEE(QString name, llvm::ExecutionEngine* ee);
+    bool removeEE(QString name);
+    bool hasEE(QString name);
+    llvm::ExecutionEngine *getEE(QString name);
+    int sizeEE() { return ees.size(); }
+    const QStringList keysEE() { return ees.keys(); }
     
 public:
     QHash<QString, llvm::Module*> modules; // called symbol name => Module
     // QHash<QString, llvm::Module*> entries; // entries symbol name => Module
+    QHash<QString, llvm::ExecutionEngine*> ees;
     llvm::ExecutionEngine *mee = NULL;
 };
 

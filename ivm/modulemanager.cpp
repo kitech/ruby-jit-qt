@@ -4,7 +4,7 @@
 
 bool ModuleManager::add(QString name, llvm::Module* mod)
 {
-    if (contains(name)) return true;
+    if (has(name)) return true;
 
     //////
     modules[name] = mod;
@@ -27,7 +27,7 @@ bool ModuleManager::remove(QString name)
     return true;
 }
 
-bool ModuleManager::contains(QString name)
+bool ModuleManager::has(QString name)
 {
     return modules.contains(name);
     return true;
@@ -36,4 +36,32 @@ bool ModuleManager::contains(QString name)
 llvm::Module *ModuleManager::get(QString name)
 {
     return modules.value(name);
+}
+
+/////////
+bool ModuleManager::addEE(QString name, llvm::ExecutionEngine* ee)
+{
+    if (ees.contains(name)) return true;
+    
+    this->ees[name] = ee;
+    return true;
+}
+
+bool ModuleManager::removeEE(QString name)
+{
+    llvm::ExecutionEngine *ee = ees.value(name);
+    ees.remove(name);
+    
+    return true;
+}
+
+bool ModuleManager::hasEE(QString name)
+{
+    return ees.contains(name);
+    return true;
+}
+
+llvm::ExecutionEngine *ModuleManager::getEE(QString name)
+{
+    return ees.value(name);
 }

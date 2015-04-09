@@ -74,6 +74,7 @@ set(handby_lib_SRCS
     clvm.cpp
     clvm_letacy.cpp
     ivm/clvmjitlistener.cpp
+    ivm/misc.cpp
     namelookup.cpp
     callargument.cpp
     invokestorage.cpp
