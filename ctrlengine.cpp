@@ -434,7 +434,8 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     QString lamsym = oe.bind(qtmod, symname, klass, uargs, dargs, mtdargs, mth_decl->isStatic(), kthis);
     qDebug()<<lamsym;
 
-    llvm::Module *remod = NULL;//oe.bind(qtmod, klass, uargs, dargs, mtdargs, mth_decl->isStatic(), kthis);
+    llvm::Module *remod = this->process_dargs(dargs);
+    oe.bind(qtmod, remod, klass, uargs, dargs, mtdargs, mth_decl->isStatic(), kthis);
     DUMP_IR(remod);
     CodeUnit *cu = new CodeUnit(qtmod, remod);
     
@@ -489,7 +490,8 @@ QVariant CtrlEngine::vm_static_call(QString klass, QString method, QVector<QVari
     QString lamsym = oe.bind(qtmod, symname, klass, uargs, dargs, mtdargs, mth_decl->isStatic(), NULL);
     qDebug()<<lamsym;
 
-    llvm::Module *remod = NULL;// oe.bind(qtmod, klass, uargs, dargs, mtdargs, mth_decl->isStatic(), NULL);
+    llvm::Module *remod = this->process_dargs(dargs);
+    oe.bind(qtmod, remod, klass, uargs, dargs, mtdargs, mth_decl->isStatic(), NULL);
     DUMP_IR(remod);
     CodeUnit *cu = new CodeUnit(qtmod, remod);
 
@@ -575,7 +577,8 @@ QString CtrlEngine::vm_qdebug(void *kthis, QString klass)
         QString lamsym = oe.bind(qtmod, symname, klass, uargs, dargs, mtdargs, false, NULL);
         qDebug()<<lamsym;
 
-        llvm::Module *remod = NULL; // oe.bind(qtmod, klass, uargs, dargs, mtdargs, false, NULL);
+        llvm::Module *remod = this->process_dargs(dargs);
+        oe.bind(qtmod, remod, klass, uargs, dargs, mtdargs, false, NULL);
         DUMP_IR(remod);
         CodeUnit *cu = new CodeUnit(qtmod, remod);
         
