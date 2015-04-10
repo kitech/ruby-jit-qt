@@ -81,6 +81,7 @@ protected:
     // QHash<QString, VALUE> m_classes;
     // VALUE m_cModuleQt = 0;
 public:
+    QHash<QString, PyTypeObject*> m_classes;
     PyObject* m_cModuleQt = 0;
 };
 
