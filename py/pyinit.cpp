@@ -59,9 +59,13 @@ extern "C" PyObject* qgc_excepthook(PyObject* self, PyObject* args)
         return NULL;
     
     qDebug()<<exc<<value<<tb;
+    /*
     PyObject_Print(exc, stdout, 1); puts("\n");
     PyObject_Print(value, stdout, 1); puts("\n");
     PyObject_Print(tb, stdout, 1); puts("\n");
+    PyObject_Print(PyObject_Type(exc), stdout, 1); puts("aaaaaaaaa\n");
+    PyObject_Print(PyObject_Type(value), stdout, 1); puts("aaaaaaaaa\n");
+    
     PyTracebackObject *tbo = (PyTracebackObject*)tb;
     PyFrameObject *fro = tbo->tb_frame;
     PyCodeObject *coo = fro->f_code;
@@ -73,17 +77,47 @@ extern "C" PyObject* qgc_excepthook(PyObject* self, PyObject* args)
     PyObject_Print(coo->co_cellvars, stdout, 1); puts("aaaaaaaaaa\n");
     PyObject_Print(coo->co_filename, stdout, 1); puts("aaaaaaaaaa\n");
 
+    PyBaseExceptionObject* bee = (PyBaseExceptionObject*)exc;
+    PyObject_Print(bee->dict, stdout, 1); puts("aaaaaaaaaa\n");
+    // PyObject_Print(bee->args, stdout, 1); puts("aaaaaaaaaa\n");
+    PyObject_Print(bee->context, stdout, 1); puts("aaaaaaaaaa\n");
+    PyObject_Print(bee->cause, stdout, 1); puts("aaaaaaaaaa\n");
+    */
+    
+    auto getAttrByExcValue = [](PyObject* excval) -> auto {
+        QRegExp exp("'module' object has no attribute '(.*)'");
+        QString valstr = PyUnicode_AsUTF8(PyObject_Str(excval));
+        auto mats = exp.exactMatch(valstr);
+        // qDebug()<<mats<<valstr<<exp.cap(1);
+
+        return exp.cap(1);
+    };
+    auto attrName = getAttrByExcValue(value);
+    // qDebug()<<attrName;
+
+    auto getAttrStart = [](QString &line, QString &attrName) -> auto {
+        QStringList segs = line.split(' ');
+        QString start;
+        for (QString &seg: segs) {
+            if (seg.indexOf(attrName) != -1) {
+                start = seg;
+                break;
+            }
+        }
+        return start;
+    };
+
     PyImport_ImportModuleNoBlock("traceback");
     PyObject* tbm = PyImport_ImportModuleNoBlock("traceback");
     _object* rl = _PyObject_CallMethodId(tbm, &PyId_extract_tb, "O", tb);
-    PyObject_Print(rl, stdout, 1); puts("aaaaaaaaaa\n");
-    qDebug()<<PyList_Size(rl);
+    // PyObject_Print(rl, stdout, 1); puts("aaaaaaaaaa\n");
+    // qDebug()<<PyList_Size(rl);
     PyObject* rt = PyList_GetItem(rl, 0); // a tuple object
-    PyObject_Print(rt, stdout, 1); puts("aaaaaaaaaa\n");
-    qDebug()<<PyTuple_Size(rt);
+    // PyObject_Print(rt, stdout, 1); puts("aaaaaaaaaa\n");
+    // qDebug()<<PyTuple_Size(rt);
     PyObject* rs = PyTuple_GetItem(rt, 3);
-    PyObject_Print(rs, stdout, 1); puts("aaaaaaaaaa\n");
-    qDebug()<<PyUnicode_AsUTF8(rs);
+    // PyObject_Print(rs, stdout, 1); puts("aaaaaaaaaa\n");
+    // qDebug()<<PyUnicode_AsUTF8(rs);
     QString eline = PyUnicode_AsUTF8(rs);
 
     // TODO 现在只是定位到一行，还需要更进一步准确定位。
@@ -91,25 +125,55 @@ extern "C" PyObject* qgc_excepthook(PyObject* self, PyObject* args)
     // AttributeError: 'module' object has no attribute 'QString123'
     // 对于AttributeError的情况，匹配出来attribute名字，在这一行中回溯到非空格位置，
     // 然后再用以下检测方法检测。
-    if (eline.startsWith("qt5.Q")) {
+    QString fullAttr = getAttrStart(eline, attrName);
+    if (fullAttr.startsWith("qt5.Q")) {
+        qDebug()<<"got a class call"<<fullAttr;
         QString klass = eline.split(".").at(1);
-        
-        return Py_None;        
-    } else if (eline.startsWith("qt5.q")) {
+        strcpy((char*)0x123, (char*)0x456);
+        return PyLong_FromLong(5);
+        return Py_None;// 返回Py_None的时候，程序就结束了。怎么能让程序继续执行呢？
+    } else if (fullAttr.startsWith("qt5.q")) {
+        qDebug()<<"maybe it's a function"<<fullAttr;
         QString fname = eline.split(".").at(1);
         
         return Py_None;
-    } else if (eline.startsWith("qt5.")) {
+    } else if (fullAttr.startsWith("qt5.")) {
+        qDebug()<<"maybe it's a const"<<fullAttr;        
         QString cname = eline.split(".").at(1);
         
         return Py_None;
     } else {
+        qDebug()<<"not careeeeeeeee"<<fullAttr;
         // not care, goon
     }
     
     PyErr_Display(exc, value, tb);
     Py_INCREF(Py_None);
     return Py_None;
+}
+
+static PyObject* (*oldgetattrfn)(PyObject*, char*) = NULL;
+extern "C" PyObject* mygetattr(PyObject* o, char *a)
+{
+    qDebug()<<o<<a<<oldgetattrfn;
+    
+    if (strcmp(a, "_module_repr") == 0) {
+        qDebug()<<oldgetattrfn;
+        return PyObject_GetAttr(o, PyUnicode_InternFromString(a));
+        return oldgetattrfn(o, a);
+    }
+    return NULL;
+}
+
+extern "C" PyObject* mygetattro(PyObject* o, PyObject* a)
+{
+    qDebug()<<o<<a<<oldgetattrfn
+            <<PyUnicode_AsUTF8(PyObject_Str(o))
+            <<PyUnicode_AsUTF8(PyObject_Str(a));
+    
+    // return PyObject_GetAttr(o, a);
+
+    return NULL;
 }
 
 //_Py_static_string(PyId_excepthook, excepthook);
@@ -123,14 +187,20 @@ void PyInit::initialize()
     PyObject* cModuleQt = NULL;
     cModuleQt = PyModule_Create(&qt5Module);
     m_cModuleQt = cModuleQt;
+    PyTypeObject* mto = (PyTypeObject*)PyObject_Type(cModuleQt);
+    oldgetattrfn = mto->tp_getattr; // 保存下默认的函数
+    qDebug()<<mto->tp_getattr<<oldgetattrfn;
+    // mto->tp_getattr = mygetattr;  // 真的管用啊，注入式的。
+    mto->tp_getattro = mygetattro;  // 真的管用啊，注入式的。
+    qDebug()<<PyUnicode_AsUTF8(PyObject_Str((PyObject*)mto));
 
     int ok = false;
     ok = PyModule_Check(cModuleQt);
 
-    qDebug()<<"mc.....:"<<ok<<PyModule_GetName(cModuleQt)
+    qDebug()<<"mc.....:"<<ok<<PyModule_GetName(cModuleQt);
         // 这一行导致一个报错：SystemError: initialization of qt5 raised unreported exception
         // 但是如果有注册的类之后，这个却不会有什么问题。
-            <<"'"<<PyModule_GetFilenameObject(cModuleQt)<<"'";
+    // <<"'"<<PyModule_GetFilenameObject(cModuleQt)<<"'";
     qDebug()<<_Py_PackageContext;
 
     // for little testing.
@@ -140,21 +210,21 @@ void PyInit::initialize()
     // 注册类方法不存在事件处理
     // 这里需要一个模块级的sys.excepthook
     auto hook = _PySys_GetObjectId(&PyId_excepthook);
-    PyObject_Print((PyObject*)hook, stdout, 1);
-    puts("\n");
+    // PyObject_Print((PyObject*)hook, stdout, 1);
+    // puts("\n");
 
     _PySys_SetObjectId(&PyId_excepthook, NULL);
     static PyMethodDef exh = {"pqc_excepthook", qgc_excepthook, METH_VARARGS, "qgc_excepthook"};
     PyObject* exh_fn = PyCFunction_NewEx(&exh, cModuleQt, NULL);
-    PyObject_Print((PyObject*)exh_fn, stdout, 1);
-    puts("\n");
+    // PyObject_Print((PyObject*)exh_fn, stdout, 1);
+    // puts("\n");
     qDebug()<<METH_VARARGS<<PyCFunction_GET_FLAGS(exh_fn)
             <<(PyCFunction_GET_FLAGS(exh_fn) & ~(METH_CLASS | METH_STATIC | METH_COEXIST));
     _PySys_SetObjectId(&PyId_excepthook, exh_fn);
 
     hook = _PySys_GetObjectId(&PyId_excepthook);
-    PyObject_Print((PyObject*)hook, stdout, 1);
-    puts("\n");
+    // PyObject_Print((PyObject*)hook, stdout, 1);
+    // puts("\n");
     
     qDebug()<<"Hhhhhhhhh";
     /*
@@ -205,10 +275,10 @@ bool PyInit::registClass(QString klass)
     
     // PyModule_AddObject(cModuleQt, "QString456", (PyObject*)tbl);
     PyModule_AddObject(m_cModuleQt, klass.toLatin1().data(), (PyObject*)tbl);
-    PyObject_Print((PyObject*)tbl, stdout, 1);
-    puts("\n");
-    PyObject_Print((PyObject*)m_cModuleQt, stdout, 1);
-    puts("\n");
+    // PyObject_Print((PyObject*)tbl, stdout, 1);
+    // puts("\n");
+    // PyObject_Print((PyObject*)m_cModuleQt, stdout, 1);
+    // puts("\n");
     
     this->m_classes[klass] = tbl;
 
