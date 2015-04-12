@@ -18,6 +18,7 @@ protected:
     CtrlEngine *gce = NULL;
     
 public:
+    PyObject* Qt_class_missing(int argc, void* argv, void* self);
     /*
     VALUE Qt_constant_missing(int argc, VALUE* argv, VALUE self);
     VALUE Qt_method_missing(int argc, VALUE* argv, VALUE self);

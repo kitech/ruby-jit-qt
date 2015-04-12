@@ -31,6 +31,47 @@ extern "C" PyObject* PyInit_qt5()
     return pyinit->m_cModuleQt;
 }
 
+/////////////
+// 参数格式，QStringList* argv, PyObject* self
+static PyObject* px_Qt_class_missing(int argc, void* argv, void* self)
+{ return pyinit->Qt_class_missing(argc, argv, self); }
+
+/*
+static VALUE nx_Qt_constant_missing(int argc, VALUE* argv, VALUE self)
+{ return rbinit->Qt_constant_missing(argc, argv, self); }
+
+static VALUE nx_Qt_method_missing(int argc, VALUE *argv, VALUE self)
+{ return rbinit->Qt_method_missing(argc, argv, self); }
+
+// for qApp 等全局变量
+static VALUE nx_Qt_global_variable_get(ID id, VALUE *data, struct global_entry *entry)
+{ return rbinit->Qt_global_variable_get(id, data, entry); }
+
+static void nx_Qt_global_variable_set(VALUE value, ID id, VALUE *data, struct global_entry *entry)
+{ rbinit->Qt_global_variable_set(value, id, data, entry); }
+
+static VALUE nx_Qt_class_new(int argc, VALUE *argv, VALUE self)
+{ return rbinit->Qt_class_new(argc, argv, self); }
+
+static VALUE nx_Qt_class_init(int argc, VALUE *argv, VALUE self)
+{ return rbinit->Qt_class_init(argc, argv, self); }
+
+static VALUE nx_Qt_class_dtor(VALUE id)
+{ return rbinit->Qt_class_dtor(id); }
+
+static VALUE nx_Qt_class_to_s(int argc, VALUE *argv, VALUE self)
+{ return rbinit->Qt_class_to_s(argc, argv, self); }
+
+static VALUE nx_Qt_class_const_missing(int argc, VALUE *argv, VALUE self)
+{ return rbinit->Qt_class_const_missing(argc, argv, self); }
+
+static VALUE nx_Qt_class_method_missing(int argc, VALUE *argv, VALUE self)
+{ return rbinit->Qt_class_method_missing(argc, argv, self); }
+
+static VALUE nx_Qt_class_singleton_method_missing(int argc, VALUE *argv, VALUE self)
+{ return rbinit->Qt_class_singleton_method_missing(argc, argv, self); }
+*/
+
 // 定义 python 的 model
 static struct PyModuleDef abModule = { PyModuleDef_HEAD_INIT, "ab", NULL, -1, NULL};
 static struct PyModuleDef qtModule = { PyModuleDef_HEAD_INIT, "qt", NULL, -1, NULL};
@@ -48,6 +89,7 @@ PyObject py_object_initializer =  {
 #include <frameobject.h>
 _Py_IDENTIFIER(excepthook);
 _Py_IDENTIFIER(extract_tb);
+_Py_IDENTIFIER(type);
 
 extern "C" PyObject* qgc_excepthook(PyObject* self, PyObject* args)
 {
@@ -107,7 +149,8 @@ extern "C" PyObject* qgc_excepthook(PyObject* self, PyObject* args)
         return start;
     };
 
-    PyImport_ImportModuleNoBlock("traceback");
+    // PyImport_ImportModuleNoBlock("traceback");
+    PyImport_ImportModule("traceback");
     PyObject* tbm = PyImport_ImportModuleNoBlock("traceback");
     _object* rl = _PyObject_CallMethodId(tbm, &PyId_extract_tb, "O", tb);
     // PyObject_Print(rl, stdout, 1); puts("aaaaaaaaaa\n");
@@ -152,27 +195,100 @@ extern "C" PyObject* qgc_excepthook(PyObject* self, PyObject* args)
     return Py_None;
 }
 
-static PyObject* (*oldgetattrfn)(PyObject*, char*) = NULL;
+static PyObject* (*oldgetattrfn)(PyObject*, PyObject*) = NULL;
 extern "C" PyObject* mygetattr(PyObject* o, char *a)
 {
     qDebug()<<o<<a<<oldgetattrfn;
-    
-    if (strcmp(a, "_module_repr") == 0) {
-        qDebug()<<oldgetattrfn;
-        return PyObject_GetAttr(o, PyUnicode_InternFromString(a));
-        return oldgetattrfn(o, a);
-    }
-    return NULL;
+
+    return PyObject_GenericGetAttr(o, PyUnicode_InternFromString(a));
 }
 
 extern "C" PyObject* mygetattro(PyObject* o, PyObject* a)
 {
-    qDebug()<<o<<a<<oldgetattrfn
-            <<PyUnicode_AsUTF8(PyObject_Str(o))
-            <<PyUnicode_AsUTF8(PyObject_Str(a));
-    
-    // return PyObject_GetAttr(o, a);
+    // qDebug()<<o<<a;
+    //NOTE: 如果有别的程序改了tp_getattro则这个assert不成立了。
+    assert(oldgetattrfn == PyObject_GenericGetAttr);
+    PyTypeObject *tp = Py_TYPE(o);
+    if (strcmp(tp->tp_name, "module") == 0 && strcmp(PyModule_GetName(o), "qt5") == 0) {
+        qDebug()<<_PyUnicode_AsString(a)<<PyErr_Occurred();
+    }
+    PyObject* reto = PyObject_GenericGetAttr(o, a);
+    // 如果是reto是NULL的话，已经设置了错误信息了，所以会输出错误。这个错误是否能够清除掉呢？
 
+    if (strcmp(tp->tp_name, "module") == 0 && strcmp(PyModule_GetName(o), "qt5") == 0) {
+        qDebug()<<reto<<_PyUnicode_AsString(a)<<PyErr_Occurred();
+    }
+    if (reto) return reto;
+
+    // hacked getattr...
+    auto Hack_GenericGetAttr = [a](PyObject* v, PyObject* name) -> PyObject* {
+        const char *vstr;
+        PyTypeObject *tp = Py_TYPE(v);        
+        if (!v) return NULL;
+        vstr = tp->tp_name;
+
+        // 试验代码
+        if (strcmp(vstr, "module") == 0) {
+            if (strcmp(PyModule_GetName(v), "qt5") == 0) {
+                printf("inhackkkkkkkk:%s::%s\n", PyModule_GetName(v), _PyUnicode_AsString(name));
+                if (strcmp(_PyUnicode_AsString(name), "abcdefg") == 0) {
+                    printf("inhackkkkkkkk:%s\n", PyModule_GetName(v));
+                }
+            }
+        }
+
+        // 不满足条件则返回
+        if (strcmp(vstr, "module") == 0 && strcmp(PyModule_GetName(v), "qt5") == 0) {
+        } else {
+            qDebug()<<"omited..."<<vstr<<PyModule_GetName(v);
+            return NULL;
+        }
+        
+        
+        QString tpName = QString(tp->tp_name);
+        QString modName = QString(PyModule_GetName(v));
+        QString attrName = _PyUnicode_AsString(name);
+        qDebug()<<tpName<<modName<<attrName;
+
+        if (attrName.startsWith("Q") && attrName.at(1).isUpper()) {
+            qDebug()<<"got a class call"<<attrName;
+            QString klass = attrName;
+            QStringList argv = {attrName};
+            PyObject* dict = *_PyObject_GetDictPtr(v);
+            qDebug()<<_PyObject_GetDictPtr(v)<<PyDict_Size(dict)
+                    <<PyDict_GetItem(dict, a);
+            PyObject* ret = px_Qt_class_missing(1, &argv, v);
+            qDebug()<<_PyObject_GetDictPtr(v)<<PyDict_Size(dict)
+                    <<PyDict_GetItem(dict, a);
+            PyObject* res = PyDict_GetItem(dict, a);
+            Py_INCREF(res);
+            return res;
+            return ret;
+        } else if (attrName.startsWith("q") && attrName.at(1).isUpper()) {
+            qDebug()<<"maybe it's a function"<<attrName;
+            QString fname = attrName;
+        
+        } else if (attrName.at(1).isUpper()) {
+            qDebug()<<"maybe it's a const"<<attrName;
+            QString cname = attrName;
+        
+        } else {
+            qDebug()<<"not careeeeeeeee"<<attrName;
+            // not care, goon
+        }
+        
+        return NULL;
+    };
+
+    qDebug()<<"missing sth...";
+    reto = Hack_GenericGetAttr(o, a);
+    qDebug()<<reto;
+    PyObject_GenericSetAttr(o, a, reto);
+    reto = PyObject_GenericGetAttr(o, a);
+    qDebug()<<reto<<PyErr_Occurred();
+    PyErr_Clear(); // 非常重要，清除函数开始时设置的错误标识信息。
+    qDebug()<<reto<<PyErr_Occurred();
+    return reto;
     return NULL;
 }
 
@@ -188,9 +304,9 @@ void PyInit::initialize()
     cModuleQt = PyModule_Create(&qt5Module);
     m_cModuleQt = cModuleQt;
     PyTypeObject* mto = (PyTypeObject*)PyObject_Type(cModuleQt);
-    oldgetattrfn = mto->tp_getattr; // 保存下默认的函数
+    oldgetattrfn = mto->tp_getattro; // 保存下默认的函数
     qDebug()<<mto->tp_getattr<<oldgetattrfn;
-    // mto->tp_getattr = mygetattr;  // 真的管用啊，注入式的。
+    mto->tp_getattr = mygetattr;  // 真的管用啊，注入式的。
     mto->tp_getattro = mygetattro;  // 真的管用啊，注入式的。
     qDebug()<<PyUnicode_AsUTF8(PyObject_Str((PyObject*)mto));
 
@@ -204,8 +320,11 @@ void PyInit::initialize()
     qDebug()<<_Py_PackageContext;
 
     // for little testing.
+    this->registClass("QString123");
     this->registClass("QString456");
     this->registClass("QString789");
+    PyTypeObject* q456 = this->m_classes.value("QString789");
+    PyObject_Print((PyObject*)q456, stdout, 0); puts("\n");
 
     // 注册类方法不存在事件处理
     // 这里需要一个模块级的sys.excepthook
@@ -213,14 +332,14 @@ void PyInit::initialize()
     // PyObject_Print((PyObject*)hook, stdout, 1);
     // puts("\n");
 
-    _PySys_SetObjectId(&PyId_excepthook, NULL);
+    // _PySys_SetObjectId(&PyId_excepthook, NULL); // 置空
     static PyMethodDef exh = {"pqc_excepthook", qgc_excepthook, METH_VARARGS, "qgc_excepthook"};
     PyObject* exh_fn = PyCFunction_NewEx(&exh, cModuleQt, NULL);
     // PyObject_Print((PyObject*)exh_fn, stdout, 1);
     // puts("\n");
     qDebug()<<METH_VARARGS<<PyCFunction_GET_FLAGS(exh_fn)
             <<(PyCFunction_GET_FLAGS(exh_fn) & ~(METH_CLASS | METH_STATIC | METH_COEXIST));
-    _PySys_SetObjectId(&PyId_excepthook, exh_fn);
+    // _PySys_SetObjectId(&PyId_excepthook, exh_fn);// depcreated way
 
     hook = _PySys_GetObjectId(&PyId_excepthook);
     // PyObject_Print((PyObject*)hook, stdout, 1);
@@ -241,21 +360,120 @@ void PyInit::initialize()
 
 //Py_Finalize();
 
+extern "C" void standard_dealloc( PyObject *p )
+{
+    qDebug()<<p;
+    // PyMem_DEL( p );
+}
+
+extern "C" PyObject* standard_new(PyTypeObject* subtype, PyObject *args, PyObject* kwds)
+{
+    qDebug()<<subtype<<args<<kwds;
+    qDebug()<<PyUnicode_AsUTF8(PyObject_Str((PyObject*)subtype))
+            <<PyUnicode_AsUTF8(PyObject_Str((PyObject*)args))<<"eee";
+    // PyMem_DEL( p );
+
+    PyObject* self = subtype->tp_alloc(subtype, 0);
+    qDebug()<<self;
+    Py_INCREF(self);
+    
+    return self;
+    return PyLong_FromLong(5);
+    return NULL;
+}
+
+extern "C" int standard_init(PyObject* self, PyObject *args, PyObject* kwds)
+{
+    qDebug()<<self<<args<<kwds;
+
+    return -1;
+    return 0;
+    return 156789;
+}
+
+extern "C" void standard_free(void *p)
+{
+    qDebug()<<p;
+    // PyMem_DEL( p );
+}
+
+struct QString123{
+};
+
+// file:///usr/share/doc/python/html/extending/newtypes.html?highlight=type
+typedef struct {
+    PyObject_HEAD
+    /* Type-specific fields go here. */
+    void *inst;
+} qt5_QKlassObject;
+
+static PyTypeObject qt5_QKlassTypeTemplate = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "qt5.QKlass",                      /* tp_name */
+    sizeof(qt5_QKlassObject), /* tp_basicsize */
+    0,                         /* tp_itemsize */
+    0,                         /* tp_dealloc */
+    0,                         /* tp_print */
+    0,                         /* tp_getattr */
+    0,                         /* tp_setattr */
+    0,                         /* tp_reserved */
+    0,                         /* tp_repr */
+    0,                         /* tp_as_number */
+    0,                         /* tp_as_sequence */
+    0,                         /* tp_as_mapping */
+    0,                         /* tp_hash  */
+    0,                         /* tp_call */
+    0,                         /* tp_str */
+    0,                         /* tp_getattro */
+    0,                         /* tp_setattro */
+    0,                         /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,        /* tp_flags */
+    "QKlass objects template",           /* tp_doc */
+};
+
+
 bool PyInit::registClass(QString klass)
 {
     // see    ExtensionType.hxx:212  static PythonType &behaviors()
     //*
+    auto NewTypeObject_by_template = [](QString klass) -> PyTypeObject* {
+        static_assert(sizeof(qt5_QKlassTypeTemplate) == sizeof(PyTypeObject));
+        PyTypeObject* tbl = (PyTypeObject*)calloc(1, sizeof(PyTypeObject));
+        memcpy(tbl, &qt5_QKlassTypeTemplate, sizeof(PyTypeObject));
+        
+        tbl->tp_name = strdup(QString("qt5.%1").arg(klass).toLatin1().data());
+        tbl->tp_doc = strdup(QString("qt5.%1 objects").arg(klass).toLatin1().data());
+
+        tbl->tp_new = PyType_GenericNew;
+
+        if (PyType_Ready(tbl) < 0) {
+            qDebug()<<"type not ready:"<<tbl->tp_name;
+            assert(0);
+        }
+        Py_INCREF(tbl);
+        qDebug()<<tbl<<tbl->tp_basicsize<<tbl->tp_doc;
+        return tbl;
+    };
+    auto NewTypeObject_by_call_buildin_type
+        = [](QString klass) -> PyTypeObject* {
+        //  PyType_Type();
+        return NULL;
+    };
     auto NewTypeObject = [](QString klass) -> auto /* PyTypeObject* */ {
-        auto tbl = new PyTypeObject();
+        // auto tbl = new PyTypeObject();
+        PyTypeObject* tbl = (PyTypeObject*)calloc(1, sizeof(PyTypeObject));
         memset(tbl, 0, sizeof(PyTypeObject));
         *reinterpret_cast<PyObject*>(tbl) = py_object_initializer;
         reinterpret_cast<PyObject*>(tbl)->ob_type = &PyType_Type;
-        tbl->tp_name = "qt5.QString456";
+        // tbl->tp_name = "qt5.QString456"; // 应该用qt5.QString还是QString呢？用<module>.<name>
         tbl->tp_name = strdup(QString("qt5.%1").arg(klass).toLatin1().data());
-        tbl->tp_basicsize = 8;
+        tbl->tp_basicsize = 80;
         tbl->tp_itemsize = 0;
         tbl->tp_flags |= Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
         // tbl->tp_dealloc = standard_dealloc;
+        tbl->tp_new = standard_new;
+        // tbl->tp_free = standard_free;
+        // tbl->tp_init = standard_init;
         // tbl->tp_dealloc = extension_object_deallocator;
         //*/
 
@@ -268,21 +486,52 @@ bool PyInit::registClass(QString klass)
         // p->set_tp_dealloc( extension_object_deallocator );
         
         qDebug()<<"ty ready???"<<PyType_Ready(tbl); // 这个函数的调用很重要啊，相当于类型定义结束。必须要执行的。
+        Py_INCREF(tbl);
 
         return tbl;
     };
-    auto tbl = NewTypeObject(klass);
+    // auto tbl = NewTypeObject(klass);
+    auto tbl2 = NewTypeObject_by_template(klass);
     
     // PyModule_AddObject(cModuleQt, "QString456", (PyObject*)tbl);
-    PyModule_AddObject(m_cModuleQt, klass.toLatin1().data(), (PyObject*)tbl);
+    // PyModule_AddObject(m_cModuleQt, strdup(QString("%1").arg(klass).toLatin1().data()), (PyObject*)tbl);
+    PyModule_AddObject(m_cModuleQt, strdup(QString("%1").arg(klass).toLatin1().data()), (PyObject*)tbl2);
+    int ok = PyModule_Check(m_cModuleQt);
+    qDebug()<<ok<<m_cModuleQt<<PyModule_CheckExact(m_cModuleQt);
     // PyObject_Print((PyObject*)tbl, stdout, 1);
     // puts("\n");
     // PyObject_Print((PyObject*)m_cModuleQt, stdout, 1);
     // puts("\n");
-    
-    this->m_classes[klass] = tbl;
+
+    this->m_classes[klass] = tbl2;
 
     return true;
+}
+
+// getattr应该返回这样的结果：<class 'type'>
+PyObject* PyInit::Qt_class_missing(int argc, void* argv, void* self)
+{
+    qDebug()<<argc<<argv<<self;
+    assert(argc == 1);
+    QStringList* args = (QStringList*)argv;
+    QString klass = args->at(0);
+    qDebug()<<klass;
+
+    this->registClass(klass);
+    PyTypeObject* cKlassQt = this->m_classes.value(klass);
+    qDebug()<<this->m_classes.size()<<cKlassQt
+            <<PyUnicode_AsUTF8(PyObject_Str((PyObject*)cKlassQt));
+
+    descrgetfunc f = ((PyObject*)cKlassQt)->ob_type->tp_descr_get;
+    qDebug()<<f<<_PyUnicode_AsString(PyObject_Str((PyObject*)cKlassQt))<<"ee___eeee";
+    // assert(f != NULL);
+    // Py_XINCREF(cKlassQt);
+    qDebug()<<this->m_classes.value("QString123");
+    qDebug()<<this->m_classes.value("QString456");
+    qDebug()<<this->m_classes.value("QString789");
+
+    return (PyObject*)cKlassQt;
+    return NULL;
 }
 
 ////// tryingggggggggg codessssssssssss
@@ -337,10 +586,6 @@ static PyTypeObject* make_type(char *type, PyTypeObject* base, char**fields, int
     return (PyTypeObject*)result;
 }
 
-extern "C" void standard_dealloc( PyObject *p )
-{
-    PyMem_DEL( p );
-}
 
 
 extern "C" void extension_object_deallocator( PyObject *_self )
@@ -427,4 +672,24 @@ void PyInit_initialize()
     rb_define_virtual_variable("$qApp", (VALUE (*)(ANYARGS)) nx_Qt_global_variable_get,
                                (void (*)(ANYARGS)) nx_Qt_global_variable_set);
     */
+}
+
+PyObject* Hack_GetAttr(PyObject* v, PyObject* name)
+{
+    const char *vstr;
+    PyTypeObject *tp = Py_TYPE(v);        
+    if (!v) return NULL;
+    vstr = tp->tp_name;
+    if (strcmp(vstr, "module") == 0) {
+        if (strcmp(PyModule_GetName(v), "qt5") == 0) {
+            printf("inhackkkkkkkk:%s::%s\n", PyModule_GetName(v), _PyUnicode_AsString(name));
+            if (strcmp(_PyUnicode_AsString(name), "abcdefg") == 0) {
+                printf("inhackkkkkkkk:%s\n", PyModule_GetName(v));
+            }
+        }
+    }
+    // if (strstr(vstr, "<module 'mt'") != NULL) {
+    // printf("inhackkkkkkkkk:\n");
+    // }
+    return NULL;
 }
