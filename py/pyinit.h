@@ -19,6 +19,12 @@ protected:
     
 public:
     PyObject* Qt_class_missing(int argc, void* argv, void* self);
+    PyObject* Qt_method_missing(PyObject *mth, PyObject *argv);
+
+    PyObject* Qt_class_new(PyTypeObject *cls, PyObject *argv, PyObject *kwds);
+    int Qt_class_init(PyObject *self, PyObject *argv, PyObject *kwds);
+    void Qt_class_dtor(void *self);
+    
     /*
     VALUE Qt_constant_missing(int argc, VALUE* argv, VALUE self);
     VALUE Qt_method_missing(int argc, VALUE* argv, VALUE self);

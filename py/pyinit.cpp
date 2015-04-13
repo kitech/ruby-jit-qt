@@ -35,6 +35,15 @@ extern "C" PyObject* PyInit_qt5()
 // 参数格式，QStringList* argv, PyObject* self
 static PyObject* px_Qt_class_missing(int argc, void* argv, void* self)
 { return pyinit->Qt_class_missing(argc, argv, self); }
+static PyObject* px_Qt_method_missing(PyObject *mth, PyObject *argv)
+{ return pyinit->Qt_method_missing(mth, argv); }
+
+static PyObject* px_Qt_class_new(PyTypeObject *cls, PyObject *argv, PyObject *kwds)
+{ return pyinit->Qt_class_new(cls, argv, kwds); }
+static int px_Qt_class_init(PyObject *self, PyObject *argv, PyObject *kwds)
+{ return pyinit->Qt_class_init(self, argv, kwds); }
+static void px_Qt_class_dtor(void *p)
+{ return pyinit->Qt_class_dtor(p); }
 
 /*
 static VALUE nx_Qt_constant_missing(int argc, VALUE* argv, VALUE self)
@@ -292,6 +301,73 @@ extern "C" PyObject* mygetattro(PyObject* o, PyObject* a)
     return NULL;
 }
 
+typedef struct {
+    PyObject ob_base;
+    const char *mo_name;
+    QString mo_name2;
+    PyMethodDef *ml;
+} QtMethodObject;
+
+
+extern "C" PyObject* mth_length(PyObject* o, PyObject* a)
+{
+    qDebug()<<o<<a;
+    // PyObject_Print(o, stdout, 0); puts("\n");
+    QtMethodObject* vo = (QtMethodObject*)o;
+    qDebug()<<vo->mo_name;
+    PyObject_Print(a, stdout, 0); puts("\n");
+
+    return PyLong_FromLong(567);
+    return NULL;
+}
+
+// 目标：生成这样一个对象：<bound method Abc.hehe of <eg.Abc object at 0x7ffff7e409e8>>
+extern "C" PyObject* class_getattro(PyObject* o, PyObject* a)
+{
+    qDebug()<<o<<a;
+    PyObject_Print(a, stdout, 0); puts("\n");
+    
+    static PyMethodDef mthdef = PyMethodDef{
+        "ffffffffflength", mth_length, METH_VARARGS, "--length method--"
+    };
+
+    QtMethodObject* vo = new QtMethodObject();
+    vo->ob_base.ob_type = &PyType_Type;
+    vo->mo_name2 = QString("%1.%2").arg(Py_TYPE(o)->tp_name).arg(PyUnicode_AsUTF8(a));
+    vo->mo_name = "qt5.QString.length";
+    vo->mo_name = strdup(vo->mo_name2.toLatin1().data());
+    qDebug()<<vo->mo_name<<vo->mo_name2<<vo->ob_base.ob_type->tp_name;
+    // qDebug()<<PyUnicode_AsUTF8(PyObject_Str((PyObject*)vo)); //carsh???TODO
+
+    vo->ml = new PyMethodDef();
+    vo->ml->ml_name = vo->mo_name;
+    vo->ml->ml_meth = px_Qt_method_missing;
+    vo->ml->ml_flags = METH_VARARGS;
+    vo->ml->ml_doc = vo->mo_name;
+
+    void *ty = calloc(1, sizeof(PyType_Type));
+    memcpy(ty, &PyType_Type, sizeof(PyType_Type));
+    ((PyTypeObject*)ty)->tp_name = "qt5.QString.length";
+    qDebug()<<sizeof(PyType_Type)<<sizeof(PyVarObject)<<sizeof(QtMethodObject);
+    
+    // PyObject* mth = PyCFunction_NewEx(&mthdef, (PyObject*)vo, NULL);
+    PyObject* mth = PyCFunction_NewEx(vo->ml, (PyObject*)vo, NULL);
+    PyObject* tpo = (PyObject*)(PyObject_Type(mth));
+    PyObject_Print(mth, stdout, 0); puts("\n");
+    PyCallable_Check(mth);
+
+    PyObject* tpo2 = PyMethod_New(mth, o);
+    PyObject_Print(tpo2, stdout, 0); puts("\n");
+
+    PyObject_GenericSetAttr(o, a, mth);
+    qDebug()<<PyObject_GenericGetAttr(o, a);
+    PyErr_Clear();
+
+    // return mth;
+    return tpo2;
+    return NULL;
+}
+
 //_Py_static_string(PyId_excepthook, excepthook);
 void PyInit::initialize()
 {
@@ -405,12 +481,12 @@ typedef struct {
     PyObject_HEAD
     /* Type-specific fields go here. */
     void *inst;
-} qt5_QKlassObject;
+} QKlassObject;
 
-static PyTypeObject qt5_QKlassTypeTemplate = {
+static PyTypeObject QKlassTypeTemplate = {
     PyVarObject_HEAD_INIT(NULL, 0)
     "qt5.QKlass",                      /* tp_name */
-    sizeof(qt5_QKlassObject), /* tp_basicsize */
+    sizeof(QKlassObject), /* tp_basicsize */
     0,                         /* tp_itemsize */
     0,                         /* tp_dealloc */
     0,                         /* tp_print */
@@ -431,20 +507,24 @@ static PyTypeObject qt5_QKlassTypeTemplate = {
     "QKlass objects template",           /* tp_doc */
 };
 
-
 bool PyInit::registClass(QString klass)
 {
     // see    ExtensionType.hxx:212  static PythonType &behaviors()
     //*
     auto NewTypeObject_by_template = [](QString klass) -> PyTypeObject* {
-        static_assert(sizeof(qt5_QKlassTypeTemplate) == sizeof(PyTypeObject));
+        static_assert(sizeof(QKlassTypeTemplate) == sizeof(PyTypeObject));
         PyTypeObject* tbl = (PyTypeObject*)calloc(1, sizeof(PyTypeObject));
-        memcpy(tbl, &qt5_QKlassTypeTemplate, sizeof(PyTypeObject));
+        memcpy(tbl, &QKlassTypeTemplate, sizeof(PyTypeObject));
         
         tbl->tp_name = strdup(QString("qt5.%1").arg(klass).toLatin1().data());
         tbl->tp_doc = strdup(QString("qt5.%1 objects").arg(klass).toLatin1().data());
 
+        tbl->tp_getattro = class_getattro;
+        
         tbl->tp_new = PyType_GenericNew;
+        tbl->tp_new = px_Qt_class_new;
+        tbl->tp_init = px_Qt_class_init;
+        tbl->tp_free = px_Qt_class_dtor;
 
         if (PyType_Ready(tbl) < 0) {
             qDebug()<<"type not ready:"<<tbl->tp_name;
@@ -470,8 +550,12 @@ bool PyInit::registClass(QString klass)
         tbl->tp_basicsize = 80;
         tbl->tp_itemsize = 0;
         tbl->tp_flags |= Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-        // tbl->tp_dealloc = standard_dealloc;
+
         tbl->tp_new = standard_new;
+        tbl->tp_new = px_Qt_class_new;
+        tbl->tp_init = px_Qt_class_init;
+        tbl->tp_free = px_Qt_class_dtor;
+        // tbl->tp_dealloc = standard_dealloc;        
         // tbl->tp_free = standard_free;
         // tbl->tp_init = standard_init;
         // tbl->tp_dealloc = extension_object_deallocator;
@@ -480,7 +564,7 @@ bool PyInit::registClass(QString klass)
         // table->tp_name = const_cast<char *>( default_name );
         // table->tp_basicsize = basic_size;
         // table->tp_itemsize = itemsize;
-
+        
         // p->set_tp_new( extension_object_new );
         // p->set_tp_init( extension_object_init );
         // p->set_tp_dealloc( extension_object_deallocator );
@@ -534,162 +618,51 @@ PyObject* PyInit::Qt_class_missing(int argc, void* argv, void* self)
     return NULL;
 }
 
-////// tryingggggggggg codessssssssssss
-extern "C" void mymodule_dealloc( void *p )
-{
-    qDebug()<<"dealloccccccccing:"<<p;
-}
 
-// #define PyMODINIT_FUNC extern "C" PyObject*
-extern "C" PyObject* PyInit_ab()
+PyObject* PyInit::Qt_method_missing(PyObject *mth, PyObject *argv)
 {
-    Init_forpy();
+    Py_INCREF(mth);
+    Py_INCREF(argv);
+    qDebug()<<mth<<argv;
+    PyObject_Print(mth, stdout, 0); puts("\n");
+    PyObject_Print(argv, stdout, 0); puts("\n");
+    QtMethodObject *mo = (QtMethodObject*)mth;
+    qDebug()<<mo->mo_name;
 
-    return pyinit->m_cModuleQt;
-    MODDEF(abcdefg);
-    // MODDEF(qt);
-    // MODDEF(qt5);
-    /*
-    PyObject *pyoab = PyModule_Create(&abModule);
-    PyObject *pyoqt = PyModule_Create(&qtModule);
-    PyObject *pyoqt5 = PyModule_Create(&qt5Module);
+    QString method_name = mo->mo_name2.split('.').at(2);
+    qDebug()<<method_name;
+
     
-    pyinit->m_cModuleQt = pyoqt5;
-    return pyinit->m_cModuleQt;
-    */
-}
-
-extern "C" void dbg_type(void *to)
-{
-    qDebug()<<to;
-}
-
-////////////////
-
-static PyTypeObject* make_type(char *type, PyTypeObject* base, char**fields, int num_fields)
-{
-    PyObject *fnames, *result;
-    int i;
-    fnames = PyTuple_New(num_fields);
-    if (!fnames) return NULL;
-    for (i = 0; i < num_fields; i++) {
-        PyObject *field = PyUnicode_FromString(fields[i]);
-        if (!field) {
-            Py_DECREF(fnames);
-            return NULL;
-        }
-        PyTuple_SET_ITEM(fnames, i, field);
-    }
-    result = PyObject_CallFunction((PyObject*)&PyType_Type, "s(O){sOss}",
-                    type, base, "_fields", fnames, "__module__", "_ast");
-    Py_DECREF(fnames);
-    return (PyTypeObject*)result;
-}
-
-
-
-extern "C" void extension_object_deallocator( PyObject *_self )
-{
-    qDebug()<<"dealloccccccccing:"<<_self;
-    /*
-    PythonClassInstance *self = reinterpret_cast< PythonClassInstance * >( _self );
-#ifdef PYCXX_DEBUG
-    std::cout << "extension_object_deallocator( self=0x" << std::hex << reinterpret_cast< unsigned int >( self ) << std::dec << " )" << std::endl;
-    std::cout << "    self->m_pycxx_object=0x" << std::hex << reinterpret_cast< unsigned int >( self->m_pycxx_object ) << std::dec << std::endl;
-#endif
-    delete self->m_pycxx_object;
-    _self->ob_type->tp_free( _self );
-    */
-}
-
-void PyInit_initialize()
-{
-    qInstallMessageHandler(myMessageOutput);
-    // gce = new CtrlEngine();
-
-    Py_Initialize();
     
-    static PyObject* cModuleQt = NULL;
-    // abModule.m_free = mymodule_dealloc;
-    cModuleQt = PyModule_Create(&abModule);
-    // cModuleQt = PyModule_New("ab");
-    // m_cModuleQt = cModuleQt;
-
-    int ok = false;
-    ok = PyModule_Check(cModuleQt);
-
-    qDebug()<<"mc.....:"<<ok<<PyModule_GetName(cModuleQt);
-        //<<"'"<<PyModule_GetFilenameObject(cModuleQt)<<"'";
-    qDebug()<<_Py_PackageContext;
-
-    PyModule_AddStringConstant(cModuleQt, "hehe", "vvvvvvheheh");
-    // PyType_Type();
-
-    PyObject* dt = PyDict_New();
-    // make_type("ab.QString456", (PyTypeObject*)&PyObject_Type, NULL, 0);
-    // PyObject* dyc = PyObject_CallFunction((PyObject*)&PyType_Type, "sOO",
-    // "QString456", &PyObject_Type, dt);
-    // PyModule_AddObject(cModuleQt, "QString456", dyc);
-
-    // see    ExtensionType.hxx:212  static PythonType &behaviors()
-    //*
-    auto tbl = new PyTypeObject();
-    memset(tbl, 0, sizeof(PyTypeObject));
-    *reinterpret_cast<PyObject*>(tbl) = py_object_initializer;
-    reinterpret_cast<PyObject*>(tbl)->ob_type = &PyType_Type;
-    tbl->tp_name = "ab.QString456";
-    tbl->tp_basicsize = 8;
-    tbl->tp_itemsize = 0;
-    tbl->tp_flags |= Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-    // tbl->tp_dealloc = standard_dealloc;
-    tbl->tp_dealloc = extension_object_deallocator;
-    //*/
-    qDebug()<<"ty ready???"<<PyType_Ready(tbl); // 这个函数的调用很重要啊，相当于类型定义结束。必须要执行的。
-    
-    PyModule_AddObject(cModuleQt, "QString456", (PyObject*)tbl);
-    PyObject_Print((PyObject*)tbl, stdout, 1);
-    PyObject_Print((PyObject*)cModuleQt, stdout, 1);
-
-    int rc = PyRun_SimpleString("XX = type('QString456', (object,), dict())");
-    qDebug()<<rc<<"ffffffff";
-    
-    // table->tp_name = const_cast<char *>( default_name );
-	// table->tp_basicsize = basic_size;
-	// table->tp_itemsize = itemsize;
-
-    // p->set_tp_new( extension_object_new );
-    // p->set_tp_init( extension_object_init );
-    // p->set_tp_dealloc( extension_object_deallocator );
-
-    qDebug()<<"Hhhhhhhhh";
-    /*
-    // 对所有的Qt5::someconst常量的调用注册
-    rb_define_module_function(cModuleQt, "const_missing", FUNVAL nx_Qt_constant_missing, -1);
-    // 对所有的Qt5::somefunc()函数的调用注册
-    rb_define_module_function(cModuleQt, "method_missing", FUNVAL nx_Qt_method_missing, -1);
-  
-    // for qApp 类Qt全局变量
-    rb_define_virtual_variable("$qApp", (VALUE (*)(ANYARGS)) nx_Qt_global_variable_get,
-                               (void (*)(ANYARGS)) nx_Qt_global_variable_set);
-    */
+    PyObject *ro = PyLong_FromLong(qrand());
+    Py_INCREF(ro);
+    return ro;
+    return Py_None;
+    return NULL; // 直接返回NULL，导致这个报错：SystemError: error return without exception set
 }
 
-PyObject* Hack_GetAttr(PyObject* v, PyObject* name)
+PyObject* PyInit::Qt_class_new(PyTypeObject *cls, PyObject *argv, PyObject *kwds)
 {
-    const char *vstr;
-    PyTypeObject *tp = Py_TYPE(v);        
-    if (!v) return NULL;
-    vstr = tp->tp_name;
-    if (strcmp(vstr, "module") == 0) {
-        if (strcmp(PyModule_GetName(v), "qt5") == 0) {
-            printf("inhackkkkkkkk:%s::%s\n", PyModule_GetName(v), _PyUnicode_AsString(name));
-            if (strcmp(_PyUnicode_AsString(name), "abcdefg") == 0) {
-                printf("inhackkkkkkkk:%s\n", PyModule_GetName(v));
-            }
-        }
-    }
-    // if (strstr(vstr, "<module 'mt'") != NULL) {
-    // printf("inhackkkkkkkkk:\n");
-    // }
+    qDebug()<<cls<<argv<<kwds;
+    PyObject *pyobj = cls->tp_alloc(cls, 0);
+    QKlassObject *qtobj = (QKlassObject*)pyobj;
+    qtobj->inst = (void*)qrand();
+
+    return pyobj;
     return NULL;
 }
+
+int PyInit::Qt_class_init(PyObject *self, PyObject *argv, PyObject *kwds)
+{
+    qDebug()<<self<<argv<<kwds;
+    QKlassObject *qtobj = (QKlassObject*)self;
+    qDebug()<<(long)(qtobj->inst);
+    
+    return 0;
+}
+
+void PyInit::Qt_class_dtor(void *p)
+{
+    qDebug()<<p;
+}
+
