@@ -19,6 +19,7 @@ static PyInit *pyinit = NULL;
 
 extern "C" void Init_forpy()
 {
+    qsrand(time(NULL));
     PyInit *init = new PyInit();
     init->initialize();
     pyinit = init;
@@ -436,46 +437,6 @@ void PyInit::initialize()
 
 //Py_Finalize();
 
-extern "C" void standard_dealloc( PyObject *p )
-{
-    qDebug()<<p;
-    // PyMem_DEL( p );
-}
-
-extern "C" PyObject* standard_new(PyTypeObject* subtype, PyObject *args, PyObject* kwds)
-{
-    qDebug()<<subtype<<args<<kwds;
-    qDebug()<<PyUnicode_AsUTF8(PyObject_Str((PyObject*)subtype))
-            <<PyUnicode_AsUTF8(PyObject_Str((PyObject*)args))<<"eee";
-    // PyMem_DEL( p );
-
-    PyObject* self = subtype->tp_alloc(subtype, 0);
-    qDebug()<<self;
-    Py_INCREF(self);
-    
-    return self;
-    return PyLong_FromLong(5);
-    return NULL;
-}
-
-extern "C" int standard_init(PyObject* self, PyObject *args, PyObject* kwds)
-{
-    qDebug()<<self<<args<<kwds;
-
-    return -1;
-    return 0;
-    return 156789;
-}
-
-extern "C" void standard_free(void *p)
-{
-    qDebug()<<p;
-    // PyMem_DEL( p );
-}
-
-struct QString123{
-};
-
 // file:///usr/share/doc/python/html/extending/newtypes.html?highlight=type
 typedef struct {
     PyObject_HEAD
@@ -551,7 +512,6 @@ bool PyInit::registClass(QString klass)
         tbl->tp_itemsize = 0;
         tbl->tp_flags |= Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
 
-        tbl->tp_new = standard_new;
         tbl->tp_new = px_Qt_class_new;
         tbl->tp_init = px_Qt_class_init;
         tbl->tp_free = px_Qt_class_dtor;
@@ -629,11 +589,15 @@ PyObject* PyInit::Qt_method_missing(PyObject *mth, PyObject *argv)
     QtMethodObject *mo = (QtMethodObject*)mth;
     qDebug()<<mo->mo_name;
 
-    QString method_name = mo->mo_name2.split('.').at(2);
-    qDebug()<<method_name;
+    QStringList lst = mo->mo_name2.split('.');
+    QString klass_name = lst.at(1);
+    QString method_name = lst.at(2);
+    qDebug()<<lst;
 
-    
-    
+    // params marshal
+
+    // call mce->vm_call
+
     PyObject *ro = PyLong_FromLong(qrand());
     Py_INCREF(ro);
     return ro;
@@ -648,6 +612,14 @@ PyObject* PyInit::Qt_class_new(PyTypeObject *cls, PyObject *argv, PyObject *kwds
     QKlassObject *qtobj = (QKlassObject*)pyobj;
     qtobj->inst = (void*)qrand();
 
+    QStringList lst = QString(cls->tp_name).split('.');
+    QString klass_name = lst.at(1);
+    qDebug()<<lst;
+
+    // params marshal
+
+    // call mce->vm_new
+
     return pyobj;
     return NULL;
 }
@@ -657,6 +629,7 @@ int PyInit::Qt_class_init(PyObject *self, PyObject *argv, PyObject *kwds)
     qDebug()<<self<<argv<<kwds;
     QKlassObject *qtobj = (QKlassObject*)self;
     qDebug()<<(long)(qtobj->inst);
+
     
     return 0;
 }
@@ -664,5 +637,8 @@ int PyInit::Qt_class_init(PyObject *self, PyObject *argv, PyObject *kwds)
 void PyInit::Qt_class_dtor(void *p)
 {
     qDebug()<<p;
+
+
+    // call mce->vm_delete
 }
 

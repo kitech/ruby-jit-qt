@@ -1,6 +1,43 @@
 #include "pyutil.h"
 #include "pyinit.h"
 
+extern "C" void standard_dealloc( PyObject *p )
+{
+    qDebug()<<p;
+    // PyMem_DEL( p );
+}
+
+extern "C" PyObject* standard_new(PyTypeObject* subtype, PyObject *args, PyObject* kwds)
+{
+    qDebug()<<subtype<<args<<kwds;
+    qDebug()<<PyUnicode_AsUTF8(PyObject_Str((PyObject*)subtype))
+            <<PyUnicode_AsUTF8(PyObject_Str((PyObject*)args))<<"eee";
+    // PyMem_DEL( p );
+
+    PyObject* self = subtype->tp_alloc(subtype, 0);
+    qDebug()<<self;
+    Py_INCREF(self);
+    
+    return self;
+    return PyLong_FromLong(5);
+    return NULL;
+}
+
+extern "C" int standard_init(PyObject* self, PyObject *args, PyObject* kwds)
+{
+    qDebug()<<self<<args<<kwds;
+
+    return -1;
+    return 0;
+    return 156789;
+}
+
+extern "C" void standard_free(void *p)
+{
+    qDebug()<<p;
+    // PyMem_DEL( p );
+}
+
 ////// tryingggggggggg codessssssssssss
 extern "C" void mymodule_dealloc( void *p )
 {

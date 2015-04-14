@@ -76,3 +76,50 @@ AttributeError调用栈输出：
 
 ### 动态注册一个方法
 在实现了类的动态截获与注册之后，还要截获类的方法调用。
+主要是使用PyMethod\_New 和 PyCFunction\_NewEx两个函数。
+
+值得注意的是，python在真正调用那个注册进去的C函数的时候，不会把方法信息带着，
+而只是带了实例信息和参数信息，这儿目前使用了一种非常hack的方式实现把方法信息带到被调用的C函数中。
+
+
+### C API的内存计数与回收问题
+到底是回收呢还是计数呢？
+怎么设置是回收还是不回收呢？
+
+### 使用方式
+##### import qt5;
+##### 创建类实例
+python语法api用法示例: s = qt5.QString()
+
+这相当于C++的new QString()的作用。
+
+##### 调用实例方法
+python语法api用法示例: s.length()
+
+这相当于C++的s->length()的作用。
+
+##### 调用静态方法
+python语法api用法示例: ret = qt5.QString.someStaticMethod()
+
+这相当于C++的QString::someStaticMethod();
+
+##### 调用qt的全局函数
+python语法api用法示例: ret = qt5.qrand()
+
+这相当于C++的ret = qrand();
+
+##### 调用qt的全局常量
+python语法api用法示例:
+ret = qt5.Qt.Window
+ret = qt5.Qt.SubWindow
+
+##### 调用qt类的常量
+python语法api用法示例:
+ret = qt5.QWidget.AlignLeft
+ret = qt5.QWidget.AlignRight
+
+
+### 遇到的一个问题
+qrand()函数每次调用的结果全部相同，这是为什么呢？
+哦，原来也需要qsrand()函数做seed啊。我记得以前都不需要手动执行qsrand()函数的。不过问题不大。
+
