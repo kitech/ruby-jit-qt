@@ -46,10 +46,15 @@ static int px_Qt_class_init(PyObject *self, PyObject *argv, PyObject *kwds)
 static void px_Qt_class_dtor(void *p)
 { return pyinit->Qt_class_dtor(p); }
 
+static PyObject* px_Qt_class_constant_missing(PyObject *mod, PyObject *argv)
+{ return pyinit->Qt_class_constant_missing(mod, argv); }
+
 static PyObject* px_Qt_constant_missing(PyObject *mod, PyObject *argv)
 { return pyinit->Qt_constant_missing(mod, argv); }
 static PyObject* px_Qt_singleton_method_missing(PyObject *cls, PyObject *argv)
 { return pyinit->Qt_singleton_method_missing(cls, argv); }
+static PyObject* px_Qt_global_function_missing(PyObject *mod, PyObject *argv)
+{ return pyinit->Qt_global_function_missing(mod, argv); }
 
 /*
 static VALUE nx_Qt_constant_missing(int argc, VALUE* argv, VALUE self)
@@ -92,6 +97,7 @@ static VALUE nx_Qt_class_singleton_method_missing(int argc, VALUE *argv, VALUE s
 static struct PyModuleDef abModule = { PyModuleDef_HEAD_INIT, "ab", NULL, -1, NULL};
 static struct PyModuleDef qtModule = { PyModuleDef_HEAD_INIT, "qt", NULL, -1, NULL};
 static struct PyModuleDef qt5Module = { PyModuleDef_HEAD_INIT, "qt5", NULL, -1, NULL};
+static struct PyModuleDef qt5QtModule = { PyModuleDef_HEAD_INIT, "qt5.Qt", NULL, -1, NULL};
 
 #define MODDEF(pmname) \
     static struct PyModuleDef pmname##Module = { PyModuleDef_HEAD_INIT, ""#pmname, NULL, -1, NULL };
@@ -218,6 +224,7 @@ extern "C" PyObject* qgc_excepthook(PyObject* self, PyObject* args)
   2、class实例级别的，对应class_getattro
   3、class单例级别的（静态方法调用和类常量），对应singleton_getattro。
      注意这个需要使用metaclass方式实现。
+  4、全局级别函数属性,global_getattro???
 */
 
 typedef struct {
@@ -230,7 +237,8 @@ typedef struct {
 extern "C" PyObject* px_Qt_module_getattro(PyObject *mod, PyObject *attr);
 extern "C" PyObject* px_Qt_class_getattro(PyObject *cls, PyObject *attr);
 extern "C" PyObject* px_Qt_singleton_getattro(PyObject *mcls, PyObject *attr);
-
+extern "C" PyObject* px_Qt_subqt_module_getattro(PyObject *mod, PyObject *attr);
+extern "C" PyObject* px_Qt_global_function_getattro(PyObject *mod, PyObject *attr);
 
 static PyObject* (*oldgetattrfn)(PyObject*, PyObject*) = NULL;
 extern "C" PyObject* mygetattr(PyObject* o, char *a)
@@ -240,6 +248,7 @@ extern "C" PyObject* mygetattr(PyObject* o, char *a)
     return PyObject_GenericGetAttr(o, PyUnicode_InternFromString(a));
 }
 
+// 需要同时适应类静态方法和类常量
 extern "C" PyObject* px_Qt_singleton_getattro(PyObject* o, PyObject* a)
 {
     qDebug()<<o<<a<<_PyUnicode_AsString(a);
@@ -250,7 +259,14 @@ extern "C" PyObject* px_Qt_singleton_getattro(PyObject* o, PyObject* a)
     // format: qt5.QString.Meta
     QString fullName = tp->tp_name;
     QStringList lst = fullName.split('.');
+    QString attrName = _PyUnicode_AsString(a);
+
+    // 类常量
+    if (attrName.at(0).isUpper() && attrName.at(1).isLower()) {
+        return px_Qt_class_constant_missing(o, a);
+    }
     
+    // 类静态方法
     QtMethodObject* vo = new QtMethodObject();
     vo->ob_base.ob_type = &PyType_Type;
     vo->mo_name2 = QString("%1.%2").arg(lst.at(1)).arg(PyUnicode_AsUTF8(a));
@@ -287,6 +303,7 @@ extern "C" PyObject* px_Qt_singleton_getattro(PyObject* o, PyObject* a)
     // return mth;
     return tpo3;
     return tpo2;
+
     return NULL;
 }
 
@@ -346,7 +363,28 @@ extern "C" PyObject* px_Qt_module_getattro(PyObject* o, PyObject* a)
         QString attrName = _PyUnicode_AsString(name);
         qDebug()<<tpName<<modName<<attrName;
 
-        if (attrName.startsWith("Q") && attrName.at(1).isUpper()) {
+        // qt5.Qt.xxx global const
+        if (attrName == "Qt") {
+            qDebug()<<"got a global const:"<<attrName;
+            // 是这创建一个新的子module呢还是创建一个类呢？
+            // 注册qt5.Qt模块，即qt5.Qt.py
+            PyObject* cModuleQt = NULL;
+            cModuleQt = PyModule_Create(&qt5QtModule);
+            // m_cModuleQt = cModuleQt;
+            PyTypeObject* mto = (PyTypeObject*)PyObject_Type(cModuleQt);
+            // oldgetattrfn = mto->tp_getattro; // 保存下默认的函数
+            // qDebug()<<mto->tp_getattr<<oldgetattrfn;
+            // mto->tp_getattr = mygetattr;  // 真的管用啊，注入式的。
+            mto->tp_getattro = px_Qt_subqt_module_getattro;  // 真的管用啊，注入式的。
+            qDebug()<<PyUnicode_AsUTF8(PyObject_Str((PyObject*)mto));
+
+            int ok = false;
+            ok = PyModule_Check(cModuleQt);
+            
+            return cModuleQt;
+        }
+        // like qt5.QSting or qt5.QWidget
+        else if (attrName.startsWith("Q") && attrName.at(1).isUpper()) {
             qDebug()<<"got a class call"<<attrName;
             QString klass = attrName;
             QStringList argv = {attrName};
@@ -360,14 +398,98 @@ extern "C" PyObject* px_Qt_module_getattro(PyObject* o, PyObject* a)
             Py_INCREF(res);
             return res;
             return ret;
-        } else if (attrName.startsWith("q") && attrName.at(1).isUpper()) {
-            qDebug()<<"maybe it's a function"<<attrName;
+        }
+        // qMax/qrand/qtTrId????
+        else if (attrName.startsWith("q")) {
+            qDebug()<<"maybe it's a global function"<<attrName;
             QString fname = attrName;
-        
-        } else if (attrName.at(1).isUpper()) {
+
+            return px_Qt_global_function_getattro(v, a);
+        }
+        // qt5.Window??? or qt5.Qt.Window???
+        else if (attrName.at(0).isUpper()) {
             qDebug()<<"maybe it's a const"<<attrName;
             QString cname = attrName;
         
+        } else {
+            qDebug()<<"not careeeeeeeee"<<attrName;
+            // not care, goon
+        }
+        
+        return NULL;
+    };
+
+    qDebug()<<"missing sth...";
+    reto = Hack_GenericGetAttr(o, a);
+    qDebug()<<reto;
+    PyObject_GenericSetAttr(o, a, reto);
+    reto = PyObject_GenericGetAttr(o, a);
+    qDebug()<<reto<<PyErr_Occurred();
+    PyErr_Clear(); // 非常重要，清除函数开始时设置的错误标识信息。
+    qDebug()<<reto<<PyErr_Occurred();
+    return reto;
+    return NULL;
+}
+
+extern "C" PyObject* px_Qt_subqt_module_getattro(PyObject* o, PyObject* a)
+{
+    qDebug()<<o<<a<<_PyUnicode_AsString(a);
+
+    //NOTE: 如果有别的程序改了tp_getattro则这个assert不成立了。
+    assert(oldgetattrfn == PyObject_GenericGetAttr);
+    PyTypeObject *tp = Py_TYPE(o);
+    if (strcmp(tp->tp_name, "module") == 0 && strcmp(PyModule_GetName(o), "qt5") == 0) {
+        qDebug()<<_PyUnicode_AsString(a)<<PyErr_Occurred();
+    }
+    PyObject* reto = PyObject_GenericGetAttr(o, a);
+    // 如果是reto是NULL的话，已经设置了错误信息了，所以会输出错误。这个错误是否能够清除掉呢？
+
+    if (strcmp(tp->tp_name, "module") == 0 && strcmp(PyModule_GetName(o), "qt5") == 0) {
+        qDebug()<<reto<<_PyUnicode_AsString(a)<<PyErr_Occurred();
+    }
+    const char *mname = strcmp(tp->tp_name, "module") == 0 ?
+        PyModule_GetName(o) : NULL;
+    
+    qDebug()<<o<<a<<tp->tp_name<<mname<<_PyUnicode_AsString(a)<<reto;    
+    if (reto) {
+        PyErr_Clear();
+        return reto;
+    }
+
+    // hacked getattr...
+    auto Hack_GenericGetAttr = [a](PyObject* v, PyObject* name) -> PyObject* {
+        const char *vstr;
+        PyTypeObject *tp = Py_TYPE(v);        
+        if (!v) return NULL;
+        vstr = tp->tp_name;
+
+        // 试验代码
+        if (strcmp(vstr, "module") == 0) {
+            if (strcmp(PyModule_GetName(v), "qt5") == 0) {
+                printf("inhackkkkkkkk:%s::%s\n", PyModule_GetName(v), _PyUnicode_AsString(name));
+                if (strcmp(_PyUnicode_AsString(name), "abcdefg") == 0) {
+                    printf("inhackkkkkkkk:%s\n", PyModule_GetName(v));
+                }
+            }
+        }
+
+        // 不满足条件则返回
+        if (strcmp(vstr, "module") == 0 && strcmp(PyModule_GetName(v), "qt5.Qt") == 0) {
+        } else {
+            qDebug()<<"omited..."<<vstr<<PyModule_GetName(v);
+            return NULL;
+        }
+        
+        
+        QString tpName = QString(tp->tp_name);
+        QString modName = QString(PyModule_GetName(v));
+        QString attrName = _PyUnicode_AsString(name);
+        qDebug()<<tpName<<modName<<attrName;
+
+        if (attrName.at(0).isUpper() && attrName.at(1).isLower()) {
+            qDebug()<<"maybe it's a global const"<<attrName;
+            QString cname = attrName;
+            return px_Qt_constant_missing(v, a);
         } else {
             qDebug()<<"not careeeeeeeee"<<attrName;
             // not care, goon
@@ -444,6 +566,52 @@ extern "C" PyObject* px_Qt_class_getattro(PyObject* o, PyObject* a)
     PyErr_Clear();
 
     // return mth;
+    return tpo2;
+    return NULL;
+}
+
+extern "C" PyObject* px_Qt_global_function_getattro(PyObject* o, PyObject* a)
+{
+    qDebug()<<o<<a;
+    PyObject_Print(a, stdout, 0); puts("\n");
+    
+    static PyMethodDef mthdef = PyMethodDef{
+        "ffffffffflength", mth_length, METH_VARARGS, "--length method--"
+    };
+
+    QtMethodObject* vo = new QtMethodObject();
+    vo->ob_base.ob_type = &PyType_Type;
+    vo->mo_name2 = QString("%1.%2").arg(Py_TYPE(o)->tp_name).arg(PyUnicode_AsUTF8(a));
+    vo->mo_name = "qt5.QString.length";
+    vo->mo_name = strdup(vo->mo_name2.toLatin1().data());
+    qDebug()<<vo->mo_name<<vo->mo_name2<<vo->ob_base.ob_type->tp_name;
+    // qDebug()<<PyUnicode_AsUTF8(PyObject_Str((PyObject*)vo)); //carsh???TODO
+
+    vo->ml = new PyMethodDef();
+    vo->ml->ml_name = vo->mo_name;
+    vo->ml->ml_meth = px_Qt_global_function_missing;
+    vo->ml->ml_flags = METH_VARARGS;
+    vo->ml->ml_doc = vo->mo_name;
+
+    void *ty = calloc(1, sizeof(PyType_Type));
+    memcpy(ty, &PyType_Type, sizeof(PyType_Type));
+    ((PyTypeObject*)ty)->tp_name = "qt5.QString.length";
+    qDebug()<<sizeof(PyType_Type)<<sizeof(PyVarObject)<<sizeof(QtMethodObject);
+    
+    // PyObject* mth = PyCFunction_NewEx(&mthdef, (PyObject*)vo, NULL);
+    PyObject* mth = PyCFunction_NewEx(vo->ml, (PyObject*)vo, NULL);
+    PyObject* tpo = (PyObject*)(PyObject_Type(mth));
+    PyObject_Print(mth, stdout, 0); puts("\n");
+    PyCallable_Check(mth);
+
+    PyObject* tpo2 = PyMethod_New(mth, o);
+    PyObject_Print(tpo2, stdout, 0); puts("\n");
+
+    PyObject_GenericSetAttr(o, a, mth);
+    qDebug()<<PyObject_GenericGetAttr(o, a);
+    PyErr_Clear();
+
+    return mth;
     return tpo2;
     return NULL;
 }
@@ -825,6 +993,13 @@ void PyInit::Qt_class_dtor(void *p)
     // call mce->vm_delete
 }
 
+PyObject* PyInit::Qt_class_constant_missing(PyObject *mod, PyObject *argv)
+{
+    qDebug()<<mod<<argv;
+    return PyLong_FromLong(qrand());
+    return NULL;
+}
+
 PyObject* PyInit::Qt_constant_missing(PyObject *mod, PyObject *argv)
 {
     qDebug()<<mod<<argv;
@@ -845,6 +1020,18 @@ PyObject* PyInit::Qt_singleton_method_missing(PyObject *mobj, PyObject *argv)
     QString method = lst.at(1);
     qDebug()<<lst<<klass<<method;
 
+    return PyLong_FromLong(qrand());
+    return NULL;
+}
+
+PyObject* PyInit::Qt_global_function_missing(PyObject *mobj, PyObject *argv)
+{
+    qDebug()<<mobj<<argv;
+    // qDebug()<<_PyUnicode_AsString(PyObject_Str(mobj))
+    //     <<_PyUnicode_AsString(PyObject_Str(argv));
+
+    
+    
     return PyLong_FromLong(qrand());
     return NULL;
 }

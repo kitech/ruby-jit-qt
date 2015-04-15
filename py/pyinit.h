@@ -25,8 +25,10 @@ public:
     int Qt_class_init(PyObject *self, PyObject *argv, PyObject *kwds);
     void Qt_class_dtor(void *self);
 
+    PyObject* Qt_class_constant_missing(PyObject *mod, PyObject *argv);
     PyObject* Qt_constant_missing(PyObject *mod, PyObject *argv);
     PyObject* Qt_singleton_method_missing(PyObject *mobj, PyObject *argv);
+    PyObject* Qt_global_function_missing(PyObject *mobj, PyObject *argv);
     
     /*
     VALUE Qt_constant_missing(int argc, VALUE* argv, VALUE self);
