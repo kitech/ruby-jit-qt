@@ -100,6 +100,7 @@ PyObject py_object_initializer =  {
 _Py_IDENTIFIER(excepthook);
 _Py_IDENTIFIER(extract_tb);
 _Py_IDENTIFIER(type);
+_Py_IDENTIFIER(metaclass);
 
 extern "C" PyObject* qgc_excepthook(PyObject* self, PyObject* args)
 {
@@ -213,9 +214,22 @@ extern "C" PyObject* mygetattr(PyObject* o, char *a)
     return PyObject_GenericGetAttr(o, PyUnicode_InternFromString(a));
 }
 
+extern "C" PyObject* meta_getattro(PyObject* o, PyObject* a)
+{
+    qDebug()<<o<<a<<_PyUnicode_AsString(a);
+    PyTypeObject *tp = Py_TYPE(o);
+   
+    const char *mname = strcmp(tp->tp_name, "module") == 0 ? PyModule_GetName(o) : NULL;
+    qDebug()<<tp->tp_name<<'|'<<mname<<'|'<<_PyUnicode_AsString(a);
+
+    return NULL;
+}
+
+// extern "C" PyObject* mygetattro(PyObject* type, PyObject* name)
 extern "C" PyObject* mygetattro(PyObject* o, PyObject* a)
 {
-    // qDebug()<<o<<a;
+    qDebug()<<o<<a<<_PyUnicode_AsString(a);
+
     //NOTE: 如果有别的程序改了tp_getattro则这个assert不成立了。
     assert(oldgetattrfn == PyObject_GenericGetAttr);
     PyTypeObject *tp = Py_TYPE(o);
@@ -228,7 +242,14 @@ extern "C" PyObject* mygetattro(PyObject* o, PyObject* a)
     if (strcmp(tp->tp_name, "module") == 0 && strcmp(PyModule_GetName(o), "qt5") == 0) {
         qDebug()<<reto<<_PyUnicode_AsString(a)<<PyErr_Occurred();
     }
-    if (reto) return reto;
+    const char *mname = strcmp(tp->tp_name, "module") == 0 ?
+        PyModule_GetName(o) : NULL;
+    
+    qDebug()<<o<<a<<tp->tp_name<<mname<<_PyUnicode_AsString(a)<<reto;    
+    if (reto) {
+        PyErr_Clear();
+        return reto;
+    }
 
     // hacked getattr...
     auto Hack_GenericGetAttr = [a](PyObject* v, PyObject* name) -> PyObject* {
@@ -369,6 +390,14 @@ extern "C" PyObject* class_getattro(PyObject* o, PyObject* a)
     return NULL;
 }
 
+// 目标：生成这样一个对象：<bound method Abc.hehe of <eg.Abc object at 0x7ffff7e409e8>>
+extern "C" PyObject* class_descr_get(PyObject* self, PyObject* obj, PyObject *type)
+{
+    qDebug()<<self<<obj<<type;
+
+    return NULL;
+}
+
 //_Py_static_string(PyId_excepthook, excepthook);
 void PyInit::initialize()
 {
@@ -468,19 +497,78 @@ static PyTypeObject QKlassTypeTemplate = {
     "QKlass objects template",           /* tp_doc */
 };
 
+
 bool PyInit::registClass(QString klass)
 {
     // see    ExtensionType.hxx:212  static PythonType &behaviors()
     //*
-    auto NewTypeObject_by_template = [](QString klass) -> PyTypeObject* {
+    auto NewMetaClassType = []() -> PyTypeObject* {
+        PyTypeObject* tbl = (PyTypeObject*)calloc(1, sizeof(PyTypeObject));
+        memset(tbl, 0, sizeof(PyTypeObject));
+        *reinterpret_cast<PyObject*>(tbl) = py_object_initializer;
+        reinterpret_cast<PyObject*>(tbl)->ob_type = &PyType_Type;
+        tbl->tp_name = "qt5.StaticMetaClassType";
+        tbl->tp_basicsize = 8;
+        tbl->tp_itemsize = 0;
+        tbl->tp_flags |= Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+
+        tbl->tp_new = PyType_GenericNew;
+        tbl->tp_getattro = mygetattro;
+
+        PyType_Ready(tbl);
+        
+        return tbl;
+        return NULL;
+    };
+
+    // 每个Qt类都需要附带对应的meta类型。
+    auto NewMetaClassType2 = [](QString klass) -> PyTypeObject* {
+        PyTypeObject* tbl = (PyTypeObject*)PyType_Type.tp_alloc(&PyType_Type, 0);
+
+        tbl->tp_flags |= Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE;
+        tbl->tp_name = strdup(QString("qt5.%1.Meta").arg(klass).toLatin1().data());
+        tbl->tp_base = &PyType_Type;
+
+        tbl->tp_new = PyType_GenericNew;
+        tbl->tp_getattr = mygetattr;
+        tbl->tp_getattro = meta_getattro;
+
+        qDebug()<<PyType_Ready(tbl);
+        
+        return tbl;
+        return NULL;
+    };
+
+    auto NewTypeObject_by_template =
+        [&NewMetaClassType, &NewMetaClassType2](QString klass) -> PyTypeObject* {
+        
         static_assert(sizeof(QKlassTypeTemplate) == sizeof(PyTypeObject));
+        PyTypeObject *metaType1 = NewMetaClassType();
+        PyTypeObject *metaType2 = NewMetaClassType2(klass);
+        qDebug()<<PyType_IsSubtype(metaType2, &PyType_Type);
+        
         PyTypeObject* tbl = (PyTypeObject*)calloc(1, sizeof(PyTypeObject));
         memcpy(tbl, &QKlassTypeTemplate, sizeof(PyTypeObject));
+        // tbl->tp_base = metaType1;
+
+        tbl = (PyTypeObject*)PyType_Type.tp_alloc(&PyType_Type, 0);
+        PyHeapTypeObject *ht = (PyHeapTypeObject*)tbl;
+
+        tbl->ob_base.ob_base.ob_type = metaType2; // 设置metaclass, see _ctypes.c:5324
+        tbl->tp_flags |= Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE;        
+        tbl->tp_base = &PyType_Type;
+        tbl->tp_basicsize = sizeof(QKlassObject);
+        tbl->tp_itemsize = 0;
         
         tbl->tp_name = strdup(QString("qt5.%1").arg(klass).toLatin1().data());
         tbl->tp_doc = strdup(QString("qt5.%1 objects").arg(klass).toLatin1().data());
+        ht->ht_name = PyUnicode_InternFromString(tbl->tp_name);
+        ht->ht_qualname = PyUnicode_InternFromString(tbl->tp_name);
 
+        // tbl->tp_getattr = mygetattr;
         tbl->tp_getattro = class_getattro;
+
+        tbl->tp_descr_get = class_descr_get;
         
         tbl->tp_new = PyType_GenericNew;
         tbl->tp_new = px_Qt_class_new;
@@ -492,12 +580,46 @@ bool PyInit::registClass(QString klass)
             assert(0);
         }
         Py_INCREF(tbl);
-        qDebug()<<tbl<<tbl->tp_basicsize<<tbl->tp_doc;
+        
+        qDebug()<<tbl<<tbl->tp_basicsize<<tbl->tp_doc
+        <<tbl->tp_getattr<<tbl->tp_getattro
+        <<(void*)tbl->tp_descr_get<<tbl->tp_dict;
+
+        PyObject *tup = PyTuple_New(1);
+        PyTuple_SetItem(tup, 0, (PyObject*)(metaType2));
+        
+        PyTypeObject *metaType = NewMetaClassType();        
+        PyDictObject *dict = *(PyDictObject**)_PyObject_GetDictPtr((PyObject*)tbl);
+        qDebug()<<PyType_IsSubtype(metaType2, &PyType_Type)
+        <<PyType_Type.tp_name<<&PyType_Type<<dict;
+        PyDict_SetItem((PyObject*)dict, PyUnicode_InternFromString("__class__"), (PyObject*)metaType2);
+        PyObject_GenericSetAttr((PyObject*)tbl, PyUnicode_FromString("__class__"), (PyObject*)metaType2);
+        /*
+        qDebug()<<_PyObject_GetDictPtr((PyObject*)tbl)<<tbl->tp_dict;
+
+        PyDict_SetItem(tbl->tp_dict, PyUnicode_FromString("metaclass_hint"), PyUnicode_FromString("bbb"));
+        _PyDict_SetItemId(tbl->tp_dict, &PyId_metaclass, (PyObject*)metaType);
+        _PyDict_SetItemId((PyObject*)dict, &PyId_metaclass, (PyObject*)metaType);
+        */
+        
+        qDebug()<<Py_TYPE(tbl)<<Py_TYPE(tbl)->tp_name<<metaType1;
+
+        
         return tbl;
     };
     auto NewTypeObject_by_call_buildin_type
         = [](QString klass) -> PyTypeObject* {
+
+        /*
+          class QKlassStaticMeta(type):
+              def __getattribute__(*args):
+                  ....
+          class QStringXXX(object, metaclass=QKlassstaticmeta):
+              pass
+         */
         //  PyType_Type();
+        PyDictObject *dict = (PyDictObject*)PyDict_New();
+        
         return NULL;
     };
     auto NewTypeObject = [](QString klass) -> auto /* PyTypeObject* */ {
@@ -506,6 +628,7 @@ bool PyInit::registClass(QString klass)
         memset(tbl, 0, sizeof(PyTypeObject));
         *reinterpret_cast<PyObject*>(tbl) = py_object_initializer;
         reinterpret_cast<PyObject*>(tbl)->ob_type = &PyType_Type;
+        
         // tbl->tp_name = "qt5.QString456"; // 应该用qt5.QString还是QString呢？用<module>.<name>
         tbl->tp_name = strdup(QString("qt5.%1").arg(klass).toLatin1().data());
         tbl->tp_basicsize = 80;
@@ -548,6 +671,8 @@ bool PyInit::registClass(QString klass)
     // puts("\n");
 
     this->m_classes[klass] = tbl2;
+
+    // qDebug()<<PyObject_GenericGetAttr((PyObject*)tbl2, PyUnicode_FromString("hehe2"));
 
     return true;
 }
