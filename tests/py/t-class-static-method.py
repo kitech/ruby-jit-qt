@@ -9,6 +9,7 @@ print(tys, "==========");
 print(tys, "==========");
 print(tys, "==========");
 print(tys.hehehe)
+print(tys.hehehe(45))
 
 
 

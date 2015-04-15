@@ -46,6 +46,11 @@ static int px_Qt_class_init(PyObject *self, PyObject *argv, PyObject *kwds)
 static void px_Qt_class_dtor(void *p)
 { return pyinit->Qt_class_dtor(p); }
 
+static PyObject* px_Qt_constant_missing(PyObject *mod, PyObject *argv)
+{ return pyinit->Qt_constant_missing(mod, argv); }
+static PyObject* px_Qt_singleton_method_missing(PyObject *cls, PyObject *argv)
+{ return pyinit->Qt_singleton_method_missing(cls, argv); }
+
 /*
 static VALUE nx_Qt_constant_missing(int argc, VALUE* argv, VALUE self)
 { return rbinit->Qt_constant_missing(argc, argv, self); }
@@ -81,6 +86,7 @@ static VALUE nx_Qt_class_method_missing(int argc, VALUE *argv, VALUE self)
 static VALUE nx_Qt_class_singleton_method_missing(int argc, VALUE *argv, VALUE self)
 { return rbinit->Qt_class_singleton_method_missing(argc, argv, self); }
 */
+
 
 // 定义 python 的 model
 static struct PyModuleDef abModule = { PyModuleDef_HEAD_INIT, "ab", NULL, -1, NULL};
@@ -206,6 +212,26 @@ extern "C" PyObject* qgc_excepthook(PyObject* self, PyObject* args)
     return Py_None;
 }
 
+/*
+  目前有三种类型的getattro，
+  1、module级别的（module级常量），对应module_getattro
+  2、class实例级别的，对应class_getattro
+  3、class单例级别的（静态方法调用和类常量），对应singleton_getattro。
+     注意这个需要使用metaclass方式实现。
+*/
+
+typedef struct {
+    PyObject ob_base;
+    const char *mo_name;
+    QString mo_name2;
+    PyMethodDef *ml;
+} QtMethodObject;
+
+extern "C" PyObject* px_Qt_module_getattro(PyObject *mod, PyObject *attr);
+extern "C" PyObject* px_Qt_class_getattro(PyObject *cls, PyObject *attr);
+extern "C" PyObject* px_Qt_singleton_getattro(PyObject *mcls, PyObject *attr);
+
+
 static PyObject* (*oldgetattrfn)(PyObject*, PyObject*) = NULL;
 extern "C" PyObject* mygetattr(PyObject* o, char *a)
 {
@@ -214,19 +240,58 @@ extern "C" PyObject* mygetattr(PyObject* o, char *a)
     return PyObject_GenericGetAttr(o, PyUnicode_InternFromString(a));
 }
 
-extern "C" PyObject* meta_getattro(PyObject* o, PyObject* a)
+extern "C" PyObject* px_Qt_singleton_getattro(PyObject* o, PyObject* a)
 {
     qDebug()<<o<<a<<_PyUnicode_AsString(a);
     PyTypeObject *tp = Py_TYPE(o);
-   
     const char *mname = strcmp(tp->tp_name, "module") == 0 ? PyModule_GetName(o) : NULL;
     qDebug()<<tp->tp_name<<'|'<<mname<<'|'<<_PyUnicode_AsString(a);
 
+    // format: qt5.QString.Meta
+    QString fullName = tp->tp_name;
+    QStringList lst = fullName.split('.');
+    
+    QtMethodObject* vo = new QtMethodObject();
+    vo->ob_base.ob_type = &PyType_Type;
+    vo->mo_name2 = QString("%1.%2").arg(lst.at(1)).arg(PyUnicode_AsUTF8(a));
+    vo->mo_name = "qt5.QString.length";
+    vo->mo_name = strdup(vo->mo_name2.toLatin1().data());
+    qDebug()<<vo->mo_name<<vo->mo_name2<<vo->ob_base.ob_type->tp_name;
+    // qDebug()<<PyUnicode_AsUTF8(PyObject_Str((PyObject*)vo)); //carsh???TODO
+
+    vo->ml = new PyMethodDef();
+    vo->ml->ml_name = vo->mo_name;
+    vo->ml->ml_meth = px_Qt_singleton_method_missing;
+    vo->ml->ml_flags = METH_VARARGS;
+    vo->ml->ml_doc = vo->mo_name;
+
+    void *ty = calloc(1, sizeof(PyType_Type));
+    memcpy(ty, &PyType_Type, sizeof(PyType_Type));
+    ((PyTypeObject*)ty)->tp_name = "qt5.QString.length";
+    qDebug()<<sizeof(PyType_Type)<<sizeof(PyVarObject)<<sizeof(QtMethodObject);
+    
+    // PyObject* mth = PyCFunction_NewEx(&mthdef, (PyObject*)vo, NULL);
+    PyObject* mth = PyCFunction_NewEx(vo->ml, (PyObject*)vo, NULL);
+    PyObject* tpo = (PyObject*)(PyObject_Type(mth));
+    PyObject_Print(mth, stdout, 0); puts("\n");
+    PyCallable_Check(mth);
+
+    PyObject* tpo2 = PyMethod_New(mth, o);
+    // PyObject_Print(tpo2, stdout, 0); puts("\n");
+    PyObject* tpo3 = PyInstanceMethod_New(mth);
+
+    PyObject_GenericSetAttr(o, a, mth);
+    qDebug()<<PyObject_GenericGetAttr(o, a);
+    PyErr_Clear();
+
+    // return mth;
+    return tpo3;
+    return tpo2;
     return NULL;
 }
 
 // extern "C" PyObject* mygetattro(PyObject* type, PyObject* name)
-extern "C" PyObject* mygetattro(PyObject* o, PyObject* a)
+extern "C" PyObject* px_Qt_module_getattro(PyObject* o, PyObject* a)
 {
     qDebug()<<o<<a<<_PyUnicode_AsString(a);
 
@@ -323,13 +388,6 @@ extern "C" PyObject* mygetattro(PyObject* o, PyObject* a)
     return NULL;
 }
 
-typedef struct {
-    PyObject ob_base;
-    const char *mo_name;
-    QString mo_name2;
-    PyMethodDef *ml;
-} QtMethodObject;
-
 
 extern "C" PyObject* mth_length(PyObject* o, PyObject* a)
 {
@@ -344,7 +402,7 @@ extern "C" PyObject* mth_length(PyObject* o, PyObject* a)
 }
 
 // 目标：生成这样一个对象：<bound method Abc.hehe of <eg.Abc object at 0x7ffff7e409e8>>
-extern "C" PyObject* class_getattro(PyObject* o, PyObject* a)
+extern "C" PyObject* px_Qt_class_getattro(PyObject* o, PyObject* a)
 {
     qDebug()<<o<<a;
     PyObject_Print(a, stdout, 0); puts("\n");
@@ -413,7 +471,7 @@ void PyInit::initialize()
     oldgetattrfn = mto->tp_getattro; // 保存下默认的函数
     qDebug()<<mto->tp_getattr<<oldgetattrfn;
     mto->tp_getattr = mygetattr;  // 真的管用啊，注入式的。
-    mto->tp_getattro = mygetattro;  // 真的管用啊，注入式的。
+    mto->tp_getattro = px_Qt_module_getattro;  // 真的管用啊，注入式的。
     qDebug()<<PyUnicode_AsUTF8(PyObject_Str((PyObject*)mto));
 
     int ok = false;
@@ -513,7 +571,7 @@ bool PyInit::registClass(QString klass)
         tbl->tp_flags |= Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
 
         tbl->tp_new = PyType_GenericNew;
-        tbl->tp_getattro = mygetattro;
+        tbl->tp_getattro = px_Qt_module_getattro;
 
         PyType_Ready(tbl);
         
@@ -531,7 +589,7 @@ bool PyInit::registClass(QString klass)
 
         tbl->tp_new = PyType_GenericNew;
         tbl->tp_getattr = mygetattr;
-        tbl->tp_getattro = meta_getattro;
+        tbl->tp_getattro = px_Qt_singleton_getattro;
 
         qDebug()<<PyType_Ready(tbl);
         
@@ -566,7 +624,7 @@ bool PyInit::registClass(QString klass)
         ht->ht_qualname = PyUnicode_InternFromString(tbl->tp_name);
 
         // tbl->tp_getattr = mygetattr;
-        tbl->tp_getattro = class_getattro;
+        tbl->tp_getattro = px_Qt_class_getattro;
 
         tbl->tp_descr_get = class_descr_get;
         
@@ -765,5 +823,29 @@ void PyInit::Qt_class_dtor(void *p)
 
 
     // call mce->vm_delete
+}
+
+PyObject* PyInit::Qt_constant_missing(PyObject *mod, PyObject *argv)
+{
+    qDebug()<<mod<<argv;
+    return PyLong_FromLong(qrand());
+    return NULL;
+}
+
+PyObject* PyInit::Qt_singleton_method_missing(PyObject *mobj, PyObject *argv)
+{
+    qDebug()<<mobj<<argv;
+    qDebug()<<_PyUnicode_AsString(PyObject_Str(mobj))
+            <<_PyUnicode_AsString(PyObject_Str(argv));
+    QtMethodObject *mo = (QtMethodObject*)mobj;
+    qDebug()<<mo->mo_name;
+    QString fullName = mo->mo_name;
+    QStringList lst = fullName.split('.');
+    QString klass = lst.at(0);
+    QString method = lst.at(1);
+    qDebug()<<lst<<klass<<method;
+
+    return PyLong_FromLong(qrand());
+    return NULL;
 }
 
