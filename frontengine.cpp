@@ -138,12 +138,20 @@ bool FrontEngine::loadPreparedASTFile()
     clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> mydiag
         = clang::CompilerInstance::createDiagnostics(new clang::DiagnosticOptions(), Client, true);
     clang::FileSystemOptions fsopts;
+    const clang::PCHContainerReader &pchreader = this->mcis->getPCHContainerReader();
 
     QDateTime btime = QDateTime::currentDateTime();
     std::unique_ptr<clang::ASTUnit> unit
-        = clang::ASTUnit::LoadFromASTFile(astfile, mydiag, fsopts, false, clang::None, true, true, true);
+        = clang::ASTUnit::LoadFromASTFile(astfile, pchreader, mydiag, fsopts, false, clang::None, true, true, true);
     // false, clang::None,
     // true, true, true);
+    // std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
+    //                                                   const std::string &Filename,
+    //                                                   const PCHContainerReader &PCHContainerRdr,
+    //                                                   IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
+    //                                                   const FileSystemOptions &FileSystemOpts, bool OnlyLocalDecls,
+    //                                                   ArrayRef<RemappedFile> RemappedFiles, bool CaptureDiagnostics,
+    //                                                   bool AllowPCHWithCompilerErrors, bool UserFilesAreVolatile) {
     // clang::ASTUnit::LoadFromASTFile(const std::string &Filename, 
     //                                 IntrusiveRefCntPtr<clang::DiagnosticsEngine> Diags, 
     //                                 const clang::FileSystemOptions &FileSystemOpts, 
@@ -237,9 +245,10 @@ bool FrontEngine::parseHeader()
     std::string astfile = "data/qthdrsrc.ast";
     clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> mydiag;
     clang::FileSystemOptions fsopts;
+    const clang::PCHContainerReader &pchreader = this->mcis->getPCHContainerReader();
 
     QDateTime btime = QDateTime::currentDateTime();
-    std::unique_ptr<clang::ASTUnit> unit = clang::ASTUnit::LoadFromASTFile(astfile, mydiag, fsopts);
+    std::unique_ptr<clang::ASTUnit> unit = clang::ASTUnit::LoadFromASTFile(astfile, pchreader, mydiag, fsopts);
         // clang::ASTUnit::LoadFromASTFile(const std::string &Filename, 
         //                                 IntrusiveRefCntPtr<clang::DiagnosticsEngine> Diags, 
         //                                 const clang::FileSystemOptions &FileSystemOpts, 
@@ -321,8 +330,12 @@ bool FrontEngine::parseHeader(QString path)
     QDateTime btime = QDateTime::currentDateTime();
     clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> mydiag;
     //        clang::CompilerInstance::createDiagnostics(mcis->
-    std::unique_ptr<clang::ASTUnit> pastu = 
-        clang::ASTUnit::LoadFromCompilerInvocation(mciv, mydiag);
+    std::shared_ptr<clang::PCHContainerOperations> PCHContainerOps = this->mcis->getPCHContainerOperations();
+
+    std::unique_ptr<clang::ASTUnit> pastu =
+        clang::ASTUnit::LoadFromCompilerInvocation(mciv, PCHContainerOps, mydiag, false, true,
+                                                   true, clang::TU_Complete, true, true, true);
+        // clang::ASTUnit::LoadFromCompilerInvocation(mciv, mydiag);
     clang::ASTContext &tctx = pastu->getASTContext();
     QDateTime etime = QDateTime::currentDateTime();
 
@@ -1047,7 +1060,7 @@ FrontEngine::find_ctor_decl(clang::CXXRecordDecl *decl,
     // else ctors.count() == 1
 
     clang::CXXConstructorDecl *ctor = ctors.at(0);
-    Q_ASSERT(md);
+    Q_ASSERT(ctor);
     return ctor;
 }
 

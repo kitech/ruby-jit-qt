@@ -44,7 +44,10 @@ string(REPLACE "-std=gnu++11" "-std=c++17 -std=c++1z" NEW_FLAGS ${CMAKE_CXX_FLAG
 string(REPLACE "-std=c++11" "-std=c++17 -std=c++1z" NEW_FLAGS ${CMAKE_CXX_FLAGS})
 set(CMAKE_CXX_FLAGS "${NEW_FLAGS}")
 
-set(LLVM_SRC_DIR2 "./llvm-3.6.0.src")  # maybe a symlink
+# set(LLVM_SRC_DIR2 "./llvm-3.5.0.src")  # maybe a symlink
+# set(LLVM_SRC_DIR2 "./llvm-3.6.0.src")  # maybe a symlink
+# set(LLVM_SRC_DIR2 "./llvm-3.6.2.src")  # maybe a symlink
+set(LLVM_SRC_DIR2 "./llvm-3.7.0.src")  # maybe a symlink
 set(CLANG_SRC_DIR2 ${LLVM_SRC_DIR2}/tools/clang)
 include_directories(${CLANG_SRC_DIR2}/lib/CodeGen ${CLANG_SRC_DIR2}/lib/ ${LLVM_SRC_DIR2}/lib/)
 
@@ -98,7 +101,8 @@ set(handby_exe_SRCS
     block.cpp
 )
 
-set(CLANGLIBS  -lclang -lLLVM-3.6
+# set(CLANGLIBS  -lclang -lLLVM-3.6
+set(CLANGLIBS  -lclang
 		 -lclangTooling
 		-lclangFrontendTool  
 		-lclangFrontend

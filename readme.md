@@ -30,11 +30,9 @@ Easy keep update to version by version
 ###Install
     git clone git@github.com:kitech/ruby-jit-qt.git
     cd ruby-jit-qt
-    tar xvf /path/to/llvm-3.5.0.src.tar.xz
-    cd llvm-3.5.0.src/tools
-    tar xvf /path/to/cfe-3.5.0.src.tar.xz
-    mv -v cfe-3.5.0.src clang
-    cd ../..
+    tar xvf /path/to/llvm-3.7.0.src.tar.xz
+    tar xvf /path/to/cfe-3.7.0.src.tar.xz
+    mv -v cfe-3.7.0.src llvm-3.7.0.src/tools/clang
     cmake .
     make
 

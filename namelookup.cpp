@@ -4,6 +4,7 @@
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
+// 需要把Sema.h中的emit()函数改名，否则会与Qt中的emit冲突。
 #include <clang/Sema/Sema.h>
 #include <clang/Sema/Lookup.h>
 #include <clang/Frontend/ASTUnit.h>

@@ -805,7 +805,7 @@ llvm::DataLayout *OperatorEngine::getDataLayout(llvm::Module *mod)
     static llvm::DataLayout *pdlo = NULL;
     if (pdlo == NULL) {
         // pdlo = new llvm::DataLayout("e-m:e-i64:64-f80:128-n8:16:32:64-S128");
-        pdlo = new llvm::DataLayout(*mod->getDataLayout());
+        pdlo = new llvm::DataLayout(mod->getDataLayout());
     }
     // qDebug()<<mod->getDataLayout()->getStringRepresentation().c_str();
     return pdlo;
@@ -818,7 +818,7 @@ llvm::Module *OperatorEngine::createRemod(llvm::Module *mod)
     llvm::Module *remod = new llvm::Module(modname.toStdString(), *mvmctx);
     llvm::DataLayout *dlo = this->getDataLayout(mod);
     // mmod->setDataLayout(ctx.getTargetInfo().getTargetDescription());
-    remod->setDataLayout(dlo);
+    remod->setDataLayout(*dlo);
 
     QString rename = QString::fromStdString(remod->getName().str())/*.replace("remod", "runpxy")*/;
     llvm::IRBuilder<> builder(*mvmctx);

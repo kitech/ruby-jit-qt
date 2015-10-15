@@ -72,7 +72,7 @@ void *CtrlEngine::vm_new(QString klass, QVector<QVariant> uargs)
     } else {
         // auto mod = mce->conv_ctor(mfe->getASTContext(), ctor_decl);
         auto tmod = mce->conv_ctor2(mfe->getASTUnit(), ctor_decl, dargs);
-        qDebug()<<tmod<<tmod->getDataLayout();
+        qDebug()<<tmod<<&tmod->getDataLayout();
         TEMP_DEBUG();
         qtmod = tmod;
     
@@ -204,7 +204,7 @@ bool CtrlEngine::vm_delete(void *kthis, QString klass)
         qtmod = mman->get(modname);
     } else {
         auto mod = mce->conv_dtor(mfe->getASTUnit(), dtor_decl);
-        qDebug()<<mod<<mod->getDataLayout();
+        qDebug()<<mod<<&mod->getDataLayout();
         // mod->dump();
         qtmod = mod;
 
@@ -396,7 +396,7 @@ QVariant CtrlEngine::vm_call(void *kthis, QString klass, QString method, QVector
     } else {
         // auto mod = mce->conv_method(mfe->getASTContext(), mth_decl);
         auto mod = mce->conv_method2(mfe->getASTUnit(), mth_decl);
-        qDebug()<<mod<<mod->getDataLayout();
+        qDebug()<<mod<<&mod->getDataLayout();
         qtmod = mod;
         
         // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
@@ -478,7 +478,7 @@ QVariant CtrlEngine::vm_static_call(QString klass, QString method, QVector<QVari
     } else {
         // auto mod = mce->conv_method(mfe->getASTContext(), mth_decl);
         auto mod = mce->conv_method2(mfe->getASTUnit(), mth_decl);
-        qDebug()<<mod<<mod->getDataLayout();
+        qDebug()<<mod<<&mod->getDataLayout();
         // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
         qtmod = mod;
     }
@@ -566,7 +566,7 @@ QString CtrlEngine::vm_qdebug(void *kthis, QString klass)
             qtmod = mman->get(modname);
         } else {
             auto mod = mce->conv_function2(mfe->getASTUnit(), fun_decl);
-            qDebug()<<mod<<mod->getDataLayout();
+            qDebug()<<mod<<&mod->getDataLayout();
             qtmod = mod;
             // mce->conv_ctor(mfe->getASTContext(), ctor_decl);
             // QString symname = mce->mangle_method(mfe->getASTContext(), mth_decl);
