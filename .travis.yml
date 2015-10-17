@@ -11,7 +11,7 @@ before_install:
   - docker ps -a 
 
 script:
-  - docker exec ruby-jit-qt-dkbox "/usr/bin/pacman -Suyy --noconfirm"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "pacman -Suyy --noconfirm"
 
 notifications:
   email: false
