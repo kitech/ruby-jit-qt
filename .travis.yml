@@ -24,7 +24,7 @@ install:
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; tar xf ../llvm-3.7.0.src.tar.xz"
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; tar xf ../cfe-3.7.0.src.tar.xz"
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; mv -v cfe-3.7.0.src llvm-3.7.0.src/tools/clang"
-  - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /; sed s/emit\\\(/emitxxx\\\(/g /usr/include/clang/Sema/Sema.h > Sema_mod.h"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /; sed s/emit\\\\(/emitxxx\\\\(/g /usr/include/clang/Sema/Sema.h > Sema_mod.h"
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /; cp -v Sema_mod.h /usr/include/clang/Sema/Sema.h"
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "pwd; ls;"
 
