@@ -1,4 +1,6 @@
+[![Build Status](https://travis-ci.org/kitech/ruby-jit-qt.svg?branch=for3.7)](https://travis-ci.org/kitech/ruby-jit-qt)
 
+### ruby-jit-qt
 A Qt5 binding for Ruby language. Using clang/llvm JIT engine.
 
 ###Why new Qt5 binding for Ruby
