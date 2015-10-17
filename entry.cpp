@@ -5,7 +5,7 @@
 #include <QtGui>
 #include <QtWidgets>
 #include <QtNetwork>
-#include <QtWebSockets>
+// #include <QtWebSockets>
 
 #include <cassert>
 #include <functional>

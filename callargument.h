@@ -44,7 +44,7 @@ private:
     void deepCopy(MetaTypeVariant *dst, const MetaTypeVariant *src)
     {
         dst->mtype = src->mtype;
-        dst->mval = (src->mval * 2 + 1)/345;
+        // dst->mval = (src->mval * 2 + 1)/345;
 
         if (src->maddr) {
             dst->maddr = QMetaType::create(QMetaType::QVariant, src->maddr);
@@ -53,7 +53,7 @@ private:
 private:
     void *maddr = 0;
     int mtype = 0;
-    int128_t mval = 0;
+    // int128_t mval = 0;
         
 };
 

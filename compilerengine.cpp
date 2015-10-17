@@ -49,11 +49,11 @@ void test_raw_codegen()
     clang::CodeGenOptions &cgopt = ci.getCodeGenOpts();
 
     llvm::DataLayout dlo("hehhe");
-    clang::CodeGen::CodeGenModule cgmod(astctx, cgopt, mod, dlo, diag);
+    // clang::CodeGen::CodeGenModule cgmod(astctx, cgopt, mod, dlo, diag);
 
-    cgmod.EmitAnnotationString("hhhh");
+    // cgmod.EmitAnnotationString("hhhh");
 
-    clang::CodeGen::CodeGenFunction cgf(cgmod);
+    // clang::CodeGen::CodeGenFunction cgf(cgmod);
 }
 
 
@@ -697,7 +697,9 @@ llvm::Module* CompilerEngine::conv_ctor(clang::ASTContext &ctx, clang::CXXConstr
 
     // llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
     llvm::DataLayout dlo(ctx.getTargetInfo().getTargetDescription());
-    clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, *mod, dlo, diag);
+    clang::HeaderSearchOptions headersearchopts;
+    clang::PreprocessorOptions ppopts;
+    clang::CodeGen::CodeGenModule cgmod(ctx, headersearchopts, ppopts, cgopt, *mod, dlo, diag);
     auto &cgtypes = cgmod.getTypes();
     auto cgf = new clang::CodeGen::CodeGenFunction(cgmod);
 
@@ -804,7 +806,9 @@ llvm::Module* CompilerEngine::conv_method(clang::ASTContext &ctx, clang::CXXMeth
 
     // llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
     llvm::DataLayout dlo(ctx.getTargetInfo().getTargetDescription());
-    clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, *mod, dlo, diag);
+    clang::HeaderSearchOptions headersearchopts;
+    clang::PreprocessorOptions ppopts;
+    clang::CodeGen::CodeGenModule cgmod(ctx, headersearchopts, ppopts, cgopt, *mod, dlo, diag);
     auto &cgtypes = cgmod.getTypes();
     auto cgf = new clang::CodeGen::CodeGenFunction(cgmod);
 
@@ -926,7 +930,9 @@ QString CompilerEngine::mangle_ctor(clang::ASTContext &ctx, clang::CXXConstructo
 
     // llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
     llvm::DataLayout dlo(ctx.getTargetInfo().getTargetDescription());
-    clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, *mod, dlo, diag);
+    clang::HeaderSearchOptions headersearchopts;
+    clang::PreprocessorOptions ppopts;
+    clang::CodeGen::CodeGenModule cgmod(ctx, headersearchopts, ppopts, cgopt, *mod, dlo, diag);
     auto &cgtypes = cgmod.getTypes();
     auto cgf = new clang::CodeGen::CodeGenFunction(cgmod);
 
@@ -952,7 +958,9 @@ QString CompilerEngine::mangle_dtor(clang::ASTContext &ctx, clang::CXXDestructor
 
     // llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
     llvm::DataLayout dlo(ctx.getTargetInfo().getTargetDescription());
-    clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, *mod, dlo, diag);
+    clang::HeaderSearchOptions headersearchopts;
+    clang::PreprocessorOptions ppopts;
+    clang::CodeGen::CodeGenModule cgmod(ctx, headersearchopts, ppopts, cgopt, *mod, dlo, diag);
     auto &cgtypes = cgmod.getTypes();
     auto cgf = new clang::CodeGen::CodeGenFunction(cgmod);
 
@@ -978,7 +986,9 @@ QString CompilerEngine::mangle_method(clang::ASTContext &ctx, clang::CXXMethodDe
 
     // llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
     llvm::DataLayout dlo(ctx.getTargetInfo().getTargetDescription());
-    clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, *mod, dlo, diag);
+    clang::HeaderSearchOptions headersearchopts;
+    clang::PreprocessorOptions ppopts;
+    clang::CodeGen::CodeGenModule cgmod(ctx, headersearchopts, ppopts, cgopt, *mod, dlo, diag);
     auto &cgtypes = cgmod.getTypes();
     auto cgf = new clang::CodeGen::CodeGenFunction(cgmod);
 
@@ -2059,7 +2069,10 @@ CompilerEngine::createCompilerUnit(clang::ASTUnit *unit, clang::NamedDecl *decl)
     //  llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
     llvm::DataLayout *pdlo = new llvm::DataLayout(ctx.getTargetInfo().getTargetDescription());
     auto &dlo = *pdlo;
-    cu->mcgm = new clang::CodeGen::CodeGenModule(ctx, cgopt, *cu->mmod, dlo, diag);
+    clang::HeaderSearchOptions headersearchopts;
+    clang::PreprocessorOptions ppopts;
+    cu->mcgm = new clang::CodeGen::CodeGenModule(ctx, headersearchopts, ppopts, cgopt, *cu->mmod, dlo, diag);
+    // cu->mcgm = new clang::CodeGen::CodeGenModule(ctx, cgopt, *cu->mmod, dlo, diag);
     cu->mcgf = new clang::CodeGen::CodeGenFunction(*cu->mcgm);
 
     // 
@@ -2127,13 +2140,16 @@ bool CompilerEngine::tryCompile(clang::CXXRecordDecl *decl, clang::ASTContext &c
 
     clang::ExternalASTSource *eas = ctx.getExternalSource();
 
-    clang::CodeGenerator *cgtor = clang::CreateLLVMCodeGen(diag, "testmm", cgopt, tgopt, vmctx);
+    clang::HeaderSearchOptions HeaderSearchOpts;
+    clang::PreprocessorOptions PreprocessorOpts;
+    clang::CodeGenerator *cgtor =
+        clang::CreateLLVMCodeGen(diag, "testmm", HeaderSearchOpts, PreprocessorOpts, cgopt, vmctx);
     qDebug()<<cgtor<<eas;
 
     
     cgtor->Initialize(ctx);
     cgtor->HandleTranslationUnit(ctx);
-    cgtor->HandleVTable(decl, true);
+    cgtor->HandleVTable(decl);
     cgtor->HandleTagDeclDefinition(decl);
 
     int cnter = 0;
@@ -2159,7 +2175,9 @@ bool CompilerEngine::tryCompile(clang::CXXRecordDecl *decl, clang::ASTContext &c
 
     std::string stmc;
     llvm::raw_string_ostream stmo(stmc);
-    clang::EmitBackendOutput(diag, cgopt, tgopt, lgopt, "thisok", mod, clang::Backend_EmitLL, &stmo);
+    llvm::buffer_ostream bufstm(stmo);
+    // clang::EmitBackendOutput(diag, cgopt, tgopt, lgopt, "thisok", mod, clang::Backend_EmitLL, &stmo);
+    clang::EmitBackendOutput(diag, cgopt, tgopt, lgopt, "thisok", mod, clang::Backend_EmitLL, &bufstm);
     /*
       void EmitBackendOutput(DiagnosticsEngine &Diags, const CodeGenOptions &CGOpts,
                          const TargetOptions &TOpts, const LangOptions &LOpts,
@@ -2322,7 +2340,9 @@ bool CompilerEngine::tryCompile2(clang::CXXRecordDecl *decl, clang::ASTContext &
     // llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
     llvm::DataLayout dlo(ctx.getTargetInfo().getTargetDescription());
     qDebug()<<"heeeeee...";
-    clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, mod, dlo, diag);
+    clang::HeaderSearchOptions headersearchopts;
+    clang::PreprocessorOptions ppopts;
+    clang::CodeGen::CodeGenModule cgmod(ctx, headersearchopts, ppopts, cgopt, mod, dlo, diag);
 
     // cgmod.EmitAnnotationString("hhhh");
 
@@ -2619,13 +2639,6 @@ void testGenerateCode(clang::CodeGen::CodeGenModule &CGM, clang::GlobalDecl GD, 
     // Emit the standard function prologue.
     // StartFunction(GD, ResTy, Fn, FnInfo, Args, Loc, BodyRange.getBegin());
 
-    FunctionDecl *UnsizedDealloc = 
-        FD->getCorrespondingUnsizedGlobalDeallocationFunction();
-    bool ok = (UnsizedDealloc != NULL);
-    qDebug()<<UnsizedDealloc<<ok;
-    if (UnsizedDealloc) {
-        qDebug()<<"error match if";
-    }
     // Generate the body of the function.
     // PGO.assignRegionCounters(GD.getDecl(), CurFn);
     if (isa<CXXDestructorDecl>(FD)) {
@@ -2664,13 +2677,6 @@ void testGenerateCode(clang::CodeGen::CodeGenModule &CGM, clang::GlobalDecl GD, 
         // EmitFunctionBody(Args, Body);
         qDebug()<<"hhhhhhhhhhh";
         // } else if (UnsizedDealloc != NULL) {
-    } else if (FunctionDecl *UnsizedDealloc = 
-               FD->getCorrespondingUnsizedGlobalDeallocationFunction()) {
-        // Global sized deallocation functions get an implicit weak definition if
-        // they don't have an explicit definition.
-        // EmitSizedDeallocationFunction(*this, UnsizedDealloc);
-        // EmitSizedDeallocationFunction(CGM, UnsizedDealloc);
-        qDebug()<<"why hereeeeeeeeee"<<UnsizedDealloc<<(UnsizedDealloc != NULL);
     } else {
         qDebug()<<"hhhhhhhhhhh";
         llvm_unreachable("no definition for emitted function");
@@ -2763,13 +2769,14 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
 
     // llvm::DataLayout dlo("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
     llvm::DataLayout dlo(ctx.getTargetInfo().getTargetDescription());
-
-    clang::CodeGen::CodeGenModule cgmod(ctx, cgopt, mod, dlo, diag);
+    clang::HeaderSearchOptions HeaderSearchOpts;
+    clang::PreprocessorOptions PreprocessorOpts;
+    clang::CodeGen::CodeGenModule cgmod(ctx, HeaderSearchOpts, PreprocessorOpts, cgopt, mod, dlo, diag);
 
     qDebug()<<"heeeeee...";
     clang::CodeGen::CodeGenFunction cgf(cgmod, false);
 
-    qDebug()<<cgmod.getMangledName(mthdecl).data();
+    // qDebug()<<cgmod.getMangledName(mthdecl).data();
     auto mgctx = ctx.createMangleContext();
     std::string stms;
     llvm::raw_string_ostream stmo(stms);
@@ -2823,7 +2830,7 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
             qDebug()<<cnter++<<sd;
             int jcnter = 0;
             auto &al = sd->getTemplateArgs();
-            for (int j = 0; j < al.size(); j++) {
+            for (unsigned int j = 0; j < al.size(); j++) {
                 qDebug()<<jcnter++<<al.get(j).getAsType().getAsString().data();
                 QString tplat = al.get(j).getAsType().getAsString().data();
                 if (tplat == "char") {
@@ -2897,7 +2904,7 @@ bool CompilerEngine::tryCompile_tpl(clang::ClassTemplateDecl *decl, clang::ASTCo
         //     Ty = getTypes().ConvertType(cast<ValueDecl>(GD.getDecl())->getType());
         // cgtypes.ConvertType(clang::cast<clang::ValueDecl>(td)->getType());
         qDebug()<<cgm.getMangledName(clang::GlobalDecl(td)).data();
-        qDebug()<<td<<td->getCorrespondingUnsizedGlobalDeallocationFunction()
+        qDebug()<<td  // <<td->getCorrespondingUnsizedGlobalDeallocationFunction()
                 <<td->isLambdaStaticInvoker()<<td->isInstance(); // 0x12345, 0x0, false
         cgf.GenerateCode(td, f, FI);
         // testGenerateCode(cgm, clang::GlobalDecl(td), f, FI);

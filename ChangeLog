@@ -1,11 +1,43 @@
+2015-10
+	llvm-3.6 => llvm-3.7, qt5.5。注意编译器与内嵌入的llvm-src版本要相同。
+	1。llvm::Module->getDataLayout() 从返回指针，改为返回引用了，不能再qDebug()直接输出
+	2。变化最大的看来是clang::CodeGen这部分，大面积编译不过。
+	CodeGenModule构造方法，添加了两个参数，clang::HeaderSearchOptions&和clang::PreprocessorOptions&。
+	看能不能采用默认构造方法构造这两个参数。
+	clang::CreateLLVMCodeGen()添加了两个参数，clang::HeaderSearchOptions&和clang::PreprocessorOptions&，
+	并去掉了一个参数clang::TargetOptions&。
+	3。clang::CodeGenerator去掉了一个参数,bool DefinitionRequired。
+	4。clang::EmitBackendOutput改了一个参数类型，llvm::raw_string_ostream * => llvm::raw_pwrite_stream *。
+	需要添加一层，llvm::buffer_ostream bufstm(llvm::raw_string_ostream&);
+	5。clang::FunctionDecl去掉了个方法，getCorrespondingUnsizedGlobalDeallocationFunction
+	这个在llvm-3.7.0去掉了。
+	这段代码直接去掉，没见到替代方法。
+	6。clang::ASTUnit::LoadFromASTFile方法改变，添加了一个参数PCHContainerReader&。
+	这个参数需要手动构造还是怎么初始化呢？反正默认构造不行，这是个抽像类。
+	需要从CompilerInstance取出来，CI.getPCHContainerReader()。
+	正好FrontEngine已经构造了默认的CompilerInstance对象可以使用。
+	7。clang::ASTUnit::LoadFromCompilerInvocation两个参数全部改了。
+	8。llvm::object::SymbolRef的getName()方法去掉了参数，直接返回。
+	getSize方法改为getCommonSize方法，直接返回。
+	9。<clang/Sema/Sema.h>定义了个emit，与Qt的emit冲突了。
+	这个可不容易解决了。
+	临时把/usr/include/clang/Sema/Sema.h中的emit改名emit1,能编译过去，结果啥样不知道。
+	不过代码中应该并未真正使用到这个Sema中的emit函数。
+
+	总的来说，改动不算太大。运行测试再看效果。
+
+2015-5
+	优化JIT引擎。
+	llvm::Module拆分优化。
+
 2015-3
 	优化IR生成引擎中的ast遍历。
 	升级到依赖llvm-3.6库。
-	
+
 2014-11
 	直接存储ruby VALUE类型作为hash的key值，不再使用rb_hash计算一次。
 	实现诸如qApp的Qt全局变量getter/setter。
 
 2014-10
 	基本的jit执行。
-	
+

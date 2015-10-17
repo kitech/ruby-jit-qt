@@ -1,0 +1,46 @@
+sudo: required
+
+language: cpp
+
+services:
+  - docker
+
+before_install:
+  - docker pull kitech/archlinux
+  - docker run -d --name=ruby-jit-qt-dkbox -v `pwd`:/ruby-jit-qt kitech/archlinux /bin/sh -c "sleep 1234567890"
+  - docker ps -a 
+
+install:
+  # default is mirror in China，travis上还是用国外站点网速快。
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "echo 'Server = http://ftp.jaist.ac.jp/pub/Linux/ArchLinux/\$repo/os/\$arch' > /etc/pacman.d/mirrorlist"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "pacman -Suyy --noconfirm"
+  # TODO 精简要下载的包，主要是qt5部分
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "pacman -S --noconfirm make cmake glibc clang llvm gcc gcc-libs ruby qt5 wget"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "pacman -S --noconfirm gperftools"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "pwd; ls"
+  # - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /; git clone https://github.com/kitech/ruby-jit-qt.git"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /; wget http://llvm.org/releases/3.7.0/llvm-3.7.0.src.tar.xz"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /; wget http://llvm.org/releases/3.7.0/cfe-3.7.0.src.tar.xz"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; tar xf ../llvm-3.7.0.src.tar.xz"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; tar xf ../cfe-3.7.0.src.tar.xz"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; mv -v cfe-3.7.0.src llvm-3.7.0.src/tools/clang"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /; sed 's/emit(/emitxxx(/g' /usr/include/clang/Sema/Sema.h > Sema_mod.h"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /; cp -v Sema_mod.h /usr/include/clang/Sema/Sema.h"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /; cp -v Sema_mod.h /ruby-jit-qt/llvm-3.7.0.src/tools/clang/include/clang/Sema/Sema.h"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /; grep emitxxx Sema_mod.h"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "pwd; ls;"
+
+before_script:
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "cmake --version"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "qmake -v"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "ruby -v"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "clang++ -v"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "whereis clang; whereis clang++; whereis llvm-config"
+
+script:
+  # - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; git checkout -b for-travis origin/for-travis"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; CC=/usr/bin/clang CXX=/usr/bin/clang++ cmake .; make"
+
+notifications:
+  email: false
+
