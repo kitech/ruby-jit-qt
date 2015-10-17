@@ -36,6 +36,7 @@ before_script:
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "whereis clang; whereis clang++; whereis llvm-config"
 
 script:
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; git checkout -b for-travis origin/for-travis"
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; CC=/usr/bin/clang CXX=/usr/bin/clang++ cmake .; make"
 
 notifications:
