@@ -7,7 +7,7 @@ services:
 
 before_install:
   - docker pull kitech/archlinux
-  - docker run -d kitech/archlinux --name=ruby-jit-qt-dkbox /bin/sh -c "sleep 1234567890"
+  - docker run -d --name=ruby-jit-qt-dkbox kitech/archlinux /bin/sh -c "sleep 1234567890"
   - docker ps -a 
 
 script:
