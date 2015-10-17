@@ -11,8 +11,8 @@ before_install:
   - docker ps -a 
 
 install:
-  - docker exec ruby-jit-qt-dkbox /bin/sh -c "pacman -Suyy --noconfirm pacman-mirrorlist"
-  - docker exec ruby-jit-qt-dkbox /bin/sh -c "sed s/#Server/Server/g /etc/pacman.d/mirrorlist.pacnew > /etc/pacman.d/mirrorlist"
+  # default is mirror in China
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "echo 'Server = http://ftp.jaist.ac.jp/pub/Linux/ArchLinux/\$repo/os/\$arch' > /etc/pacman.d/mirrorlist"
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "pacman -Suyy --noconfirm"
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "pacman -S --noconfirm make cmake git clang gcc gcc-libs ruby qt5 wget"
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "pwd; ls"
