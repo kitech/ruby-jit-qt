@@ -12,7 +12,7 @@ before_install:
 
 install:
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "pacman -Suyy --noconfirm"
-  - docker exec ruby-jit-qt-dkbox /bin/sh -c "pacman -S --noconfirm make cmake git clang ruby qt5 wget"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "pacman -S --noconfirm make cmake git clang gcc gcc-libs ruby qt5 wget"
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "pwd; ls"
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /; git clone https://github.com/kitech/ruby-jit-qt.git"
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /; wget http://llvm.org/releases/3.7.0/llvm-3.7.0.src.tar.xz"
@@ -22,10 +22,12 @@ install:
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; mv -v cfe-3.7.0.src llvm-3.7.0.src/tools/clang"
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /; sed s/emit\(/emitxxx\(/g /usr/include/clang/Sema/Sema.h > Sema_mod.h"
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /; cp -v Sema_mod.h /usr/include/clang/Sema/Sema.h"
-  - docker exec ruby-jit-qt-dkbox /bin/sh -c "pwd; ls"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "pwd; ls;"
 
 before_script:
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "cmake --version"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "qmake -v"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "ruby -v"
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "clang++ -v"
 
 script:
