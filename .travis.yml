@@ -13,7 +13,7 @@ before_install:
 install:
   # default is mirror in China，travis上还是用国外站点网速快。
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "echo 'Server = http://ftp.jaist.ac.jp/pub/Linux/ArchLinux/\$repo/os/\$arch' > /etc/pacman.d/mirrorlist"
-  - docker exec ruby-jit-qt-dkbox /bin/sh -c "pacman -Suyy --noconfirm"
+  # - docker exec ruby-jit-qt-dkbox /bin/sh -c "pacman -Suyy --noconfirm"
   # TODO 精简要下载的包，主要是qt5部分
   # - docker exec ruby-jit-qt-dkbox /bin/sh -c "pacman -S --noconfirm make cmake glibc clang llvm gcc gcc-libs ruby qt5 wget"
   # - docker exec ruby-jit-qt-dkbox /bin/sh -c "pacman -S --noconfirm gperftools"
@@ -24,7 +24,7 @@ install:
   # - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; tar xf ../llvm-3.7.0.src.tar.xz"
   # - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; tar xf ../cfe-3.7.0.src.tar.xz"
   # - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; mv -v cfe-3.7.0.src llvm-3.7.0.src/tools/clang"
-  - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; sed 's/emit\(/emitxxx\(/g' Sema.h > Sema_mod.h"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; sed \'s/emit(/emitxxx(/g\' Sema.h > Sema_mod.h"
   # - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /; cp -v Sema_mod.h /usr/include/clang/Sema/Sema.h"
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; grep emitxxx Sema_mod.h"
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "pwd; ls;"
