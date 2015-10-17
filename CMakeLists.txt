@@ -5,10 +5,26 @@ set(CMAKE_VERBOSE_MAKEFILE on)
 
 # add_definitions(-g -O2 -std=c++11) # -std=c++14 -fno-rtti)  # -fno-rtti
 add_definitions(-DQT_MESSAGELOGCONTEXT=1 -DLLVM_DUMP_COLOR=1)
-set(CMAKE_C_COMPILER ./myllvm/bin/clang)
-set(CMAKE_CXX_COMPILER ./myllvm/bin/clang++)
-set(CMAKE_C_COMPILER clang)
-set(CMAKE_CXX_COMPILER clang++)
+# set(CMAKE_C_COMPILER ./myllvm/bin/clang)
+# set(CMAKE_CXX_COMPILER ./myllvm/bin/clang++)
+# set(CMAKE_C_COMPILER clang)
+# set(CMAKE_CXX_COMPILER clang++)
+
+# 优先考虑环境变量，如果得到的值不是clang，则改成默认的clang
+if(NOT "$ENV{CC}" STREQUAL "")
+  set(CMAKE_C_COMPILER $ENV{CC})
+endif(NOT "$ENV{CC}" STREQUAL "")
+if(NOT "$ENV{CXX}" STREQUAL "")
+  set(CMAKE_CXX_COMPILER $ENV{CXX})
+endif(NOT "$ENV{CXX}" STREQUAL "")
+
+if(NOT "${CMAKE_C_COMPILER}" MATCHES ".*clang*")
+  set(CMAKE_C_COMPILER clang)
+endif(NOT "${CMAKE_C_COMPILER}" MATCHES ".*clang*")
+if(NOT "${CMAKE_CXX_COMPILER}" MATCHES ".*clang\\+\\+*")
+  set(CMAKE_CXX_COMPILER clang++)
+endif(NOT "${CMAKE_CXX_COMPILER}" MATCHES ".*clang\\+\\+*")
+
 set(CMAKE_CXX_FLAGS "-g -O2 -std=c++11 -fno-exceptions -fno-cxx-exceptions") # -std=c++14")
 set(CMAKE_SHARED_LINKER_FLAGS "-Wl,-rpath,. -Wl,--export-dynamic -fno-inline")
 #####这个设置虽然在有重复定义的情况下编译成功了，但会导致llvm的一个错误。
@@ -25,13 +41,17 @@ find_package(Qt5Core)
 find_package(Qt5Gui)
 find_package(Qt5Widgets)
 find_package(Qt5Network)
-find_package(Qt5WebSockets)
+# find_package(Qt5WebSockets)
 
 find_package(Ruby)
 message("ruby?? ${RUBY_FOUND}, ${RUBY_INCLUDE_DIRS}, ${RUBY_LIBRARY}")
 include_directories(${RUBY_INCLUDE_DIRS} ${Qt5Core_PRIVATE_INCLUDE_DIRS})
 
-exec_program(llvm-config ARGS --cxxflags 
+set(LLVM_CONFIG $ENV{LLVM_CONFIG})
+if("${LLVM_CONFIG}" STREQUAL "")
+    set(LLVM_CONFIG llvm-config)
+endif("${LLVM_CONFIG}" STREQUAL "")
+exec_program(${LLVM_CONFIG} ARGS --cxxflags 
   OUTPUT_VARIABLE CLANG_CXXFLAGS_OUTPUT RETURN_VALUE CLANG_CXXFLAGS_VALUE)
 message("clang defs: ${CLANG_CXXFLAGS_OUTPUT}")
 # message(${CLANG_CXXFLAGS_VALUE})
@@ -40,8 +60,8 @@ message("clang defs: ${CLANG_CXXFLAGS_OUTPUT}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CLANG_CXXFLAGS_OUTPUT}")
 
 ### fix c++11 => c++14 => c++17
-string(REPLACE "-std=gnu++11" "-std=c++17 -std=c++1z" NEW_FLAGS ${CMAKE_CXX_FLAGS})
-string(REPLACE "-std=c++11" "-std=c++17 -std=c++1z" NEW_FLAGS ${CMAKE_CXX_FLAGS})
+string(REPLACE "-std=gnu++11" "-std=c++14" NEW_FLAGS ${CMAKE_CXX_FLAGS})
+string(REPLACE "-std=c++11" "-std=c++14" NEW_FLAGS ${CMAKE_CXX_FLAGS})
 set(CMAKE_CXX_FLAGS "${NEW_FLAGS}")
 
 # set(LLVM_SRC_DIR2 "./llvm-3.5.0.src")  # maybe a symlink
@@ -50,6 +70,7 @@ set(CMAKE_CXX_FLAGS "${NEW_FLAGS}")
 set(LLVM_SRC_DIR2 "./llvm-3.7.0.src")  # maybe a symlink
 set(CLANG_SRC_DIR2 ${LLVM_SRC_DIR2}/tools/clang)
 include_directories(${CLANG_SRC_DIR2}/lib/CodeGen ${CLANG_SRC_DIR2}/lib/ ${LLVM_SRC_DIR2}/lib/)
+include_directories(${CLANG_SRC_DIR2}/include)
 
 set(handby_lib_SRCS
 #  llvm-3.5.0.src/tools/clang/lib/CodeGen/CodeGenModule.cpp
@@ -126,9 +147,10 @@ set(CLANGLIBS  -lclang
 )
 
 add_library(handby SHARED ${handby_lib_SRCS})
-target_link_libraries(handby profiler ruby  ${CLANGLIBS})
+target_link_libraries(handby profiler ${RUBY_LIBRARY} ${CLANGLIBS})
 # target_link_libraries(handby ruby -L./myllvm/lib  ${CLANGLIBS})
-qt5_use_modules(handby Core Gui Widgets Network WebSockets)
+qt5_use_modules(handby Core Gui Widgets Network)
+# qt5_use_modules(handby Core Gui Widgets Network WebSockets)
 #set_target_properties(handby PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "hdrsrc.h")
 #set_target_properties(handby PROPERTIES COTIRE_UNITY_LINK_LIBRARIES_INIT "COPY")
 #cotire(handby)
