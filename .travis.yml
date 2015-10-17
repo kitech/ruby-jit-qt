@@ -29,9 +29,10 @@ before_script:
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "qmake -v"
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "ruby -v"
   - docker exec ruby-jit-qt-dkbox /bin/sh -c "clang++ -v"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "whereis clang; whereis clang++"
 
 script:
-  - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; CC=clang CXX=clang++ cmake .; make"
+  - docker exec ruby-jit-qt-dkbox /bin/sh -c "cd /ruby-jit-qt; CC=/usr/bin/clang CXX=/usr/bin/clang++ cmake .; make"
 
 notifications:
   email: false
