@@ -1,45 +1,44 @@
-package qgc;
+package qgc
 
 // qgc工具的基础封装实现
 
-
 import (
 	"bytes"
-	"strings"
 	"go/ast"
 	"go/parser"
 	"go/printer"
 	"go/token"
 	"reflect"
+	"strings"
 	"text/template"
 	// "strconv"
-	"time"
 	"io/ioutil"
 	"os"
+	"time"
 
-	"dynamic"
+	"qt/dynamic"
 )
 
 type CodeGen struct {
-	buf bytes.Buffer
-	types map[string]int // klass -> bool
-	mths map[string]int // klass + method -> bool
-	consts map[string]int // klass + const -> bool
-	funcs map[string]int // function -> bool
+	buf     bytes.Buffer
+	types   map[string]int // klass -> bool
+	mths    map[string]int // klass + method -> bool
+	consts  map[string]int // klass + const -> bool
+	funcs   map[string]int // function -> bool
 	gconsts map[string]int // const -> bool
 }
 
 func NewCodeGen() *CodeGen {
 	o := new(CodeGen)
-	
+
 	o.types = make(map[string]int, 1)
 	o.mths = make(map[string]int, 5)
 	o.consts = make(map[string]int, 10)
 	o.funcs = make(map[string]int, 10)
 	o.gconsts = make(map[string]int, 5)
 
-	o.genHeader();
-	
+	o.genHeader()
+
 	return o
 	return nil
 }
@@ -56,12 +55,12 @@ func (this *CodeGen) saveFile() {
 
 func (this *CodeGen) genHeader() string {
 	t := time.Now().String()
-	tpl := "// auto generated: " + t + "\n" + 
+	tpl := "// auto generated: " + t + "\n" +
 		"package qt;\n\n" +
 		"import \"unsafe\";\n" +
 		"import \"dynamic\";\n" +
 		"\n"
-		
+
 	this.buf.WriteString(tpl)
 	return ""
 }
@@ -73,35 +72,35 @@ func (this *CodeGen) genType(klass string) string {
 		"}\n\n"
 
 	type header struct {
-		Klass string		
+		Klass string
 	}
 	var tbuf bytes.Buffer
 	t, _ := template.New("header").Parse(tpl)
 	t.Execute(&tbuf, header{klass})
-	
+
 	this.buf.WriteString(tbuf.String())
 
 	dynamic.Log(klass, len(tbuf.String()))
 
-	this.genCtor(klass);
-	this.genDtor(klass);
-	
+	this.genCtor(klass)
+	this.genDtor(klass)
+
 	return ""
 }
 
 func (this *CodeGen) genCtor(klass string) string {
 	tpl := "func New{{.Klass}}(args... interface{}) *Q{{.Klass}} {\n" +
-	"  x := dynamic.Initialize(args...)\n" +
-	"  rv := new(Q{{.Klass}})\n" +
-	"  rv.X = x\n" +
-	"  rv.B.X = x\n" +
-	"  rv.B.A = 123\n" +
-	"  return rv\n" +
-	"}\n" +
-	""
+		"  x := dynamic.Initialize(args...)\n" +
+		"  rv := new(Q{{.Klass}})\n" +
+		"  rv.X = x\n" +
+		"  rv.B.X = x\n" +
+		"  rv.B.A = 123\n" +
+		"  return rv\n" +
+		"}\n" +
+		""
 
 	type header struct {
-		Klass string		
+		Klass string
 	}
 	var tbuf bytes.Buffer
 	t, _ := template.New("header").Parse(tpl)
@@ -119,14 +118,14 @@ func (this *CodeGen) genDtor(klass string) string {
 		""
 
 	type header struct {
-		Klass string		
+		Klass string
 	}
 	var tbuf bytes.Buffer
 	t, _ := template.New("header").Parse(tpl)
 	t.Execute(&tbuf, header{klass})
 
 	this.buf.WriteString(tbuf.String())
-	
+
 	return ""
 }
 
@@ -137,7 +136,7 @@ func (this *CodeGen) genMethod(klass, mth string) string {
 		""
 
 	type header struct {
-		Klass string
+		Klass  string
 		Method string
 	}
 	var tbuf bytes.Buffer
@@ -154,9 +153,9 @@ func (this *CodeGen) genStaticMethod(klass, mthname string) string {
 		"  return dynamic.SingletonMethodMissing(nil, args...);\n" +
 		"}\n" +
 		""
-	
+
 	type header struct {
-		Klass string
+		Klass  string
 		Method string
 	}
 	var tbuf bytes.Buffer
@@ -174,9 +173,9 @@ func (this *CodeGen) genStaticMethod2(klass, mthname string) string {
 		"  return dynamic.SingletonMethodMissing(rthis, args...);\n" +
 		"}\n" +
 		""
-	
+
 	type header struct {
-		Klass string
+		Klass  string
 		Method string
 	}
 	var tbuf bytes.Buffer
@@ -191,12 +190,12 @@ func (this *CodeGen) genStaticMethod2(klass, mthname string) string {
 
 func (this *CodeGen) genStaticMethod3(klass, mthname string) string {
 	tpl := "func (Q{{.Klass}}) {{.Method}}(args... interface{}) interface{} {\n" +
-	"  return dynamic.SingletonMethodMissing(nil, args...);\n" +
-	"}\n" +
-	""
-	
+		"  return dynamic.SingletonMethodMissing(nil, args...);\n" +
+		"}\n" +
+		""
+
 	type header struct {
-		Klass string
+		Klass  string
 		Method string
 	}
 	var tbuf bytes.Buffer
@@ -209,7 +208,6 @@ func (this *CodeGen) genStaticMethod3(klass, mthname string) string {
 	return ""
 }
 
-
 func (this *CodeGen) genClassConstant(klass, ename string) string {
 	tpl := "func (Q{{.Klass}}) {{.Name}}() int {\n" +
 		"  return dynamic.SingletonConstMissing()\n" +
@@ -218,7 +216,7 @@ func (this *CodeGen) genClassConstant(klass, ename string) string {
 
 	type header struct {
 		Klass string
-		Name string
+		Name  string
 	}
 	var tbuf bytes.Buffer
 	t, _ := template.New("header").Parse(tpl)
@@ -226,10 +224,9 @@ func (this *CodeGen) genClassConstant(klass, ename string) string {
 
 	this.buf.WriteString(tbuf.String())
 	glog.Println(klass, ename)
-	
+
 	return ""
 }
-
 
 func (this *CodeGen) genFunction(fname string) string {
 
@@ -237,7 +234,7 @@ func (this *CodeGen) genFunction(fname string) string {
 		"  return dynamic.QtFunctionMissing(args...);\n" +
 		"}\n" +
 		""
-	
+
 	type header struct {
 		Name string
 	}
@@ -264,16 +261,15 @@ func (this *CodeGen) genGlobalConstant(ename string) string {
 
 	this.buf.WriteString(tbuf.String())
 	glog.Println(ename)
-	
+
 	return ""
 }
-
 
 ////////////////
 type DynamicQtCalls struct {
 	klass string
-	mths map[string]*ast.CallExpr // method_name => CallExpr
-	ces map[*ast.CallExpr]string  // CallExpr => method_name
+	mths  map[string]*ast.CallExpr // method_name => CallExpr
+	ces   map[*ast.CallExpr]string // CallExpr => method_name
 }
 
 func NewDynamicQtCalls(klass_name string) *DynamicQtCalls {
@@ -282,17 +278,17 @@ func NewDynamicQtCalls(klass_name string) *DynamicQtCalls {
 	v.klass = klass_name
 	v.mths = make(map[string]*ast.CallExpr)
 	v.ces = make(map[*ast.CallExpr]string)
-	
+
 	return v
 }
 
 // 实现生成dynamic方式绑定封装的Visitor
 type DynamicVisitor struct {
-	fset *token.FileSet
-	goc bytes.Buffer
-	cc bytes.Buffer
-	hc bytes.Buffer
-	cg *CodeGen
+	fset      *token.FileSet
+	goc       bytes.Buffer
+	cc        bytes.Buffer
+	hc        bytes.Buffer
+	cg        *CodeGen
 	qtclasses map[string]*DynamicQtCalls // 所有用到的类记录，防止生成重复的类构造函数
 }
 
@@ -308,7 +304,7 @@ func (this *DynamicVisitor) Visit(n ast.Node) (w ast.Visitor) {
 	if n == nil {
 		return nil
 	}
-	
+
 	// t := reflect.TypeOf(n)
 	// glog.Println(t, t.String(), n)
 
@@ -327,18 +323,18 @@ func (this *DynamicVisitor) processCallee(ce *ast.CallExpr) {
 	// like println() call
 	switch ce.Fun.(type) {
 	case *ast.Ident:
-		return;
+		return
 	}
-	
+
 	// mths, found := this.qtclasses[klass]
 	if this.isQtStructorCall(ce) {
 		glog.Println("structorrrrrrrrr:", ce.Fun)
 		fn := ce.Fun.(*ast.SelectorExpr)
 		klass := this.getSelectorString(fn)[6:]
 		this.cg.genType(klass)
-		
+
 	} else if this.isQtMethodCall(ce) {
-		glog.Println("methoddddddddddd:", ce.Fun)		
+		glog.Println("methoddddddddddd:", ce.Fun)
 		fn := ce.Fun.(*ast.SelectorExpr)
 		mthname := strings.Split(this.getSelectorString(fn), ".")[1]
 		klass := this.getKlassName(fn)
@@ -380,7 +376,7 @@ func (this *DynamicVisitor) isStaticMethodCall(ce *ast.CallExpr) bool {
 	if strings.HasPrefix(str, "qt.Q") && len(strings.Split(str, "_")) == 2 {
 		return true
 	}
-	
+
 	return false
 }
 
@@ -391,16 +387,15 @@ func (this *DynamicVisitor) isQtFunctionCall(ce *ast.CallExpr) bool {
 	if strings.HasPrefix(str, "qt.Q") && len(strings.Split(str, "_")) == 1 {
 		return true
 	}
-	
+
 	return false
 }
-
 
 // 获取一个变量的类型信息
 func (this *DynamicVisitor) getVarType(e ast.Expr) {
 	t1 := reflect.TypeOf(e)
 	id1 := e.(*ast.Ident)
-	glog.Println(e,"123", t1, id1.Obj)
+	glog.Println(e, "123", t1, id1.Obj)
 	// 对于对象来说，肯定是Obj不为nil的Ident
 	// Obj为nil的Ident，是包名
 	if id1.Obj != nil {
@@ -422,7 +417,7 @@ func (this *DynamicVisitor) getSelectorString(e *ast.SelectorExpr) string {
 	// fn := ce.Fun.(*ast.SelectorExpr)
 	fn := e
 	glog.Println("fn.name:", fn.Sel.Name)
-	
+
 	var buf bytes.Buffer
 	printer.Fprint(&buf, this.fset, fn)
 
@@ -430,10 +425,10 @@ func (this *DynamicVisitor) getSelectorString(e *ast.SelectorExpr) string {
 }
 
 func (this *DynamicVisitor) isQtStructorCall(ce *ast.CallExpr) bool {
-	
+
 	fn := ce.Fun.(*ast.SelectorExpr)
 	glog.Println("fn.name:", fn.Sel.Name)
-	
+
 	var buf bytes.Buffer
 	printer.Fprint(&buf, this.fset, fn)
 
@@ -444,10 +439,10 @@ func (this *DynamicVisitor) isQtStructorCall(ce *ast.CallExpr) bool {
 }
 
 func (this *DynamicVisitor) isQtMethodCall(ce *ast.CallExpr) bool {
-	
+
 	fn := ce.Fun.(*ast.SelectorExpr)
 	glog.Println("fn.name:", fn.Sel.Name)
-	
+
 	var buf bytes.Buffer
 	printer.Fprint(&buf, this.fset, fn)
 
@@ -474,13 +469,13 @@ func (this *DynamicVisitor) isQtVar(e ast.Expr) (string, bool) {
 	// Obj为nil的Ident，是包名
 	if id1.Obj == nil {
 		glog.Println("maybe it is package:", e, ", but not possible a var")
-		return "", false;
+		return "", false
 	}
-	
+
 	o1 := id1.Obj
 	glog.Println(o1.Kind, o1.Name, o1.Decl, o1.Data, o1.Type) // o1.Type = nil
 	t2 := reflect.TypeOf(o1.Decl)
-	glog.Println(t2, t2.String(), t2.Kind());
+	glog.Println(t2, t2.String(), t2.Kind())
 
 	// 如果是ValueSpec
 	// 如果是*ast.AssignStmt
@@ -494,7 +489,7 @@ func (this *DynamicVisitor) isQtVar(e ast.Expr) (string, bool) {
 		ss := this.getSelectorString(fn)
 		glog.Println(t3, this.getSelectorString(fn))
 		if strings.HasPrefix(ss, "qt.New") {
-			glog.Println("ok, it is qt var:", e);
+			glog.Println("ok, it is qt var:", e)
 			return ss[6:], true
 		}
 
@@ -504,23 +499,25 @@ func (this *DynamicVisitor) isQtVar(e ast.Expr) (string, bool) {
 		glog.Println(vsv, "--", vsv.Names, "--", vsv.Type, "--", vsv.Values)
 		t3 := reflect.TypeOf(vsv.Type)
 		// sev := vsv.Type.(*ast.Ident) or (*ast.StarExpr)??? 应该是Unresolved Type才解析不出来的吧。
-		glog.Println(t3, vsv.Type.Pos(), vsv.Type.End(), vsv.Type.End() - vsv.Type.Pos())
+		glog.Println(t3, vsv.Type.Pos(), vsv.Type.End(), vsv.Type.End()-vsv.Type.Pos())
 
 		// 现在遇到有两种可能。
 		switch vsv.Type.(type) {
-		case *ast.Ident: glog.Println("identttttttttt", vsv.Type.(*ast.Ident).String())
+		case *ast.Ident:
+			glog.Println("identttttttttt", vsv.Type.(*ast.Ident).String())
 			o4 := vsv.Type.(*ast.Ident)
 			if o4.String() == "qt.QBaseType" {
 				glog.Println("ok it is a qt var:", e)
 				return "QBaseType", true
 			}
-		case *ast.StarExpr: glog.Println("starrrrrrrrrr", vsv.Type.(*ast.StarExpr))
+		case *ast.StarExpr:
+			glog.Println("starrrrrrrrrr", vsv.Type.(*ast.StarExpr))
 			o4 := vsv.Type.(*ast.StarExpr)
 			o5 := this.getSelectorString(o4.X.(*ast.SelectorExpr))
 			glog.Println(o4, o4.X, o4.Star, reflect.TypeOf(o4.X), o5)
 			if o5 == "qt.QBaseType" {
 				glog.Println("ok it is a qt var:", e)
-				return "QBaseType", true				
+				return "QBaseType", true
 			}
 		case *ast.SelectorExpr:
 			o4 := vsv.Type.(*ast.SelectorExpr)
@@ -528,16 +525,16 @@ func (this *DynamicVisitor) isQtVar(e ast.Expr) (string, bool) {
 			if o5 == "qt.QBaseType" {
 				glog.Println("ok it is a qt var:", e, ", but not a pointer")
 			}
-		default: glog.Println("hehhhhhhhhhhhhhhhhhhh", vsv.Type)
+		default:
+			glog.Println("hehhhhhhhhhhhhhhhhhhh", vsv.Type)
 		}
-		
-	default: panic("hehhhhhhhhhh")
+
+	default:
+		panic("hehhhhhhhhhh")
 	}
 
-
-	return "", false;
+	return "", false
 }
-
 
 /*
 基本算法设计：
@@ -575,4 +572,3 @@ func DynamicMain() {
 	mv.cg.saveFile()
 	// os.Exit(0)
 }
-

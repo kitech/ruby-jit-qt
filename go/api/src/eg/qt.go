@@ -1,13 +1,14 @@
-package eg;
+package eg
 
 import (
 	"unsafe"
 	// "reflect"
 )
-// import "qgc"
-import "dynamic"
 
-type QString struct {	
+// import "qgc"
+import "qt/dynamic"
+
+type QString struct {
 	X unsafe.Pointer
 	b dynamic.QClass
 
@@ -15,8 +16,9 @@ type QString struct {
 }
 
 // 这种常量可能在编译时就替换成实际值了，运行时取不到相关常量信息
-type EQString int;
-const KeepEmptyParts EQString = 0;
+type EQString int
+
+const KeepEmptyParts EQString = 0
 
 // class Enum method, use like this: eg.QString.KeepEmptyparts;
 // 在什么时间执行求值调用呢？
@@ -28,31 +30,31 @@ func (rthis QString) KeepEmptyParts() int {
 
 // qt global Enum method, use like this: eg.AlignLeft
 func AlignLeft() int {
-	return dynamic.QtConstMissing();
+	return dynamic.QtConstMissing()
 }
 
 // 3种可能的静态方法调用封装API
 // Static method, use liks this: eg.QString.StaticMethod(eg.QString{}, ...);
-func (QString) AStaticMethod(args... interface{}) interface{} {
-	return dynamic.SingletonMethodMissing(nil, args...);
-	return 0;
+func (QString) AStaticMethod(args ...interface{}) interface{} {
+	return dynamic.SingletonMethodMissing(nil, args...)
+	return 0
 }
-func (rthis *QString) AStaticMethod2(args... interface{}) interface{} {
-	return dynamic.SingletonMethodMissing(rthis, args...);
-	return 0;
+func (rthis *QString) AStaticMethod2(args ...interface{}) interface{} {
+	return dynamic.SingletonMethodMissing(rthis, args...)
+	return 0
 }
-func QString__AStaticMethod(args... interface{}) interface{} {
-	return dynamic.SingletonMethodMissing(nil, args...);
+func QString__AStaticMethod(args ...interface{}) interface{} {
+	return dynamic.SingletonMethodMissing(nil, args...)
 }
-func QString_AStaticMethod(args... interface{}) interface{} {
-	return dynamic.SingletonMethodMissing(nil, args...);
-}
-
-func QMax(args... interface{}) interface{} {
-	return dynamic.QtFunctionMissing(args...);
+func QString_AStaticMethod(args ...interface{}) interface{} {
+	return dynamic.SingletonMethodMissing(nil, args...)
 }
 
-func NewString(args... interface{}) *QString {
+func QMax(args ...interface{}) interface{} {
+	return dynamic.QtFunctionMissing(args...)
+}
+
+func NewString(args ...interface{}) *QString {
 	x := dynamic.Initialize(args...)
 	rv := new(QString)
 	rv.X = x
@@ -65,11 +67,11 @@ func (this *QString) Free() {
 	dynamic.Destructor(this.X)
 }
 
-func (this *QString) Length(args... interface{}) interface{} {
+func (this *QString) Length(args ...interface{}) interface{} {
 	return dynamic.MethodMissing(this, args...)
 }
 
-func (this *QString) AnyCall(args... interface{}) interface{} {
+func (this *QString) AnyCall(args ...interface{}) interface{} {
 	return dynamic.MethodMissing(this, args...)
 }
 
@@ -83,7 +85,7 @@ type QApplication struct {
 	X unsafe.Pointer
 }
 
-func NewApplication(args... interface{}) *QApplication {
+func NewApplication(args ...interface{}) *QApplication {
 	x := dynamic.Initialize(args...)
 	rv := new(QApplication)
 	rv.X = x
@@ -94,15 +96,15 @@ func (this *QApplication) Free() {
 	dynamic.Destructor(this.X)
 }
 
-func (this *QApplication) Length(args... interface{}) interface{} {
+func (this *QApplication) Length(args ...interface{}) interface{} {
 	return dynamic.MethodMissing(this, args...)
 }
 
-func (this *QApplication) Exec(args... interface{}) interface{} {
+func (this *QApplication) Exec(args ...interface{}) interface{} {
 	return dynamic.MethodMissing(this, args...)
 }
 
-func (this *QApplication) AnyCall(args... interface{}) interface{} {
+func (this *QApplication) AnyCall(args ...interface{}) interface{} {
 	return dynamic.MethodMissing(this, args...)
 }
 
@@ -111,7 +113,7 @@ type QWidget struct {
 	X unsafe.Pointer
 }
 
-func NewWidget(args... interface{}) *QWidget {
+func NewWidget(args ...interface{}) *QWidget {
 	x := dynamic.Initialize(args...)
 	rv := new(QWidget)
 	rv.X = x
@@ -122,21 +124,19 @@ func (this *QWidget) Free() {
 	dynamic.Destructor(this.X)
 }
 
-func (this *QWidget) Length(args... interface{}) interface{} {
+func (this *QWidget) Length(args ...interface{}) interface{} {
 	return dynamic.MethodMissing(this, args...)
 }
 
-func (this *QWidget) Show(args... interface{}) interface{} {
+func (this *QWidget) Show(args ...interface{}) interface{} {
 	return dynamic.MethodMissing(this, args...)
 }
 
-func (this *QWidget) AnyCall(args... interface{}) interface{} {
+func (this *QWidget) AnyCall(args ...interface{}) interface{} {
 	return dynamic.MethodMissing(this, args...)
 }
-
 
 //////////普通函数
-func QMax() {
+func QMax2() {
 
 }
-

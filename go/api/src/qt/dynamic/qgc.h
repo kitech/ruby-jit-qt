@@ -2,6 +2,6 @@
 #define QGC_H
 
 //#include "../../../goinit.h"
-#include "../../../vmgo.h"
+#include "../../../../vmgo.h"
 
 #endif /* QGC_H */

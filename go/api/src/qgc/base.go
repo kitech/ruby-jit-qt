@@ -1,34 +1,34 @@
-package qgc;
+package qgc
 
 // qgc工具的基础封装实现
 
-
 import (
-	"log"
 	"bytes"
-	"strings"
 	"go/ast"
 	"go/parser"
 	"go/printer"
 	"go/token"
-	"reflect"
-	"text/template"
-	"strconv"
 	"io/ioutil"
+	"log"
 	"os"
+	"reflect"
+	"strconv"
+	"strings"
+	"text/template"
 
-	"dynamic"
+	"qt/dynamic"
 )
 
 // 俩工具
 func G_USED(vars ...interface{}) {}
-var glog = log.New(os.Stdout, "", log.LstdFlags | log.Lshortfile)
+
+var glog = log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
 
 ////////////////
 type QtCalls struct {
 	klass string
-	mths map[string]*ast.CallExpr // method_name => CallExpr
-	ces map[*ast.CallExpr]string  // CallExpr => method_name
+	mths  map[string]*ast.CallExpr // method_name => CallExpr
+	ces   map[*ast.CallExpr]string // CallExpr => method_name
 }
 
 func NewQtCalls(klass_name string) *QtCalls {
@@ -37,16 +37,16 @@ func NewQtCalls(klass_name string) *QtCalls {
 	v.klass = klass_name
 	v.mths = make(map[string]*ast.CallExpr)
 	v.ces = make(map[*ast.CallExpr]string)
-	
+
 	return v
 }
 
 type MyVisitor struct {
-	fset *token.FileSet
-	goc bytes.Buffer
-	cc bytes.Buffer
-	hc bytes.Buffer
-	cg CodeGen
+	fset      *token.FileSet
+	goc       bytes.Buffer
+	cc        bytes.Buffer
+	hc        bytes.Buffer
+	cg        CodeGen
 	qtclasses map[string]*QtCalls // 所有用到的类记录，防止生成重复的类构造函数
 }
 
@@ -61,7 +61,7 @@ func (this *MyVisitor) Visit(n ast.Node) (w ast.Visitor) {
 	if n == nil {
 		return nil
 	}
-	
+
 	t := reflect.TypeOf(n)
 	// glog.Println(t, t.String(), n)
 
@@ -78,12 +78,11 @@ func (this *MyVisitor) Visit(n ast.Node) (w ast.Visitor) {
 		var buf bytes.Buffer
 		printer.Fprint(&buf, this.fset, e)
 		glog.Println(t, n, e.Sel, e.Pos(), e.End(), e.X, buf.String(), "--")
-		
+
 		if strings.HasPrefix(buf.String(), "qt.New") {
 			cname := strings.Join([]string{"Q", buf.String()[6:]}, "")
 			glog.Println("cname:", cname, "===")
 
-			
 		}
 	}
 
@@ -92,7 +91,7 @@ func (this *MyVisitor) Visit(n ast.Node) (w ast.Visitor) {
 		gostr, hhstr, ccstr := this.genCallee(n.(*ast.CallExpr))
 
 		gostr = "package qt;\n/*\n#include \"core.h\"\n*/\nimport \"C\";\nimport \"unsafe\";\n\n" + gostr
-		
+
 		glog.Println(len(hhstr))
 		if len(hhstr) > 0 {
 			// TODO 可以把这个封装到单独的方法中，叫生成封装源代码文件生成方法。
@@ -106,7 +105,7 @@ func (this *MyVisitor) Visit(n ast.Node) (w ast.Visitor) {
 			ioutil.WriteFile("src/qt/qt_auto.go", d, os.ModePerm)
 		}
 	}
-	
+
 	return this
 }
 
@@ -145,7 +144,7 @@ func (this *MyVisitor) genStructor(klass string, ce *ast.CallExpr) (string, stri
 	var pclst [10]string
 	var pglst [10]string
 	var pwlst [10]string
-	
+
 	for idx, arg := range ce.Args {
 		glog.Println(idx, arg, reflect.TypeOf(arg))
 		ptlst[idx] = this.genParamTypeList(idx, arg)
@@ -160,32 +159,32 @@ func (this *MyVisitor) genStructor(klass string, ce *ast.CallExpr) (string, stri
 	pglstr := strings.Join(pglst[0:len(ce.Args)], ", ")
 	pwlstr := strings.Join(pwlst[0:len(ce.Args)], ", ")
 	glog.Println("--", pclstr, "--", pglstr, "--", pwlstr)
-		
+
 	tpl.Execute(&gocbuf, struct {
-		Klass string
-		ParamConvs string
-		ParamInGo string
+		Klass         string
+		ParamConvs    string
+		ParamInGo     string
 		ParamWrapInGo string
-	} {klass, pclstr, pglstr, pwlstr})
+	}{klass, pclstr, pglstr, pwlstr})
 
 	hhtpl.Execute(&hhbuf, struct {
-		Klass string
+		Klass     string
 		ParamList string
-	} {klass, ptlstr})
+	}{klass, ptlstr})
 
 	cctpl.Execute(&ccbuf, struct {
-		Klass string
-		ParamList string
+		Klass         string
+		ParamList     string
 		ParamPassList string
-	} {klass, ptlstr, pplstr})
-		
+	}{klass, ptlstr, pplstr})
+
 	glog.Println(gocbuf.String(), hhbuf.String(), ccbuf.String())
 	return gocbuf.String(), hhbuf.String(), ccbuf.String()
 }
 
 // 生成go封装的mangled方法，生成c++封装的mangled方法, 生成extern
 func (this *MyVisitor) genMethod(klass, method string, ce *ast.CallExpr) (string, string, string) {
-	// 
+	//
 	glog.Println(klass)
 
 	// template code buffers
@@ -199,14 +198,14 @@ func (this *MyVisitor) genMethod(klass, method string, ce *ast.CallExpr) (string
 	hhtpl, err := template.ParseFiles("data/core_auto_mth.h.tpl")
 	// glog.Println(hhtpl, err)
 	cctpl, err := template.ParseFiles("data/core_auto_mth.cpp.tpl")
-	
+
 	// 生成参数原型列表
 	var ptlst [10]string
 	var pplst [10]string
 	var pclst [10]string
 	var pglst [10]string
 	var pwlst [10]string
-	
+
 	for idx, arg := range ce.Args {
 		glog.Println(idx, arg, reflect.TypeOf(arg))
 		ptlst[idx] = this.genParamTypeList(idx, arg)
@@ -221,50 +220,54 @@ func (this *MyVisitor) genMethod(klass, method string, ce *ast.CallExpr) (string
 	pglstr := strings.Join(pglst[0:len(ce.Args)], ", ")
 	pwlstr := strings.Join(pwlst[0:len(ce.Args)], ", ")
 	eptlstr := ptlstr
-	if len(ptlstr) > 0 { eptlstr = ", " + ptlstr }
+	if len(ptlstr) > 0 {
+		eptlstr = ", " + ptlstr
+	}
 	epplstr := pplstr
-	if len(pplstr) > 0 { epplstr = ", " + pplstr }
+	if len(pplstr) > 0 {
+		epplstr = ", " + pplstr
+	}
 	glog.Println("--", ptlstr, "--", pplstr, "--", pclstr, "--", pglstr, "--", pwlstr)
 
 	// mangle操作
 	mgSuffix := dynamic.MangleSuffixByAstArgs(ce.Args)
 	G_USED(mgSuffix)
 	glog.Println(mgSuffix)
-	
-	cmethod := strings.ToLower(method[0:1]) + method[1:]	
-	
+
+	cmethod := strings.ToLower(method[0:1]) + method[1:]
+
 	tpl.Execute(&gocbuf, struct {
-		Klass string
-		Method string
-		CMethod string
-		ParamConvs string
-		ParamInGo string
+		Klass         string
+		Method        string
+		CMethod       string
+		ParamConvs    string
+		ParamInGo     string
 		ParamWrapInGo string
-		MangleSuffix string
-	} {klass, method, cmethod, epplstr, /*pclstr,*/ pglstr, pwlstr, mgSuffix})
+		MangleSuffix  string
+	}{klass, method, cmethod, epplstr /*pclstr,*/, pglstr, pwlstr, mgSuffix})
 
 	hhtpl.Execute(&hhbuf, struct {
-		Klass string
-		Method string
-		CMethod string
-		MangleSuffix string	
-		ParamList string
-	} {klass, method, cmethod, mgSuffix, eptlstr})
+		Klass        string
+		Method       string
+		CMethod      string
+		MangleSuffix string
+		ParamList    string
+	}{klass, method, cmethod, mgSuffix, eptlstr})
 
 	cctpl.Execute(&ccbuf, struct {
-		Klass string
-		Method string
-		CMethod string
-		MangleSuffix string
-		ParamList string
+		Klass         string
+		Method        string
+		CMethod       string
+		MangleSuffix  string
+		ParamList     string
 		ParamPassList string
-	} {klass, method, cmethod, mgSuffix, eptlstr, pplstr})
-		
+	}{klass, method, cmethod, mgSuffix, eptlstr, pplstr})
+
 	glog.Println(gocbuf.String(), hhbuf.String(), ccbuf.String())
 	return gocbuf.String(), hhbuf.String(), ccbuf.String()
 }
 
-// 
+//
 func (this *MyVisitor) genMethodWrap(klass, method string) string {
 	// template code buffers
 	var gocbuf bytes.Buffer
@@ -275,10 +278,10 @@ func (this *MyVisitor) genMethodWrap(klass, method string) string {
 
 	cmethod := strings.ToLower(method[0:1]) + method[1:]
 	tpl.Execute(&gocbuf, struct {
-		Klass string
-		Method string
+		Klass   string
+		Method  string
 		CMethod string
-	} {klass, method, cmethod})
+	}{klass, method, cmethod})
 
 	return gocbuf.String()
 }
@@ -299,7 +302,7 @@ func (this *MyVisitor) processCallee(ce *ast.CallExpr) {
 			this.qtclasses[klass] = mth
 		}
 	} else if this.isQtMethodCall(ce) {
-		glog.Println("methoddddddddddd:", ce.Fun)		
+		glog.Println("methoddddddddddd:", ce.Fun)
 		fn := ce.Fun.(*ast.SelectorExpr)
 		mthname := strings.Split(this.getSelectorString(fn), ".")[1]
 		klass := this.getKlassName(fn)
@@ -330,14 +333,14 @@ func (this *MyVisitor) genCallee(ce *ast.CallExpr) (string, string, string) {
 	var ccbuf bytes.Buffer
 	var hhbuf bytes.Buffer
 	// var restr string
-	
+
 	if false {
 		fty := reflect.TypeOf(ce.Fun)
 		glog.Println(fty)
 	}
 	fn := ce.Fun.(*ast.SelectorExpr)
 	glog.Println("fn.name:", fn.Sel.Name)
-	
+
 	var buf bytes.Buffer
 	printer.Fprint(&buf, this.fset, fn)
 
@@ -351,8 +354,8 @@ func (this *MyVisitor) genCallee(ce *ast.CallExpr) (string, string, string) {
 				" void Free{{.Klass}}(void *p) { delete ({{.Klass}}*)p; } \n")
 		t3, _ := template.New("foo3").Parse(
 			"extern void *New{{.Klass}}({{.ParamList}});\n" +
-			"extern void Free{{.Klass}}(void *p);\n" +
-			"")
+				"extern void Free{{.Klass}}(void *p);\n" +
+				"")
 		t2, _ := template.New("foo2").Parse(
 			"func Free{{.SKlass}}(this *QBaseType) { if this.fn != nil { C.Free{{.Klass}} } } \n" +
 				"func New{{.SKlass}}({{.ParamInGo}}) *QBaseType" +
@@ -370,7 +373,7 @@ func (this *MyVisitor) genCallee(ce *ast.CallExpr) (string, string, string) {
 		var pclst [10]string
 		var pglst [10]string
 		var pwlst [10]string
-		
+
 		for i, arg := range ce.Args {
 			glog.Println(i, arg, reflect.TypeOf(arg))
 			ptlst[i] = this.genParamTypeList(i, arg)
@@ -386,54 +389,54 @@ func (this *MyVisitor) genCallee(ce *ast.CallExpr) (string, string, string) {
 		pwlstr := strings.Join(pwlst[0:len(ce.Args)], ", ")
 		glog.Println(strings.Join(ptlst[0:len(ce.Args)], ", "), "--", pplstr,
 			"--", pclstr, "--", pglstr, "--", pwlstr)
-		
+
 		t.Execute(&ccbuf, struct {
-			Klass string
-			ParamList string
+			Klass         string
+			ParamList     string
 			ParamPassList string
-		} {cname, ptlstr, pplstr})
+		}{cname, ptlstr, pplstr})
 
 		t3.Execute(&hhbuf, struct {
-			Klass string
+			Klass     string
 			ParamList string
-		} {cname, ptlstr} )
+		}{cname, ptlstr})
 
 		t2.Execute(&gocbuf, struct {
-			SKlass string
-			Klass string
-			ParamConvs string
-			ParamInGo string
+			SKlass        string
+			Klass         string
+			ParamConvs    string
+			ParamInGo     string
 			ParamWrapInGo string
-		} {scname, cname, pclstr, pglstr, pwlstr})
+		}{scname, cname, pclstr, pglstr, pwlstr})
 
 	} else {
 		// 需要推断出是否在调用QClass类实例方法
 		// this.getVarType(fn.X)
-		this.isQtVar(fn.X);
+		this.isQtVar(fn.X)
 		/*
-		ot := reflect.TypeOf(fn.X.(*ast.Ident).Obj);
-		glog.Println(fn.X, ot, fn.X.(*ast.Ident).Obj)
-		obj := fn.X.(*ast.Ident).Obj
-		if obj != nil {
-			od := obj.Decl
-			rot := reflect.TypeOf(od)
-			glog.Println(obj.Kind, obj, obj.Type, obj.Decl, obj.Data, obj.Name, rot)
-			rod := od.(*ast.ValueSpec)
-			glog.Println(rod, rod.Type)
-			// glog.Println(len(rod.Rhs), rod.Rhs[0], rod.Lhs[0])
-			// glog.Println(reflect.TypeOf(rod.Rhs[0].(*ast.CallExpr).Fun))
-		}
-        */
+			ot := reflect.TypeOf(fn.X.(*ast.Ident).Obj);
+			glog.Println(fn.X, ot, fn.X.(*ast.Ident).Obj)
+			obj := fn.X.(*ast.Ident).Obj
+			if obj != nil {
+				od := obj.Decl
+				rot := reflect.TypeOf(od)
+				glog.Println(obj.Kind, obj, obj.Type, obj.Decl, obj.Data, obj.Name, rot)
+				rod := od.(*ast.ValueSpec)
+				glog.Println(rod, rod.Type)
+				// glog.Println(len(rod.Rhs), rod.Rhs[0], rod.Lhs[0])
+				// glog.Println(reflect.TypeOf(rod.Rhs[0].(*ast.CallExpr).Fun))
+			}
+		*/
 	}
 
 	// Qt Method Call
 	if strings.HasPrefix(fn.Sel.Name, "QMC_") {
-		
+
 	}
 
 	// Qt Function Call
 	if strings.HasPrefix(fn.Sel.Name, "QFC_") {
-		
+
 	}
 
 	glog.Println(gocbuf.String(), ccbuf.String(), hhbuf.String())
@@ -444,7 +447,7 @@ func (this *MyVisitor) genCallee(ce *ast.CallExpr) (string, string, string) {
 func (this *MyVisitor) getVarType(e ast.Expr) {
 	t1 := reflect.TypeOf(e)
 	id1 := e.(*ast.Ident)
-	glog.Println(e,"123", t1, id1.Obj)
+	glog.Println(e, "123", t1, id1.Obj)
 	// 对于对象来说，肯定是Obj不为nil的Ident
 	// Obj为nil的Ident，是包名
 	if id1.Obj != nil {
@@ -466,7 +469,7 @@ func (this *MyVisitor) getSelectorString(e *ast.SelectorExpr) string {
 	// fn := ce.Fun.(*ast.SelectorExpr)
 	fn := e
 	glog.Println("fn.name:", fn.Sel.Name)
-	
+
 	var buf bytes.Buffer
 	printer.Fprint(&buf, this.fset, fn)
 
@@ -476,7 +479,7 @@ func (this *MyVisitor) getSelectorString(e *ast.SelectorExpr) string {
 func (this *MyVisitor) isQtStructorCall(ce *ast.CallExpr) bool {
 	fn := ce.Fun.(*ast.SelectorExpr)
 	glog.Println("fn.name:", fn.Sel.Name)
-	
+
 	var buf bytes.Buffer
 	printer.Fprint(&buf, this.fset, fn)
 
@@ -489,7 +492,7 @@ func (this *MyVisitor) isQtStructorCall(ce *ast.CallExpr) bool {
 func (this *MyVisitor) isQtMethodCall(ce *ast.CallExpr) bool {
 	fn := ce.Fun.(*ast.SelectorExpr)
 	glog.Println("fn.name:", fn.Sel.Name)
-	
+
 	var buf bytes.Buffer
 	printer.Fprint(&buf, this.fset, fn)
 
@@ -516,13 +519,13 @@ func (this *MyVisitor) isQtVar(e ast.Expr) (string, bool) {
 	// Obj为nil的Ident，是包名
 	if id1.Obj == nil {
 		glog.Println("maybe it is package:", e, ", but not possible a var")
-		return "", false;
+		return "", false
 	}
-	
+
 	o1 := id1.Obj
 	glog.Println(o1.Kind, o1.Name, o1.Decl, o1.Data, o1.Type) // o1.Type = nil
 	t2 := reflect.TypeOf(o1.Decl)
-	glog.Println(t2, t2.String(), t2.Kind());
+	glog.Println(t2, t2.String(), t2.Kind())
 
 	// 如果是ValueSpec
 	// 如果是*ast.AssignStmt
@@ -536,7 +539,7 @@ func (this *MyVisitor) isQtVar(e ast.Expr) (string, bool) {
 		ss := this.getSelectorString(fn)
 		glog.Println(t3, this.getSelectorString(fn))
 		if strings.HasPrefix(ss, "qt.New") {
-			glog.Println("ok, it is qt var:", e);
+			glog.Println("ok, it is qt var:", e)
 			return ss[6:], true
 		}
 
@@ -546,23 +549,25 @@ func (this *MyVisitor) isQtVar(e ast.Expr) (string, bool) {
 		glog.Println(vsv, "--", vsv.Names, "--", vsv.Type, "--", vsv.Values)
 		t3 := reflect.TypeOf(vsv.Type)
 		// sev := vsv.Type.(*ast.Ident) or (*ast.StarExpr)??? 应该是Unresolved Type才解析不出来的吧。
-		glog.Println(t3, vsv.Type.Pos(), vsv.Type.End(), vsv.Type.End() - vsv.Type.Pos())
+		glog.Println(t3, vsv.Type.Pos(), vsv.Type.End(), vsv.Type.End()-vsv.Type.Pos())
 
 		// 现在遇到有两种可能。
 		switch vsv.Type.(type) {
-		case *ast.Ident: glog.Println("identttttttttt", vsv.Type.(*ast.Ident).String())
+		case *ast.Ident:
+			glog.Println("identttttttttt", vsv.Type.(*ast.Ident).String())
 			o4 := vsv.Type.(*ast.Ident)
 			if o4.String() == "qt.QBaseType" {
 				glog.Println("ok it is a qt var:", e)
 				return "QBaseType", true
 			}
-		case *ast.StarExpr: glog.Println("starrrrrrrrrr", vsv.Type.(*ast.StarExpr))
+		case *ast.StarExpr:
+			glog.Println("starrrrrrrrrr", vsv.Type.(*ast.StarExpr))
 			o4 := vsv.Type.(*ast.StarExpr)
 			o5 := this.getSelectorString(o4.X.(*ast.SelectorExpr))
 			glog.Println(o4, o4.X, o4.Star, reflect.TypeOf(o4.X), o5)
 			if o5 == "qt.QBaseType" {
 				glog.Println("ok it is a qt var:", e)
-				return "QBaseType", true				
+				return "QBaseType", true
 			}
 		case *ast.SelectorExpr:
 			o4 := vsv.Type.(*ast.SelectorExpr)
@@ -570,14 +575,15 @@ func (this *MyVisitor) isQtVar(e ast.Expr) (string, bool) {
 			if o5 == "qt.QBaseType" {
 				glog.Println("ok it is a qt var:", e, ", but not a pointer")
 			}
-		default: glog.Println("hehhhhhhhhhhhhhhhhhhh", vsv.Type)
+		default:
+			glog.Println("hehhhhhhhhhhhhhhhhhhh", vsv.Type)
 		}
-		
-	default: panic("hehhhhhhhhhh")
+
+	default:
+		panic("hehhhhhhhhhh")
 	}
 
-
-	return "", false;
+	return "", false
 }
 
 // 获取调用的参数的类型，带有参数名，
@@ -590,7 +596,7 @@ func (this *MyVisitor) genParamTypeList(idx int, param interface{}) string {
 	if idx > 0 {
 		// buf.WriteString(", ")
 	}
-	
+
 	if aty.String() == "*ast.BasicLit" {
 		lit := param.(*ast.BasicLit)
 		glog.Println(lit.Kind)
@@ -612,7 +618,6 @@ func (this *MyVisitor) genParamTypeList(idx int, param interface{}) string {
 		}
 	}
 
-	
 	glog.Println("params:", buf.String())
 	buf.WriteString("")
 	return buf.String()
@@ -628,7 +633,7 @@ func (this *MyVisitor) genParamConv(idx int, param interface{}) string {
 	if idx > 0 {
 		// buf.WriteString(", ")
 	}
-	
+
 	if aty.String() == "*ast.BasicLit" {
 		lit := param.(*ast.BasicLit)
 		glog.Println(lit.Kind)
@@ -649,7 +654,6 @@ func (this *MyVisitor) genParamConv(idx int, param interface{}) string {
 		}
 	}
 
-	
 	glog.Println("params:", buf.String())
 	buf.WriteString("")
 	return buf.String()
@@ -664,7 +668,7 @@ func (this *MyVisitor) genParamInGo(idx int, param interface{}) string {
 	if idx > 0 {
 		// buf.WriteString(", ")
 	}
-	
+
 	if aty.String() == "*ast.BasicLit" {
 		lit := param.(*ast.BasicLit)
 		glog.Println(lit.Kind)
@@ -683,7 +687,7 @@ func (this *MyVisitor) genParamInGo(idx int, param interface{}) string {
 			glog.Println("unknown token type:", lit.Kind)
 		}
 	}
-	
+
 	glog.Println("params:", buf.String())
 	buf.WriteString("")
 	return buf.String()
@@ -698,7 +702,7 @@ func (this *MyVisitor) genParamWrapInGo(idx int, param interface{}) string {
 	if idx > 0 {
 		// buf.WriteString(", ")
 	}
-	
+
 	if aty.String() == "*ast.BasicLit" {
 		lit := param.(*ast.BasicLit)
 		glog.Println(lit.Kind)
@@ -726,7 +730,7 @@ func (this *MyVisitor) genParamWrapInGo(idx int, param interface{}) string {
 			glog.Println("unknown token type:", lit.Kind)
 		}
 	}
-	
+
 	glog.Println("params:", buf.String())
 	buf.WriteString("")
 	return buf.String()
@@ -771,9 +775,9 @@ func (this *MyVisitor) saveGeneratedCodeFile() {
 	ioutil.WriteFile("src/qt/core_auto.cpp.inc", d, os.ModePerm)
 
 	gostr := this.goc.String()
-	gostr = "package qt;\n/*\n#include \"core.h\"\n*/\nimport \"C\";\nimport \"unsafe\";\n\n" + gostr		
+	gostr = "package qt;\n/*\n#include \"core.h\"\n*/\nimport \"C\";\nimport \"unsafe\";\n\n" + gostr
 	d, _ = ioutil.ReadAll(strings.NewReader(gostr))
-	ioutil.WriteFile("src/qt/qt_auto.go", d, os.ModePerm)	
+	ioutil.WriteFile("src/qt/qt_auto.go", d, os.ModePerm)
 }
 
 // 处理所有收集到的qt类及qt类方法调用
@@ -781,7 +785,7 @@ func (this *MyVisitor) processCollects() {
 	for klass, calls := range this.qtclasses {
 		G_USED(klass, calls)
 		// maybe gen some comment string here
-		
+
 		///// gen methods
 		for mthname, ce := range calls.mths {
 			G_USED(mthname, ce)
@@ -790,11 +794,11 @@ func (this *MyVisitor) processCollects() {
 				gocstr, hhstr, ccstr := this.genStructor(klass, ce)
 				this.goc.WriteString(gocstr)
 				this.hc.WriteString(hhstr)
-				this.cc.WriteString(ccstr)				
+				this.cc.WriteString(ccstr)
 			} else { // gen mth
 				gocstr := this.genMethodWrap(klass, mthname)
 				this.goc.WriteString(gocstr)
-				
+
 				gocstr, hhstr, ccstr := this.genMethod(klass, mthname, ce)
 				this.goc.WriteString(gocstr)
 				this.hc.WriteString(hhstr)
@@ -842,5 +846,3 @@ func Main() {
 
 	mv.saveGeneratedCodeFile()
 }
-
-
