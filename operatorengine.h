@@ -36,7 +36,7 @@ public:
                  QVector<MetaTypeVariant> mtdargs,
                  bool is_static, void *kthis);
     // 返回一个新的Module对象，并且入口symbol的名字就是Module的名字，类似remod_xxxxx
-    llvm::Module *bind(llvm::Module *mod, QString klass,
+    llvm::Module *bind(llvm::Module *qtmod, llvm::Module *remod, QString klass,
                         QVector<QVariant> uargs, QVector<QVariant> dargs,
                         QVector<MetaTypeVariant> mtdargs,
                         bool is_static, void *kthis);
@@ -48,6 +48,9 @@ public:
     
     int getClassAllocSize(llvm::Module *mod, QString klass);
     llvm::DataLayout *getDataLayout(llvm::Module *mod);
+
+public:
+    llvm::Module *createRemod(llvm::Module *mod);
     
 private:
     // 正确地从 mod 和 mtmod两者中选择合适的类型
@@ -62,8 +65,6 @@ private:
     // 假设已经有InsertPoint
     QHash<QString, llvm::Value*>
     darg_instcpy(llvm::Module *mod, llvm::IRBuilder<> &builder);
-
-    llvm::Module *createRemod(llvm::Module *mod);
 };
 
 #endif /* OPERATORENGINE_H */

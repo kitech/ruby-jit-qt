@@ -55,6 +55,7 @@ private:
     bool init();
     bool initCompiler();
     bool initExecutionEngine();
+    llvm::ExecutionEngine *createEE(llvm::Module *mod); 
     llvm::GenericValue run_module_func(llvm::Module *mod, std::vector<llvm::GenericValue> & args,
                                QString func_entry);
 

@@ -23,13 +23,13 @@ static void dumpObjectFile(const llvm::object::ObjectFile &Obj)
     qDebug()<<Obj.getType()<<(llvm::isa<llvm::object::ELFObjectFileBase>(pObj));
     // <<(llvm::isa<llvm::object::ELFObjectFile<???> >(pObj));
 
-    for (auto sym : Obj.symbols()) {
+    for (llvm::object::SymbolRef sym : Obj.symbols()) {
         std::string name;
-        llvm::StringRef rname(name);
-        uint64_t sz = 0;
-        sym.getName(rname);
-        sym.getSize(sz);
-        // qDebug()<<"sym:"<<&sym<<sz<<rname.str().c_str();
+        // llvm::StringRef rname(name);
+        llvm::ErrorOr<llvm::StringRef> rname = sym.getName();
+        // sym.getSize(sz);
+        uint64_t sz = sym.getCommonSize();
+        qDebug()<<"sym:"<<&sym<<sz<<rname->str().c_str();
     }
 
     for (auto sec : Obj.sections()) {

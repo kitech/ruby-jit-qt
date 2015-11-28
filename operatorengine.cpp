@@ -503,7 +503,7 @@ QString OperatorEngine::bind(llvm::Module *mod, QString symbol, QString klass,
 }
 
 
-llvm::Module *OperatorEngine::bind(llvm::Module *mod, QString klass,
+llvm::Module *OperatorEngine::bind(llvm::Module *qtmod, llvm::Module *remod, QString klass,
                                     QVector<QVariant> uargs, QVector<QVariant> dargs,
                                     QVector<MetaTypeVariant> mtdargs,
                                     bool is_static, void *kthis)
@@ -511,14 +511,13 @@ llvm::Module *OperatorEngine::bind(llvm::Module *mod, QString klass,
     QString lamsym;
     QString symbol;
 
-    llvm::Module *remod = this->createRemod(mod);
-    symbol = QString::fromStdString(mod->getName().str());
+    symbol = QString::fromStdString(qtmod->getName().str());
     symbol = symbol.right(symbol.length() - strlen("qtmod"));
 
     // llvm::LLVMContext &vmctx = mod->getContext();
-    llvm::IRBuilder<> builder(mod->getContext());
+    llvm::IRBuilder<> builder(qtmod->getContext());
     llvm::IRBuilder<> rebuilder(remod->getContext());
-    llvm::Function *dstfun = mod->getFunction(symbol.toLatin1().data());
+    llvm::Function *dstfun = qtmod->getFunction(symbol.toLatin1().data());
     llvm::Function *lamfun = NULL;
     const char *lamname = "jit_main"; // TODO, rt mangle
     lamname = remod->getName().str().c_str();
@@ -527,12 +526,11 @@ llvm::Module *OperatorEngine::bind(llvm::Module *mod, QString klass,
     lamfun = (decltype(lamfun))(c_lamfun); // cast it
     rebuilder.SetInsertPoint(llvm::BasicBlock::Create(remod->getContext(), "eee", lamfun));
 
-    
     std::vector<llvm::Value*> callee_arg_values;
     if (is_static) {
     } else if (kthis == NULL) {
     } else {
-        llvm::Type *thisTy = this->uniqTy(mod, QString("class.%1").arg(klass));
+        llvm::Type *thisTy = this->uniqTy(qtmod, QString("class.%1").arg(klass));
         qDebug()<<klass<<thisTy << mtdargs;
         assert(thisTy != NULL);
         // TODO 想办法使用真实的thisTy类型
@@ -550,7 +548,7 @@ llvm::Module *OperatorEngine::bind(llvm::Module *mod, QString klass,
 
     // Add uarg
     std::vector<llvm::Value*> more_values = 
-        ConvertToCallArgs(mod, builder, uargs, dargs, mtdargs, dstfun, !is_static && kthis != NULL);
+        ConvertToCallArgs(remod, rebuilder, uargs, dargs, mtdargs, dstfun, !is_static && kthis != NULL);
     // std::copy(more_values.begin(), more_values.end(), callee_arg_values.end());// why???
     for (auto v: more_values) callee_arg_values.push_back(v);
 
@@ -575,7 +573,7 @@ llvm::Module *OperatorEngine::bind(llvm::Module *mod, QString klass,
             llvm::Value *rlr5 = rebuilder.CreateLoad(rlr3, "sret2");
             callee_arg_values.insert(callee_arg_values.begin(), rlr5);    
         } else {
-            auto dlo = this->getDataLayout(mod);
+            auto dlo = this->getDataLayout(remod);
             gis2.vbyvalret = calloc(1, dlo->getTypeAllocSize(sretype));
             llvm::Constant *rlr1 = rebuilder.getInt64((int64_t)gis2.vbyvalret);
             llvm::Value *rlr2 = llvm::ConstantExpr::getIntToPtr(rlr1, sretype);
@@ -654,7 +652,7 @@ llvm::Module *OperatorEngine::bind(llvm::Module *mod, QString klass,
     if (dstfun->hasStructRetAttr()) {
         rebuilder.CreateRet(callee_arg_values.at(0));
     } else if (dstfun->doesNotReturn()
-               || (llvm::IRBuilder<>(mod->getContext())).getVoidTy() == dstfun->getReturnType()
+               || (llvm::IRBuilder<>(remod->getContext())).getVoidTy() == dstfun->getReturnType()
                // || dstfun->getReturnType() == builder.getVoidTy()
                || dstfun->getReturnType()->isVoidTy()) {
         rebuilder.CreateRetVoid();
@@ -674,7 +672,7 @@ llvm::Module *OperatorEngine::bind(llvm::Module *mod, QString klass,
 
     qDebug()<<"operator bind done."<<lamsym;
     // mod->dump();
-    DUMP_IR(mod);
+    DUMP_IR(remod);
 
     return remod;
     return NULL;
@@ -807,7 +805,7 @@ llvm::DataLayout *OperatorEngine::getDataLayout(llvm::Module *mod)
     static llvm::DataLayout *pdlo = NULL;
     if (pdlo == NULL) {
         // pdlo = new llvm::DataLayout("e-m:e-i64:64-f80:128-n8:16:32:64-S128");
-        pdlo = new llvm::DataLayout(*mod->getDataLayout());
+        pdlo = new llvm::DataLayout(mod->getDataLayout());
     }
     // qDebug()<<mod->getDataLayout()->getStringRepresentation().c_str();
     return pdlo;
@@ -820,7 +818,7 @@ llvm::Module *OperatorEngine::createRemod(llvm::Module *mod)
     llvm::Module *remod = new llvm::Module(modname.toStdString(), *mvmctx);
     llvm::DataLayout *dlo = this->getDataLayout(mod);
     // mmod->setDataLayout(ctx.getTargetInfo().getTargetDescription());
-    remod->setDataLayout(dlo);
+    remod->setDataLayout(*dlo);
 
     QString rename = QString::fromStdString(remod->getName().str())/*.replace("remod", "runpxy")*/;
     llvm::IRBuilder<> builder(*mvmctx);

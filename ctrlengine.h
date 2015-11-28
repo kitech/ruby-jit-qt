@@ -11,6 +11,10 @@
 #include <QtCore>
 #include <llvm/ExecutionEngine/GenericValue.h>
 
+namespace llvm {
+    class Module;
+};
+
 namespace clang {
     class CompilerInstance;
     class CompilerInvocation;
@@ -42,9 +46,12 @@ public:
     QString vm_qdebug(void *kthis, QString klass);
 
     // improve
-    
+
     // hot fix
     QVariant vm_call_hotfix(void *kthis, QString klass, QString method, QVector<QVariant> uargs);
+
+private:
+    llvm::Module* process_dargs(QVector<QVariant> &dargs);
     
 public:
     // 调度组件可能不需要这些组件，只管理调度问题。

@@ -68,6 +68,7 @@ public:
     llvm::Module* conv_dtor(clang::ASTUnit *unit, clang::CXXDestructorDecl *dtor);
     llvm::Module* conv_method2(clang::ASTUnit *unit, clang::CXXMethodDecl *mth);
     llvm::Module* conv_function2(clang::ASTUnit *unit, clang::FunctionDecl *mth);
+    llvm::Module* conv_dargs(clang::ASTUnit *unit, clang::FunctionDecl *fd, QVector<QVariant> &dargs);
 
     bool gen_ctor(CompilerUnit *cu, clang::CXXConstructorDecl *yactor = NULL);
     bool gen_dtor(CompilerUnit *cu, clang::CXXDestructorDecl *yadtor = NULL);
@@ -121,6 +122,8 @@ public:
     QVector<QString> mUndefSymbols;
     QHash<QString, bool> mNoinlineSymbols;
     QVector<QVariant> mdargs;
+
+    llvm::Module *mremod = NULL;
 };
 
 #endif /* COMPILERENGINE_H */
