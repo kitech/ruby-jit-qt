@@ -99,7 +99,7 @@ set(handby_lib_SRCS
     clvm_letacy.cpp
     ivm/clvmjitlistener.cpp
     ivm/misc.cpp
-    namelookup.cpp
+#    namelookup.cpp
     callargument.cpp
     invokestorage.cpp
 #   metalize/metar_qt.cpp
