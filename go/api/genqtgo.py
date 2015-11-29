@@ -6,6 +6,7 @@ import clang.cindex
 clang.cindex.Config.set_library_file('/usr/lib/libclang.so')
 compile_args = ['-x', 'c++', '-std=c++11', '-D__CODE_GENERATOR__']
 
+
 def demo_cmdline():
     index = clang.cindex.Index.create()
     translate_unit = index.parse(sys.argv[1], compile_args)
@@ -72,25 +73,42 @@ def build_golang_type_for_class(mod, cls, methods):
 
     # import
     code += "import \"unsafe\"\n"
+    code += "import \"qt/dynamic\"\n"
     code += "\n"
 
     # init
-    code += "func init(){}\n\n"
+    code += "func init() {\n"
+    code += "    dynamic.KeepIt()\n"
+    code += "}\n\n"
 
     # type
     code += "type " + cls + " struct {\n"
-    code += "    o *unsafe.Pointer\n"
+    code += "    Xa unsafe.Pointer\n"
+    code += "    Xb dynamic.QClass\n"
     code += "}\n\n"
 
     # new
-    code += "func New" + cls + "() *" + cls + "{\n"
-    code += "    var o *unsafe.Pointer = nil\n"
-    code += "    return &" + cls + "{o: o}\n"
+    code += "func New" + cls + "(args ...interface{}) *" + cls + "{\n"
+    code += "    var x unsafe.Pointer = nil\n"
+    code += "    x = dynamic.Initialize(args ...)\n"
+    code += "    rv := new(" + cls + ")\n"
+    code += "    rv.Xa = x\n"
+    code += "    rv.Xb.X = x\n"
+    code += "    rv.Xb.A = 123\n"
+    code += "    rv.Xb.N = \"" + cls + "\"\n"
+    code += "    return rv\n"
+    code += "    // return &" + cls + "{Xa: x}\n"
+    code += "}\n\n"
+
+    # free
+    code += "func (this *" + cls + ") Free() {\n"
+    code += "    dynamic.Destructor(this.Xa)\n"
     code += "}\n\n"
 
     # method missing
     code += "func (this *" + cls + ") method_missing(mth string, args ...interface{}) interface{} {\n"
-    code += "    return 0\n"
+    code += "    return dynamic.MethodMissing(this, args ...)\n"
+    code += "    // return 0\n"
     code += "}\n\n"
 
     def title_method_name(name):

@@ -2,9 +2,10 @@ package dynamic
 
 /*
 // 可重复
-#cgo CFLAGS: -Wall -O2
+#cgo CFLAGS: -Wall -O2 -g
+#cgo CXXFLAGS: -DQT_MESSAGELOGCONTEXT=1 -DLLVM_DUMP_COLOR=1
 #cgo CFLAGS: -I/usr/include/ruby-2.2.0 -I/usr/include/ruby-2.2.0/x86_64-linux
-#cgo CXXFLAGS: -x c++ -std=c++1y -Wall -O2 -fPIC -I/usr/include/qt -I/usr/include/qt/QtCore
+#cgo CXXFLAGS: -x c++ -std=c++14 -Wall -O2 -fPIC -I/usr/include/qt -I/usr/include/qt/QtCore
 #cgo CXXFLAGS: -I/home/gzleo/oss/rubyjitqt/go
 #cgo CXXFLAGS: -I/usr/include/ruby-2.2.0  -I/usr/include/ruby-2.2.0/x86_64-linux
 #cgo LDFLAGS:  -Wl,-rpath,/home/gzleo/oss/rubyjitqt/ -L/home/gzleo/oss/rubyjitqt/ -lhandby

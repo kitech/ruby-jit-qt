@@ -2,7 +2,7 @@
 #include "debugoutput.h"
 #include "ctrlengine.h"
 
-#include "go/api/src/dynamic/vtype.h"
+#include "go/api/src/qt/dynamic/vtype.h"
 #include "goinit.h"
 
 static GoInit *goinit = NULL;
@@ -23,6 +23,7 @@ void GoInit::initialize()
 {
     qInstallMessageHandler(myMessageOutput);
     gce = new CtrlEngine();
+    qDebug()<<"here";
 }
 
 #define EARGS(argv, klass) \

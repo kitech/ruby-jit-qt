@@ -9,8 +9,8 @@ import (
 import "qt/dynamic"
 
 type QString struct {
-	X unsafe.Pointer
-	b dynamic.QClass
+	Xa unsafe.Pointer
+	Xb dynamic.QClass
 
 	// AStaticMethod func(args... interface{}) interface{}
 }
@@ -57,14 +57,15 @@ func QMax(args ...interface{}) interface{} {
 func NewString(args ...interface{}) *QString {
 	x := dynamic.Initialize(args...)
 	rv := new(QString)
-	rv.X = x
-	rv.b.X = x
-	rv.b.A = 123
+	rv.Xa = x
+	rv.Xb.X = x
+	rv.Xb.A = 123
+	rv.Xb.N = "QString"
 	return rv
 }
 
 func (this *QString) Free() {
-	dynamic.Destructor(this.X)
+	dynamic.Destructor(this.Xa)
 }
 
 func (this *QString) Length(args ...interface{}) interface{} {
@@ -82,18 +83,18 @@ func (this *QString) AnyCall(args ...interface{}) interface{} {
 
 ////////////
 type QApplication struct {
-	X unsafe.Pointer
+	Xa unsafe.Pointer
 }
 
 func NewApplication(args ...interface{}) *QApplication {
 	x := dynamic.Initialize(args...)
 	rv := new(QApplication)
-	rv.X = x
+	rv.Xa = x
 	return rv
 }
 
 func (this *QApplication) Free() {
-	dynamic.Destructor(this.X)
+	dynamic.Destructor(this.Xa)
 }
 
 func (this *QApplication) Length(args ...interface{}) interface{} {

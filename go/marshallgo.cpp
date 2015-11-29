@@ -1,7 +1,7 @@
 
 #include "qtobjectmanager.h"
 
-#include "go/api/src/dynamic/vtype.h"
+#include "go/api/src/qt/dynamic/vtype.h"
 #include "marshallgo.h"
 
 /*
