@@ -52,12 +52,17 @@ if("${LLVM_CONFIG}" STREQUAL "")
     set(LLVM_CONFIG llvm-config)
 endif("${LLVM_CONFIG}" STREQUAL "")
 exec_program(${LLVM_CONFIG} ARGS --cxxflags 
-  OUTPUT_VARIABLE CLANG_CXXFLAGS_OUTPUT RETURN_VALUE CLANG_CXXFLAGS_VALUE)
-message("clang defs: ${CLANG_CXXFLAGS_OUTPUT}")
-# message(${CLANG_CXXFLAGS_VALUE})
-#add_definitions(${CLANG_CXXFLAGS_OUTPUT} )
-#set(COMPILER_FLAGS ${CLANG_CXXFLAGS_OUTPUT})
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CLANG_CXXFLAGS_OUTPUT}")
+  OUTPUT_VARIABLE LLVM_CXXFLAGS_OUTPUT RETURN_VALUE LLVM_CXXFLAGS_VALUE)
+message("clang defs: ${LLVM_CXXFLAGS_OUTPUT}")
+# message(${LLVM_CXXFLAGS_VALUE})
+
+exec_program(${LLVM_CONFIG} ARGS --libs
+  OUTPUT_VARIABLE LLVM_LIBS_OUTPUT RETURN_VALUE LLVM_LIBS_VALUE)
+# message("llvm libs: ${LLVM_LIBS_OUTPUT}")
+
+#add_definitions(${LLVM_CXXFLAGS_OUTPUT} )
+#set(COMPILER_FLAGS ${LLVM_CXXFLAGS_OUTPUT})
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LLVM_CXXFLAGS_OUTPUT}")
 
 ### fix c++11 => c++14 => c++17
 string(REPLACE "-std=gnu++11" "-std=c++14" NEW_FLAGS ${CMAKE_CXX_FLAGS})
@@ -122,28 +127,33 @@ set(handby_exe_SRCS
     block.cpp
 )
 
-# set(CLANGLIBS  -lclang -lLLVM-3.6
-set(CLANGLIBS  -lclang
-		 -lclangTooling
-		-lclangFrontendTool  
-		-lclangFrontend
-		-lclangDriver
-		-lclangSerialization
-		-lclangCodeGen 
-		-lclangParse 
-		-lclangSema 
-		-lclangStaticAnalyzerFrontend 
-		-lclangStaticAnalyzerCheckers 
-		-lclangStaticAnalyzerCore
-		-lclangAnalysis
-		-lclangARCMigrate
-		-lclangRewriteFrontend
-		-lclangRewrite
-		-lclangEdit
-		-lclangASTMatchers
-		-lclangAST
-		-lclangLex
-		-lclangBasic
+# 还是全静态编译靠谱些。
+# set(CLANGLIBS  -lclang -lLLVM-3.7
+set(CLANGLIBS
+    -lclangTooling
+    -lclangFrontendTool
+    -lclangFrontend
+    -lclangDriver
+    -lclangSerialization
+    -lclangCodeGen
+    -lclangParse
+    -lclangSema
+    -lclangStaticAnalyzerFrontend
+    -lclangStaticAnalyzerCheckers
+    -lclangStaticAnalyzerCore
+    -lclangAnalysis
+    -lclangARCMigrate
+    -lclangRewriteFrontend
+    -lclangRewrite
+    -lclangEdit
+    -lclangASTMatchers
+    -lclangAST
+    -lclangLex
+    -lclangBasic
+
+    -lncurses  # 如果不加这个的话，出现undefined symbol: setupterm，可是在哪儿用的呢
+    # below from llvm-config --libs
+    ${LLVM_LIBS_OUTPUT}
 )
 
 add_library(handby SHARED ${handby_lib_SRCS})
