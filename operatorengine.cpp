@@ -243,6 +243,9 @@ OperatorEngine::ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &build
                     std::vector<llvm::Value*> idxList = {builder.getInt32(0), builder.getInt32(0)};
                     llvm::Value* tlc = builder.CreateGEP(evals.value(argval), idxList);
                     lv = builder.CreateLoad(tlc);
+                    // QFlags的生成还是有bug，这个能简单的fix，但是对于有值的就有问题了。
+                    // 测试的时候可以传递个flag值，看一下是什么样的呢？
+                    lv = builder.getInt32(0);
                 } else {
                     lv = builder.getInt32(0);
                 }
