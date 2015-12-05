@@ -14,7 +14,7 @@ def main()
     si = Qt5::QSpacerItem.new(5, 200)
     lo = Qt5::QLayoutItem.new()
     
-    #a.exec
+    a.exec
 end
 
 main()

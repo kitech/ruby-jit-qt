@@ -1884,6 +1884,8 @@ bool CompilerEngine::gen_undefs2(CompilerUnit *cu, clang::FunctionDecl *yafun, c
                 "_ZN5QSizeC1Eii", "_ZN5QRectC1Eiiii", "_ZN5QRectC1Ev",
                 "_ZN11QSizePolicyC1ENS_6PolicyES0_NS_11ControlTypeE",
                 "_ZN11QLayoutItemC1E6QFlagsIN2Qt13AlignmentFlagEE",
+                "_ZN6QFlagsIN2Qt13AlignmentFlagEEC1EMNS2_",
+                "_ZN6QFlagsIN2Qt13AlignmentFlagEEC1ERKS2_",
                 "_ZN5QIconC1Ev",
             };
             if (known_syms.contains(tsym)) {

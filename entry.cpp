@@ -152,7 +152,8 @@ static QGenericArgument Variant2Arg(int type, QVariant &v, int idx, InvokeStorag
 #include "frontengine.h"
 #include "tests.cpp"
 
-static CtrlEngine *gce = new CtrlEngine();
+// static CtrlEngine *gce = new CtrlEngine();
+static CtrlEngine *gce = NULL;
 
 /*
   统一的to_s方法

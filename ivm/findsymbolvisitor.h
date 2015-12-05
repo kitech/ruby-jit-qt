@@ -43,9 +43,14 @@ public:
     bool TraverseCXXMemberCallExpr(clang::CXXMemberCallExpr *ce);
     bool TraverseCXXTemporaryObjectExpr(clang::CXXTemporaryObjectExpr *ce);
     bool TraverseCXXConstructExpr(clang::CXXConstructExpr *ce);
+    bool TraverseCXXCtorInitializer(clang::CXXCtorInitializer *ce);
     bool TraverseCXXDefaultArgExpr(clang::CXXDefaultArgExpr *ce);
     bool TraverseCXXThisExpr(clang::CXXThisExpr *ce);
-    
+    bool TraverseDeclRefExpr(clang::DeclRefExpr *ce);
+    bool TraverseImplicitCastExpr(clang::ImplicitCastExpr *ce);
+    bool TraverseMemberExpr(clang::MemberExpr *ce);
+    bool TraverseMaterializeTemporaryExpr(clang::MaterializeTemporaryExpr *ce);
+
     bool shouldVisitTemplateInstantiations() const { return true; }
     bool shouldVisitImplicitCode() const { return true; }
 };
