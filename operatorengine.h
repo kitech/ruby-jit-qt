@@ -55,6 +55,7 @@ public:
 private:
     // 正确地从 mod 和 mtmod两者中选择合适的类型
     llvm::Type *uniqTy(llvm::Module *mod, QString tystr);
+    // module参数，为了正确取到类型。
     std::vector<llvm::Value*>
     ConvertToCallArgs(llvm::Module *module, llvm::IRBuilder<> &builder,
                       QVector<QVariant> uargs, QVector<QVariant> dargs,

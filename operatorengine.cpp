@@ -548,7 +548,7 @@ llvm::Module *OperatorEngine::bind(llvm::Module *qtmod, llvm::Module *remod, QSt
 
     // Add uarg
     std::vector<llvm::Value*> more_values = 
-        ConvertToCallArgs(remod, rebuilder, uargs, dargs, mtdargs, dstfun, !is_static && kthis != NULL);
+        ConvertToCallArgs(qtmod, rebuilder, uargs, dargs, mtdargs, dstfun, !is_static && kthis != NULL);
     // std::copy(more_values.begin(), more_values.end(), callee_arg_values.end());// why???
     for (auto v: more_values) callee_arg_values.push_back(v);
 

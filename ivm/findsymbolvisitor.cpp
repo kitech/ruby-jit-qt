@@ -23,7 +23,7 @@ void FindSymbolVisitor::Run()
 
 void FindSymbolVisitor::Run(clang::Decl *d)
 {
-
+    /*
     // for ctor's CtorInit
     // TODO should move to TraverseCXXConstructExpr()
     if (llvm::isa<clang::CXXConstructorDecl>(d)) {
@@ -52,7 +52,8 @@ void FindSymbolVisitor::Run(clang::Decl *d)
     } else {
         // qDebug()<<"Null stmts:"<<d;
     }
-    // this->TraverseDecl(d);
+    */
+    this->TraverseDecl(d);
 }
 
 /*
