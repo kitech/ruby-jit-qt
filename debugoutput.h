@@ -4,6 +4,10 @@
 #include <QtCore>
 
 
+// usage:
+// #include "debugoutput.h"
+// qInstallMessageHandler(myMessageOutput);
+
 void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg);
 
 
